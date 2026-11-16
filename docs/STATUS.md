@@ -34,7 +34,7 @@ All streams are merged into `v2`. Every row below passed on the combined branch.
 | All migrations apply as hosted `postgres` | every database suite applies them that way |
 | **Deploy and recovery path:** `supabase db push` builds the same database as the tests' replay; `scripts/db-backup.sh` writes one encrypted file; `scripts/db-restore.sh` brings back every row into a pushed, empty project and refuses one with data; the keep-awake query works (2026-11-16) | `npm run test:db:backup` |
 
-Unit tests: `npm run test:unit`. All mocked browser tests: `npm run test:browser` (live specs skip themselves). Typecheck, unit, build and mocked browser tests re-run green on 2026-11-16. CI: `.github/workflows/ci.yml` (not yet run on GitHub).
+Unit tests: `npm run test:unit`. All mocked browser tests: `npm run test:browser` (live specs skip themselves). Typecheck, unit, build and mocked browser tests re-run green on 2026-11-16. CI: `.github/workflows/ci.yml` runs on pull requests and pushes to `v2`; green on GitHub (2026-11-16).
 
 ## Not done yet
 
