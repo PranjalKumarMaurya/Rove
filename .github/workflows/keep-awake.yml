@@ -1,0 +1,32 @@
+name: Keep Supabase awake
+
+# Free Supabase projects pause after about a week with little database activity.
+# One tiny query twice a week keeps the hosted project awake; if the project is
+# already paused the query fails and GitHub emails the repository owner.
+# Needs the SUPABASE_DB_URL secret (session pooler connection string) and, like
+# every scheduled workflow, only runs from the repository's default branch.
+on:
+  schedule:
+    - cron: '23 5 * * 1,4'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Query the hosted database
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - name: Query the database
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::notice::SUPABASE_DB_URL is not set, so there is nothing to keep awake."
+            exit 0
+          fi
+          command -v psql >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client; }
+          psql "$SUPABASE_DB_URL" --no-psqlrc -v ON_ERROR_STOP=1 -tAc 'select count(*) from public.group_members' >/dev/null
+          echo "The database answered."

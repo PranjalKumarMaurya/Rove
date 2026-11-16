@@ -1,0 +1,55 @@
+name: Database backup
+
+# Weekly encrypted dump of the hosted database (roles, schema, data), kept as a
+# workflow artifact for 60 days. The free Supabase plan has no backups you can
+# download. Storage files (photos, tickets) are not included.
+# Needs the SUPABASE_DB_URL (session pooler connection string) and
+# BACKUP_PASSPHRASE secrets, and only runs on schedule from the default branch.
+# To recover: `npx supabase db push` on a new project, then scripts/db-restore.sh.
+on:
+  schedule:
+    - cron: '41 3 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Dump, encrypt and keep
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Check the secrets are set
+        id: config
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::notice::SUPABASE_DB_URL or BACKUP_PASSPHRASE is not set, so the backup is skipped."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.config.outputs.ready == 'true'
+        uses: actions/checkout@v4
+      - if: steps.config.outputs.ready == 'true'
+        uses: supabase/setup-cli@v1
+        with:
+          # Same CLI as package.json.
+          version: 2.105.0
+      - name: Dump and encrypt
+        if: steps.config.outputs.ready == 'true'
+        run: scripts/db-backup.sh backup
+      - if: steps.config.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: trip-db-${{ github.run_id }}
+          path: backup/*.gpg
+          retention-days: 60
+          if-no-files-found: error

@@ -4,7 +4,8 @@
 // the service-role key and never creates Events.
 //
 // Secrets: ANTHROPIC_API_KEY (required for real parsing), SCAN_PARSE_MODEL
-// (optional), SCAN_PARSE_STUB=1 (local stacks and tests only: deterministic draft),
+// (optional, default claude-haiku-5-5; claude-haiku-4-5 also works),
+// SCAN_PARSE_STUB=1 (local stacks and tests only: deterministic draft),
 // SCAN_PARSE_DAILY_LIMIT_MEMBER / SCAN_PARSE_DAILY_LIMIT_TRIP (parses per person
 // and per Trip in any 24 hours; default 20 and 100). The stub counts too.
 import { createClient } from 'npm:@supabase/supabase-js@2'
@@ -62,6 +63,10 @@ function openStore(authorization: string): ParseStore {
 
 function anthropicExtractor(apiKey: string, model: string): Extractor {
   const anthropic = new Anthropic({ apiKey, maxRetries: 1, timeout: 60_000 })
+  // Haiku 5.5 thinks by default, and thinking counts toward max_tokens: low effort
+  // keeps a ticket read quick and cheap, and the cap leaves room for both. Haiku 4.x
+  // rejects the effort setting, so it only goes to newer models.
+  const effort = /^claude-haiku-4/u.test(model) ? {} : { effort: 'low' as const }
   return async ({ file, trip }) => {
     const data = bytesToBase64(file.bytes)
     const source = file.mimeType === 'application/pdf'
@@ -69,10 +74,10 @@ function anthropicExtractor(apiKey: string, model: string): Extractor {
       : { type: 'image' as const, source: { type: 'base64' as const, media_type: file.mimeType as 'image/jpeg' | 'image/png' | 'image/webp', data } }
     const response = await anthropic.messages.create({
       model,
-      max_tokens: 4096,
+      max_tokens: 16_000,
       system: EXTRACTION_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: [source, { type: 'text', text: buildExtractionPrompt(trip) }] }],
-      output_config: { format: { type: 'json_schema', schema: EXTRACTION_SCHEMA } },
+      output_config: { ...effort, format: { type: 'json_schema', schema: EXTRACTION_SCHEMA } },
     })
     if (response.stop_reason === 'refusal' || response.stop_reason === 'max_tokens') throw new Error('extraction_incomplete')
     const text = response.content.find((block) => block.type === 'text')
@@ -84,7 +89,7 @@ function anthropicExtractor(apiKey: string, model: string): Extractor {
 const apiKey = Deno.env.get('ANTHROPIC_API_KEY') ?? ''
 const extractor: Extractor | null = Deno.env.get('SCAN_PARSE_STUB') === '1'
   ? createStubExtractor()
-  : apiKey ? anthropicExtractor(apiKey, Deno.env.get('SCAN_PARSE_MODEL') || 'claude-haiku-4-5-20251001') : null
+  : apiKey ? anthropicExtractor(apiKey, Deno.env.get('SCAN_PARSE_MODEL') || 'claude-haiku-5-5') : null
 
 // Log only outcome codes: never document content, names, or tokens.
 Deno.serve(createParseHandler({

@@ -60,7 +60,8 @@
     "test:extras:db": "node tests/database/extras/verify-extras-db.mjs",
     "test:extras:live": "node tests/integration/run-extras-live.mjs",
     "test:db:home": "node tests/database/home-profile/verify-home-profile.mjs",
-    "test:home:live": "node tests/integration/run-home-profile-live.mjs"
+    "test:home:live": "node tests/integration/run-home-profile-live.mjs",
+    "test:db:backup": "node tests/database/backup/verify-backup-restore.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

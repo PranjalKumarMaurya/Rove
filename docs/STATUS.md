@@ -32,16 +32,51 @@ All streams are merged into `v2`. Every row below passed on the combined branch.
 | **Installable app (PWA):** manifest, icons, app-shell service worker (never caches data or auth), offline notice, update prompt | `tests/browser/pwa/installable-app.spec.ts` |
 | Legacy public `tickets` bucket is private; old open policies dropped (objects kept for the Bali import) (090) | `npm run test:extras:db` |
 | All migrations apply as hosted `postgres` | every database suite applies them that way |
+| **Deploy and recovery path:** `supabase db push` builds the same database as the tests' replay; `scripts/db-backup.sh` writes one encrypted file; `scripts/db-restore.sh` brings back every row into a pushed, empty project and refuses one with data; the keep-awake query works (2026-11-16) | `npm run test:db:backup` |
 
-Unit tests: `npm run test:unit`. All mocked browser tests: `npm run test:browser` (live specs skip themselves). CI: `.github/workflows/ci.yml` (not yet run on GitHub).
+Unit tests: `npm run test:unit`. All mocked browser tests: `npm run test:browser` (live specs skip themselves). Typecheck, unit, build and mocked browser tests re-run green on 2026-11-16. CI: `.github/workflows/ci.yml` (not yet run on GitHub).
 
 ## Not done yet
 
-- **Nothing after migration 009 is deployed.** Deploying needs: migrations 010–091 in order, a **custom SMTP provider** (Supabase's built-in email only reaches project team members, 2/hour), Auth site and redirect URLs for the web host, the `parse-document` function with `ANTHROPIC_API_KEY` (optional `SCAN_PARSE_DAILY_LIMIT_MEMBER`/`_TRIP`), and the frontend build with `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` (optional `VITE_SUPPORT_EMAIL`).
-- **Bali data import** (one-time script; reads the now-private `tickets` bucket with the service role).
-- Backups and error monitoring for production.
-- Unverified until deploy: real Claude extraction (stub only locally), the change-email round trip, and `delete_my_account` deleting `auth.users` as hosted `postgres` (works locally).
-- Smaller gaps: co-members' photo avatars are not shown in Crew/Split yet (hooks exist); one-step "transfer and leave"; invitation list shows the newest 50; archived Trips can be restored but not browsed; roster is not live; privacy/terms text is placeholder.
+- **Nothing after migration 009 is deployed.** Follow the [deploy runbook](#deploy-runbook-free-tier) below.
+- **Bali data import** (one-time script). The v1 data lives in the old "Travel" Supabase project, which was paused when checked on 2026-11-16; the script reads it (including the private `tickets` bucket, with the service role) and writes into the new project.
+- Error monitoring for production. Backups: `.github/workflows/db-backup.yml` (weekly, encrypted; tested locally by `npm run test:db:backup`), not yet run on GitHub.
+- Unverified until deploy: real Claude extraction (stub only locally; the call now uses Claude Haiku 5.5 at low effort and type-checks against the Anthropic SDK 1.8.0 the function loads), the change-email round trip, and `delete_my_account` deleting `auth.users` as hosted `postgres` (works locally).
+- Smaller gaps: co-members' photo avatars are not shown in Crew/Split yet (hooks exist); one-step "transfer and leave"; invitation list shows the newest 50; archived Trips can be restored but not browsed; roster is not live; privacy/terms text is placeholder (it should say that scanned documents are sent to Anthropic).
+- **Supabase free plan pauses idle projects** after about a week of low database activity. `.github/workflows/keep-awake.yml` queries the database twice a week once its secret is set; before a trip, still open the app the day before.
+- Not yet confirmed by the product owner: the creator of an expense or settlement, or the Owner, can edit and delete it.
+
+## Deploy runbook (free tier)
+
+Stack, all on free plans: **Supabase Free** (database, auth, storage, functions), **Cloudflare Pages** (the static site; its free plan allows commercial use, Vercel Hobby does not), **Gmail SMTP** from a dedicated Gmail account for auth email (about 500 a day, no domain needed; move to Resend once there is a domain), and **Anthropic API credits** for Scan (pay as you go, no free tier; without a key Scan fails cleanly and people add events by hand).
+
+0. **Old project.** The v1 project ("Travel") is paused. In the Supabase dashboard, restore it, or download its database backup and Storage files if restoring is no longer offered. Keep it only as the Bali import source: v2 goes into a new project. The free plan allows two active projects, so leave any other paused project paused. Reusing it would replay 001–009 (applied there by hand), and 090 makes the v1 site's tickets private.
+1. **Database.** Create a Supabase Free project (region: Mumbai), then:
+   ```bash
+   npx supabase link --project-ref <new-project-ref>
+   npx supabase db push
+   ```
+   Never add `--include-seed`: `supabase/seed.sql` is the v1 Bali seed.
+2. **Auth** (Dashboard → Authentication):
+   - URL configuration: set the Site URL to the production web address and add the same address to Redirect URLs (sign-up and reset links go to the Site URL, email-change links to the page's origin).
+   - Emails → SMTP settings: `smtp.gmail.com`, port 587, the Gmail address, a Google app password (needs 2-Step Verification), sender name "Trip". Keep "Confirm email" on. Sign-up and reset emails carry a link, not a code, so the default templates work.
+   - Rate limits: raise "emails per hour" above the default.
+3. **Scan function.**
+   ```bash
+   npx supabase secrets set --env-file <file outside the repo with ANTHROPIC_API_KEY=…>
+   npx supabase functions deploy parse-document
+   ```
+   Optional secrets: `SCAN_PARSE_MODEL` (default `claude-haiku-5-5`; `claude-haiku-4-5` also works) and `SCAN_PARSE_DAILY_LIMIT_MEMBER` / `_TRIP` (default 20 / 100). Never set `SCAN_PARSE_STUB` on a hosted project. If signed-in calls get a 401 from the platform, redeploy with `--no-verify-jwt`: the function checks the caller itself.
+4. **Website** (Cloudflare Pages → connect the GitHub repo): production branch `v2` (later `main`), build command `npm run build`, output directory `dist`, environment variables `NODE_VERSION=24`, `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (Project Settings → API), optional `VITE_SUPPORT_EMAIL`. Invite links use `#invite=…`, so no redirect rules are needed.
+5. **GitHub secrets** for the keep-awake and backup workflows: `SUPABASE_DB_URL` (Connect → **Session pooler** connection string, because GitHub runners have no IPv6) and `BACKUP_PASSPHRASE` (keep a copy in a password manager: without it the backups cannot be opened). Scheduled workflows only run from the default branch, so they start once `v2` is merged into `main`; run each once by hand from the Actions tab. Backups stay on the run for 60 days as artifacts. To recover, run `npx supabase db push` on a new project, then `scripts/db-restore.sh` with the backup (instructions at the top of the script). Storage files (photos, tickets) are not in the backup.
+6. **Smoke test** (two phones, two accounts), then promote `v2` → `dev` → `main`:
+    1. Sign up: the confirmation link arrives through the SMTP provider and opens the app; log out and back in with the password.
+    2. Password reset email arrives and works.
+    3. Create a domestic Trip (no FX tab) and an international Trip (FX tab shows).
+    4. Invite link: second account opens it, joins, and appears in Crew on both phones.
+    5. Add an expense with a split: balances match on both phones and update live.
+    6. Upload a ticket in Scan: extraction works with `ANTHROPIC_API_KEY` set, or fails cleanly without it.
+    7. Install as a PWA on a phone; reopen it, then turn data off and check the offline notice.
 
 ## Known issues
 
@@ -68,3 +103,4 @@ Unit tests: `npm run test:unit`. All mocked browser tests: `npm run test:browser
 | Crew | 060–069 | 58900 | 4184 |
 | Home, profile, Trip settings | 070–089 | 58950/58970 | 4186 |
 | Extras and hardening | 090–099 | 59000/59100 | 4185 |
+| Backup and restore | — | 59200/59220 | — |

@@ -52,7 +52,9 @@ npm run test:browser # Playwright (mocked specs)
 1. Create a Supabase project and apply `supabase/migrations` in order.
 2. Set up a custom SMTP provider for auth emails, and set the Auth site and redirect URLs for your web host.
 3. Deploy the `parse-document` Edge Function with the `ANTHROPIC_API_KEY` secret.
-4. Build the frontend with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, then host it (for example on Vercel).
+4. Build the frontend with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, then host it (for example on Cloudflare Pages).
+
+The full free-tier runbook (Supabase Free, Cloudflare Pages, Gmail SMTP, keep-awake and encrypted backups) is in [`docs/STATUS.md`](docs/STATUS.md#deploy-runbook-free-tier).
 
 ## Credits
 
