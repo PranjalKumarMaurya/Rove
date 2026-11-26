@@ -211,6 +211,36 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
     await expect(owner.getByTestId('scan-document').filter({ hasText: 'unreadable-voucher.pdf' })).toContainText('In itinerary: Hotel check-in')
     expect((await ownerContext.request.get(signedUrl)).ok()).toBe(false)
 
+    // Several files at once: nothing pops up; they're read in the background and "Review next" walks through them.
+    await fileInput.setInputFiles([
+      { name: 'taxi-receipt.png', mimeType: 'image/png', buffer: png },
+      { name: 'ferry-ticket.png', mimeType: 'image/png', buffer: png },
+      { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') },
+    ])
+    await expect(owner.getByTestId('scan-selected-files')).toContainText('taxi-receipt.png')
+    await expect(owner.getByTestId('scan-batch-note')).toContainText('2 files ready.')
+    await expect(owner.getByTestId('scan-batch-note')).toContainText('Left out: notes.txt')
+    await owner.getByRole('button', { name: 'Upload 2 files' }).click()
+    await expect(scan).toContainText('2 added to Trip documents', { timeout: 30_000 })
+    await expect(review).toHaveCount(0)
+    await expect(owner.getByTestId('expense-form')).toHaveCount(0)
+    await expect(owner.getByTestId('scan-document').filter({ hasText: 'taxi-receipt.png' })).toContainText('Bill ready to split')
+    await expect(owner.getByTestId('scan-document').filter({ hasText: 'ferry-ticket.png' })).toContainText('Booking ready to review')
+    const next = owner.getByTestId('scan-review-next')
+    await expect(next).toContainText('2 waiting')
+    await next.click()
+    await expect(owner.getByTestId('scan-walk')).toContainText('REVIEWING 1 OF 2')
+    await expect(owner.getByTestId('expense-form')).toContainText('Split this bill')
+    await owner.getByTestId('expense-form').getByRole('button', { name: 'Save expense' }).click()
+    // Saving moves straight on to the next one.
+    await expect(owner.getByTestId('scan-walk')).toContainText('REVIEWING 2 OF 2')
+    await expect(review.getByLabel('Title')).toHaveValue('IndiGo 6E-123 · DEL → GOI')
+    await review.getByRole('button', { name: 'Skip' }).click()
+    await expect(scan).toContainText('All caught up')
+    await expect(owner.getByTestId('scan-walk')).toHaveCount(0)
+    await expect(owner.getByTestId('scan-document').filter({ hasText: 'taxi-receipt.png' })).toContainText('In Split')
+    await expect(next).toContainText('1 waiting')
+
     // FX: accounting currency against IDR (a Bali Trip), mocked live rates, two-way input.
     await owner.getByRole('tab', { name: 'FX' }).click()
     const fx = owner.getByTestId('fx-tab')

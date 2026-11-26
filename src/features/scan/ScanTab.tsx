@@ -1,26 +1,26 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { NeonBtn } from '../../components/ui/NeonBtn'
 import type { TripTabProps } from '../workspace/tripTab'
-import { MAX_DOCUMENT_BYTES, billToEventDraft, emptyDraft, eventToBillDraft, type TripContext } from '../../../supabase/functions/_shared/documentDraft.ts'
+import { DEFAULT_MEMBER_PARSE_LIMIT, MAX_DOCUMENT_BYTES, billToEventDraft, emptyDraft, eventToBillDraft, type TripContext } from '../../../supabase/functions/_shared/documentDraft.ts'
 import { ExpenseForm, type ExpensePrefill } from '../split/ExpenseForm'
 import type { LedgerExpense } from '../split/ledger'
 import { loadLedger } from '../split/splitApi'
 import { DraftReviewForm } from './DraftReviewForm'
 import { prepareForUpload } from './prepareImage'
 import {
-  ScanError, type TripDocument, addDocumentEvent, deleteTripDocument, eventAudience, isUnsplitBill, linkDocumentExpense, listTripDocuments,
+  ScanError, type TripDocument, addDocumentEvent, deleteTripDocument, eventAudience, isUnsplitBill, linkDocumentExpense, listTripDocuments, myReadsToday,
   parseTripDocument, signedDocumentUrl, storedDraft, uploadTripDocument,
 } from './documentsApi'
 import {
-  BILL_WARNING_MESSAGES, FILE_PROBLEM_MESSAGES, type BillDraft, type DocumentDraft, type EventInput, billPrefill, bookingCostPrefill, checkSelectedFile,
-  fileKindLabel, formatBytes, isBillDraft, parseFailureMessage,
+  BILL_WARNING_MESSAGES, FILE_PROBLEM_MESSAGES, type BillDraft, type DocumentDraft, type EventInput, batchSummary, billPrefill, bookingCostPrefill,
+  checkSelectedFile, fileKindLabel, formatBytes, isBillDraft, parseFailureMessage, planBatch, reviewQueue, splitReads,
 } from './scanRules'
 
 const ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif'
 
 type Phase =
   | { kind: 'idle' }
-  | { kind: 'uploading' }
+  | { kind: 'uploading'; done?: number; total?: number }
   | { kind: 'parsing'; document: TripDocument }
   | { kind: 'review'; document: TripDocument; draft: DocumentDraft; notice: string | null; canRetry: boolean }
   /** A booking in the itinerary whose cost is being split. `justAdded`: straight after adding it. */
@@ -45,7 +45,15 @@ export function ScanTab({ trip, roster }: TripTabProps) {
     timezone: trip.timezone, startDate: trip.startDate, endDate: trip.endDate, destination: trip.destination,
   }), [trip.timezone, trip.startDate, trip.endDate, trip.destination])
   const inputRef = useRef<HTMLInputElement>(null)
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
+  const file = files.length === 1 ? files[0] : null
+  // Several files: what will happen, shown before uploading.
+  const [batchNote, setBatchNote] = useState<string | null>(null)
+  const [readNowCount, setReadNowCount] = useState(0)
+  // Documents being read in the background after a multi-file upload.
+  const [reading, setReading] = useState<ReadonlySet<string>>(new Set())
+  // "Review next": documents finished or skipped in this walk-through.
+  const [walk, setWalk] = useState<{ handled: ReadonlySet<string> } | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
   const [saving, setSaving] = useState(false)
@@ -78,19 +86,35 @@ export function ScanTab({ trip, roster }: TripTabProps) {
   const busy = phase.kind === 'uploading' || phase.kind === 'parsing'
 
   const choose = (event: ChangeEvent<HTMLInputElement>) => {
-    const next = event.target.files?.[0]
+    const picked = [...(event.target.files ?? [])]
     // A cancelled chooser keeps the previous selection.
-    if (!next) return
+    if (!picked.length) return
     setMessage(null)
-    const problem = checkSelectedFile(next)
-    setFileError(problem ? FILE_PROBLEM_MESSAGES[problem] : null)
-    setFile(problem ? null : next)
-    if (problem && inputRef.current) inputRef.current.value = ''
+    setBatchNote(null)
+    if (picked.length === 1) {
+      const problem = checkSelectedFile(picked[0])
+      setFileError(problem ? FILE_PROBLEM_MESSAGES[problem] : null)
+      setFiles(problem ? [] : picked)
+      if (problem && inputRef.current) inputRef.current.value = ''
+      return
+    }
+    const plan = planBatch(picked)
+    setFileError(plan.accepted.length ? null : 'None of these files can be added. Choose PDFs or photos under the size limit.')
+    setFiles(plan.accepted)
+    if (!plan.accepted.length) return
+    const show = (used: number | null) => {
+      const reads = splitReads(plan.accepted.length, used, DEFAULT_MEMBER_PARSE_LIMIT)
+      setReadNowCount(reads.readNow)
+      setBatchNote(batchSummary(plan, reads))
+    }
+    show(null)
+    void myReadsToday().then(show).catch(() => { /* keep the estimate */ })
   }
 
   const clearFile = () => {
-    setFile(null)
+    setFiles([])
     setFileError(null)
+    setBatchNote(null)
     if (inputRef.current) inputRef.current.value = ''
   }
 
@@ -105,7 +129,49 @@ export function ScanTab({ trip, roster }: TripTabProps) {
     reload()
   }
 
+  // Several files: upload them all, then read them one after another in the
+  // background. Nothing opens; each shows its status in Trip documents and
+  // "Review next" walks through them.
+  const uploadMany = async () => {
+    const batch = files
+    const readNow = readNowCount
+    setMessage(null)
+    setSaveError(null)
+    setPhase({ kind: 'uploading', done: 0, total: batch.length })
+    const uploaded: TripDocument[] = []
+    const failed: string[] = []
+    for (const [index, picked] of batch.entries()) {
+      try {
+        const prepared = await prepareForUpload(picked)
+        if (prepared.size > MAX_DOCUMENT_BYTES) throw new ScanError('too_large')
+        uploaded.push(await uploadTripDocument(trip.groupId, trip.groupMemberId, prepared))
+      } catch {
+        failed.push(picked.name)
+      }
+      setPhase({ kind: 'uploading', done: index + 1, total: batch.length })
+    }
+    clearFile()
+    setPhase({ kind: 'idle' })
+    if (failed.length) setFileError(`These didn’t upload, so nothing was saved for them: ${failed.join(', ')}. Try them again.`)
+    reload()
+    const toRead = uploaded.slice(0, readNow)
+    setReading(new Set(toRead.map((document) => document.id)))
+    setMessage(`Uploaded ${uploaded.length}. Reading ${toRead.length}…`)
+    let stopped = false
+    for (const document of toRead) {
+      if (!stopped) {
+        const outcome = await parseTripDocument(document.id, tripContext)
+        // Out of reads (another device used some): the rest wait as "Not read yet".
+        if (!outcome.ok && (outcome.code === 'parse_limit_reached' || outcome.code === 'trip_parse_limit_reached')) stopped = true
+      }
+      setReading((current) => { const next = new Set(current); next.delete(document.id); return next })
+      reload()
+    }
+    setMessage(`${uploaded.length} added to Trip documents. Tap “Review next” to go through them.`)
+  }
+
   const uploadAndRead = async () => {
+    if (files.length > 1 && !busy) { await uploadMany(); return }
     if (!file || busy) return
     setMessage(null)
     setSaveError(null)
@@ -124,6 +190,35 @@ export function ScanTab({ trip, roster }: TripTabProps) {
     clearFile()
     reload()
     await read(document)
+  }
+
+  // Latest values for the walk-through, which continues after async saves.
+  const latest = useRef({ list, reading, walk })
+  latest.current = { list, reading, walk }
+  const queue = useMemo(() => (list.kind === 'ready' ? reviewQueue(list.documents, walk?.handled ?? new Set(), reading) : []),
+    [list, walk, reading])
+
+  const reviewNext = (handled: ReadonlySet<string>) => {
+    const current = latest.current
+    const next = current.list.kind === 'ready' ? reviewQueue(current.list.documents, handled, current.reading)[0] : undefined
+    if (!next) {
+      setWalk(null)
+      setPhase({ kind: 'idle' })
+      if (handled.size) setMessage(current.reading.size ? 'That’s all for now. More are still being read.' : 'All caught up: nothing left to review.')
+      return
+    }
+    setWalk({ handled: new Set([...handled, next.id]) })
+    review(next)
+  }
+
+  const startWalk = () => { setMessage(null); reviewNext(new Set()) }
+  const stopWalk = () => { setWalk(null); setPhase({ kind: 'idle' }) }
+
+  /** One document is done, skipped or put off: go to the next one while walking, otherwise close. */
+  const finish = () => {
+    const current = latest.current.walk
+    if (current) reviewNext(current.handled)
+    else setPhase({ kind: 'idle' })
   }
 
   const review = (document: TripDocument) => {
@@ -146,8 +241,8 @@ export function ScanTab({ trip, roster }: TripTabProps) {
         setPhase({ kind: 'cost', document, title: input.title, justAdded: true,
           prefill: bookingCostPrefill(draft, input, trip.accountingCurrency, included) })
       } else {
-        setPhase({ kind: 'idle' })
         setMessage(`Added to the itinerary: ${input.title}`)
+        finish()
       }
       reload()
     } catch (error) {
@@ -161,7 +256,6 @@ export function ScanTab({ trip, roster }: TripTabProps) {
 
   // A bill was split: record it on the document so it leaves the "ready to split" list.
   const billSplit = async (document: TripDocument, draft: BillDraft, expenseId: string) => {
-    setPhase({ kind: 'idle' })
     try {
       await linkDocumentExpense(document.id, expenseId)
       setMessage(`Added to Split: ${draft.title}`)
@@ -169,6 +263,7 @@ export function ScanTab({ trip, roster }: TripTabProps) {
       setMessage(`Added to Split: ${draft.title}. This bill still shows as ready to split; don’t split it again.`)
     }
     reload()
+    finish()
   }
 
   // Split a booking that is already in the itinerary (from Trip documents).
@@ -187,7 +282,6 @@ export function ScanTab({ trip, roster }: TripTabProps) {
   }
 
   const costSplit = async (document: TripDocument, title: string, expenseId: string) => {
-    setPhase({ kind: 'idle' })
     try {
       await linkDocumentExpense(document.id, expenseId)
       setMessage(`In the itinerary and in Split: ${title}`)
@@ -195,6 +289,7 @@ export function ScanTab({ trip, roster }: TripTabProps) {
       setMessage(`Added to Split: ${title}. The document doesn’t show it yet; don’t split it again.`)
     }
     reload()
+    finish()
   }
 
   const switchKind = () => {
@@ -212,9 +307,9 @@ export function ScanTab({ trip, roster }: TripTabProps) {
         </p>
         <label className="mt-5 flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed px-4 py-7 text-center focus-within:ring-2 focus-within:ring-[#FF8B4D]"
           style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)', opacity: busy ? 0.5 : 1 }}>
-          <span style={{ color: 'var(--text-primary)' }}>{file ? 'Choose a different file' : 'Choose a ticket, booking, or bill'}</span>
-          <span className="font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.12em' }}>PDF · JPG · PNG · WEBP · HEIC · UP TO 10 MB</span>
-          <input ref={inputRef} type="file" accept={ACCEPT} onChange={choose} disabled={busy} className="sr-only" aria-label="Ticket, booking, or bill file" />
+          <span style={{ color: 'var(--text-primary)' }}>{files.length ? 'Choose different files' : 'Choose tickets, bookings, or bills'}</span>
+          <span className="font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.12em' }}>ONE OR MANY · PDF · JPG · PNG · WEBP · HEIC</span>
+          <input ref={inputRef} type="file" accept={ACCEPT} multiple onChange={choose} disabled={busy} className="sr-only" aria-label="Ticket, booking, or bill file" />
         </label>
         {file && (
           <div data-testid="scan-selected-file" className="mt-3 flex items-center justify-between gap-3 text-sm" style={{ color: 'var(--text-primary)' }}>
@@ -225,21 +320,46 @@ export function ScanTab({ trip, roster }: TripTabProps) {
             </span>
           </div>
         )}
+        {files.length > 1 && (
+          <div data-testid="scan-selected-files" className="mt-3 flex flex-col gap-1 text-sm" style={{ color: 'var(--text-primary)' }}>
+            <ul className="flex flex-col gap-0.5">
+              {files.map((picked) => <li key={`${picked.name}-${picked.size}`} className="truncate" style={{ color: 'var(--text-secondary)' }}>{picked.name}</li>)}
+            </ul>
+            {batchNote && <p data-testid="scan-batch-note" style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>{batchNote}</p>}
+            <button type="button" onClick={clearFile} disabled={busy} className="self-start" style={{ color: 'var(--text-secondary)' }}>Clear</button>
+          </div>
+        )}
         {fileError && <p role="alert" className="mt-3 text-sm" style={{ color: 'var(--accent)' }}>{fileError}</p>}
-        <NeonBtn type="button" onClick={() => void uploadAndRead()} disabled={!file || busy} className="mt-4 w-full" style={{ opacity: !file || busy ? 0.5 : 1 }}>
-          {phase.kind === 'uploading' ? 'Uploading…' : phase.kind === 'parsing' ? 'Reading…' : 'Upload and read'}
+        <NeonBtn type="button" onClick={() => void uploadAndRead()} disabled={!files.length || busy} className="mt-4 w-full" style={{ opacity: !files.length || busy ? 0.5 : 1 }}>
+          {phase.kind === 'uploading'
+            ? (phase.total && phase.total > 1 ? `Uploading ${phase.done ?? 0} of ${phase.total}…` : 'Uploading…')
+            : phase.kind === 'parsing' ? 'Reading…' : files.length > 1 ? `Upload ${files.length} files` : 'Upload and read'}
         </NeonBtn>
         {busy && <p role="status" className="mt-3 text-center font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.12em' }}>
           {phase.kind === 'uploading' ? 'UPLOADING PRIVATELY' : 'READING THE DOCUMENT'}
         </p>}
         {message && <p role="status" className="mt-3 text-sm" style={{ color: 'var(--accent)' }}>{message}</p>}
+        {!walk && phase.kind === 'idle' && queue.length > 0 && (
+          <NeonBtn type="button" variant="outline" color="#FF8B4D" onClick={startWalk} className="mt-4 w-full" data-testid="scan-review-next">
+            Review next · {queue.length} waiting{reading.size ? ` · ${reading.size} reading` : ''}
+          </NeonBtn>
+        )}
       </div>
+
+      {walk && phase.kind !== 'idle' && (
+        <div data-testid="scan-walk" className="-mb-3 flex items-center justify-between gap-3 px-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <span className="font-mono" style={{ fontSize: 11, letterSpacing: '0.08em' }}>
+            REVIEWING {walk.handled.size} OF {walk.handled.size + queue.length}
+          </span>
+          <button type="button" onClick={stopWalk} disabled={saving} style={{ color: 'var(--text-secondary)' }}>Stop reviewing</button>
+        </div>
+      )}
 
       {phase.kind === 'review' && !isBillDraft(phase.draft) && (
         <DraftReviewForm key={`${phase.document.id}-${phase.draft.startsAt ?? ''}-${phase.notice ?? ''}`} draft={phase.draft}
           fileName={phase.document.fileName} notice={phase.notice} tripTimezone={trip.timezone} saving={saving} saveError={saveError}
           members={members} me={trip.groupMemberId} onSwitchToBill={switchKind}
-          onSubmit={(input, audience, addToSplit) => void addToItinerary(input, audience, addToSplit)} onCancel={() => setPhase({ kind: 'idle' })}
+          onSubmit={(input, audience, addToSplit) => void addToItinerary(input, audience, addToSplit)} onCancel={finish} cancelLabel={walk ? 'Skip' : undefined}
           onRetryRead={phase.canRetry ? () => void read(phase.document) : undefined} />
       )}
       {phase.kind === 'review' && isBillDraft(phase.draft) && (
@@ -247,7 +367,7 @@ export function ScanTab({ trip, roster }: TripTabProps) {
           timezone={trip.timezone} international={trip.isInternational} me={trip.groupMemberId} members={members} expense={null}
           prefill={billPrefill(phase.draft, trip.accountingCurrency)} requestId={phase.document.id} heading="Split this bill" existing={existing}
           notice={<BillNotice fileName={phase.document.fileName} draft={phase.draft} onSwitchToBooking={switchKind} />}
-          onClose={() => setPhase({ kind: 'idle' })}
+          onClose={finish}
           onSaved={(expenseId) => { if (phase.kind === 'review' && isBillDraft(phase.draft)) void billSplit(phase.document, phase.draft, expenseId) }} />
       )}
       {phase.kind === 'cost' && (
@@ -259,12 +379,12 @@ export function ScanTab({ trip, roster }: TripTabProps) {
           </p>}
           onClose={() => {
             if (phase.justAdded) setMessage(`Added to the itinerary: ${phase.title}. Split the cost any time from Trip documents.`)
-            setPhase({ kind: 'idle' })
+            finish()
           }}
           onSaved={(expenseId) => { if (phase.kind === 'cost') void costSplit(phase.document, phase.title, expenseId) }} />
       )}
 
-      <DocumentList state={list} names={names} trip={trip} tripContext={tripContext} disabled={busy || saving}
+      <DocumentList state={list} names={names} trip={trip} tripContext={tripContext} disabled={busy || saving} reading={reading}
         onRetry={reload} onReview={review} onSplitCost={(document) => void splitCost(document)} onDeleted={(document) => {
           if (phase.kind === 'review' && phase.document.id === document.id) setPhase({ kind: 'idle' })
           setMessage(`Deleted ${document.fileName}`)
@@ -289,7 +409,8 @@ function BillNotice({ fileName, draft, onSwitchToBooking }: { fileName: string; 
   )
 }
 
-function DocumentList({ state, names, trip, tripContext, disabled, onRetry, onReview, onSplitCost, onDeleted }: {
+function DocumentList({ state, names, trip, tripContext, disabled, reading, onRetry, onReview, onSplitCost, onDeleted }: {
+  reading: ReadonlySet<string>
   state: ListState
   names: Map<string, string>
   trip: TripTabProps['trip']
@@ -317,7 +438,7 @@ function DocumentList({ state, names, trip, tripContext, disabled, onRetry, onRe
       {state.kind === 'ready' && state.documents.length > 0 && (
         <ul aria-label="Trip documents" className="mt-3 flex flex-col gap-2">
           {state.documents.map((document) => (
-            <DocumentRow key={document.id} document={document} disabled={disabled} unsplitBill={isUnsplitBill(document, tripContext)}
+            <DocumentRow key={document.id} document={document} disabled={disabled || reading.has(document.id)} reading={reading.has(document.id)} unsplitBill={isUnsplitBill(document, tripContext)}
               uploader={names.get(document.uploadedBy) ?? 'Former member'} date={dateFormat.format(new Date(document.createdAt))}
               canDelete={document.uploadedBy === trip.groupMemberId || trip.role === 'owner'}
               onReview={() => onReview(document)} onSplitCost={() => onSplitCost(document)} onDeleted={() => onDeleted(document)} />
@@ -328,7 +449,8 @@ function DocumentList({ state, names, trip, tripContext, disabled, onRetry, onRe
   )
 }
 
-function DocumentRow({ document, uploader, date, canDelete, disabled, unsplitBill, onReview, onSplitCost, onDeleted }: {
+function DocumentRow({ document, uploader, date, canDelete, disabled, reading, unsplitBill, onReview, onSplitCost, onDeleted }: {
+  reading: boolean
   document: TripDocument
   unsplitBill: boolean
   uploader: string
@@ -384,8 +506,9 @@ function DocumentRow({ document, uploader, date, canDelete, disabled, unsplitBil
     ? `In itinerary${document.eventTitle ? `: ${document.eventTitle}` : ''}`
     : document.expenseId
       ? `In Split${document.expenseTitle ? `: ${document.expenseTitle}` : ''}`
+      : reading ? 'Reading…'
       : unsplitBill ? 'Bill ready to split'
-        : document.parseStatus === 'parsed' ? 'Ready to review' : document.parseStatus === 'failed' ? 'Needs details' : 'Not reviewed'
+        : document.parseStatus === 'parsed' ? 'Booking ready to review' : document.parseStatus === 'failed' ? 'Needs details' : 'Not read yet'
 
   return (
     <li data-testid="scan-document" className="rounded-md border px-3 py-3" style={{ borderColor: 'var(--border)' }}>

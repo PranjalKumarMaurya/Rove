@@ -337,3 +337,78 @@ export function bookingCostPrefill(draft: Pick<EventDraft, 'price'>, input: { ti
     included,
   }
 }
+
+// ─── Several files at once ───────────────────────────────────────────────────
+
+/** At most this many files per pick; more is almost always a mistake. */
+export const MAX_FILES_PER_PICK = 25
+
+export interface PickedFile { name: string; size: number; type: string; lastModified?: number }
+
+export interface BatchPlan<T extends PickedFile> {
+  accepted: T[]
+  rejected: { name: string; problem: FileProblem }[]
+  /** Picked twice in the same go (same name, size and date); kept once. */
+  duplicates: string[]
+  /** Picked beyond MAX_FILES_PER_PICK; left out. */
+  overflow: number
+}
+
+/** Check every picked file on the device, drop repeats, and keep at most MAX_FILES_PER_PICK. */
+export function planBatch<T extends PickedFile>(files: readonly T[]): BatchPlan<T> {
+  const plan: BatchPlan<T> = { accepted: [], rejected: [], duplicates: [], overflow: 0 }
+  const seen = new Set<string>()
+  for (const file of files) {
+    const key = `${file.name}|${file.size}|${file.lastModified ?? ''}`
+    if (seen.has(key)) { plan.duplicates.push(file.name); continue }
+    seen.add(key)
+    const problem = checkSelectedFile(file)
+    if (problem) { plan.rejected.push({ name: file.name, problem }); continue }
+    if (plan.accepted.length >= MAX_FILES_PER_PICK) { plan.overflow += 1; continue }
+    plan.accepted.push(file)
+  }
+  return plan
+}
+
+/** How many of `count` new files can be read automatically now, given reads used in the last 24 hours. */
+export function splitReads(count: number, used: number | null, limit: number): { readNow: number; later: number } {
+  const left = used === null ? count : Math.max(0, limit - used)
+  const readNow = Math.min(count, left)
+  return { readNow, later: count - readNow }
+}
+
+/** The line shown before uploading several files. */
+export function batchSummary(plan: BatchPlan<PickedFile>, reads: { readNow: number; later: number }): string {
+  const parts = [`${plan.accepted.length} file${plan.accepted.length === 1 ? '' : 's'} ready.`]
+  if (reads.later > 0) {
+    parts.push(reads.readNow === 0
+      ? `You’ve used today’s automatic reads, so they’ll be saved to read tomorrow or fill in yourself.`
+      : `${reads.readNow} will be read now; the other ${reads.later} are saved to read tomorrow or fill in yourself.`)
+  }
+  if (plan.duplicates.length) parts.push(`Picked twice, added once: ${plan.duplicates.join(', ')}.`)
+  if (plan.rejected.length) parts.push(`Left out: ${plan.rejected.map((entry) => `${entry.name} (${FILE_PROBLEM_LABELS[entry.problem]})`).join(', ')}.`)
+  if (plan.overflow) parts.push(`${plan.overflow} more left out: up to ${MAX_FILES_PER_PICK} at a time.`)
+  return parts.join(' ')
+}
+
+const FILE_PROBLEM_LABELS: Record<FileProblem, string> = { unsupported: 'not a PDF or photo', too_large: 'too large', empty: 'empty' }
+
+export interface QueueDocument {
+  id: string
+  eventId: string | null
+  expenseId: string | null
+  parseStatus: 'pending' | 'parsed' | 'failed'
+  createdAt: string
+}
+
+/**
+ * What "Review next" walks through, oldest first: read documents, then ones that
+ * couldn't be read, then ones not read yet. Done, skipped (`handled`) and
+ * still-reading documents are left out.
+ */
+export function reviewQueue<T extends QueueDocument>(documents: readonly T[], handled: ReadonlySet<string>, reading: ReadonlySet<string>): T[] {
+  const rank = { parsed: 0, failed: 1, pending: 2 } as const
+  return documents
+    .filter((document) => !document.eventId && !document.expenseId && !handled.has(document.id) && !reading.has(document.id))
+    .sort((left, right) => rank[left.parseStatus] - rank[right.parseStatus] || left.createdAt.localeCompare(right.createdAt))
+}

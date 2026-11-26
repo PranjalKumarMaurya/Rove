@@ -57,6 +57,9 @@ export interface BookingPrice {
   status: PaymentStatus
 }
 
+/** Automatic reads per person per rolling 24 hours, unless the server is configured otherwise. */
+export const DEFAULT_MEMBER_PARSE_LIMIT = 20
+
 export interface TripContext {
   timezone: string
   startDate: string

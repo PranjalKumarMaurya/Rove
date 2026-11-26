@@ -191,3 +191,16 @@ export async function eventAudience(eventId: string): Promise<string[]> {
   if (error || !data) throw new ScanError('audience_unavailable')
   return data.map((row) => row.group_member_id)
 }
+
+/** My automatic reads in the last 24 hours, across all my Trips; null if it can't be told. */
+export async function myReadsToday(): Promise<number | null> {
+  const { data: session } = await supabase.auth.getSession()
+  const userId = session.session?.user.id
+  if (!userId) return null
+  const profile = await supabase.from('profiles').select('id').eq('auth_user_id', userId).maybeSingle()
+  if (profile.error || !profile.data) return null
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
+  const { count, error } = await supabase.from('trip_parse_usage').select('id', { count: 'exact', head: true })
+    .eq('profile_id', profile.data.id).gte('created_at', since)
+  return error || count === null ? null : count
+}

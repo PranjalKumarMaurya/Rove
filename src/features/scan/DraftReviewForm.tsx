@@ -16,7 +16,9 @@ const selectStyle = {
 } as const
 const dateStyle = { colorScheme: 'dark' } as const
 
-export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving, saveError, onSubmit, onCancel, onRetryRead, members = [], me = '', onSwitchToBill }: {
+export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving, saveError, onSubmit, onCancel, onRetryRead, members = [], me = '', onSwitchToBill, cancelLabel = 'Not now' }: {
+  /** "Skip" while walking through several documents. */
+  cancelLabel?: string
   draft: EventDraft
   /** Active members, for "Who's on this". */
   members?: { id: string; name: string }[]
@@ -201,7 +203,7 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
         {saveError && <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>{saveError}</p>}
         <NeonBtn type="submit" disabled={saving} className="w-full">{saving ? 'Adding…' : addToSplit ? 'Add to itinerary and split' : 'Add to itinerary'}</NeonBtn>
         <div className="flex flex-wrap justify-between gap-3">
-          <button type="button" onClick={onCancel} disabled={saving} style={{ color: 'var(--text-secondary)' }}>Not now</button>
+          <button type="button" onClick={onCancel} disabled={saving} style={{ color: 'var(--text-secondary)' }}>{cancelLabel}</button>
           {onSwitchToBill && <button type="button" onClick={onSwitchToBill} disabled={saving} style={{ color: 'var(--text-secondary)' }}>This is a bill, not a booking</button>}
           {onRetryRead && <button type="button" onClick={onRetryRead} disabled={saving} style={{ color: 'var(--text-secondary)' }}>Try reading again</button>}
         </div>

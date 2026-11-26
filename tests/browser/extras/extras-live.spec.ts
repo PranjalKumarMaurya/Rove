@@ -164,7 +164,7 @@ test('crew status, invite sharing, crew info and the parse limit on a real stack
     await review.getByLabel('Starts').fill(tripWallClock(1, '14:00'))
     await review.getByRole('button', { name: 'Add to itinerary' }).click()
     await expect(scan).toContainText('Added to the itinerary: Villa check-in')
-    await expect(friend.getByTestId('scan-document').filter({ hasText: 'boarding-pass.png' })).toContainText('Ready to review')
+    await expect(friend.getByTestId('scan-document').filter({ hasText: 'boarding-pass.png' })).toContainText('Booking ready to review')
     await expect(friend.getByTestId('scan-document').filter({ hasText: 'hotel-voucher.png' })).toContainText('In itinerary: Villa check-in')
   } finally {
     await ownerContext.close()

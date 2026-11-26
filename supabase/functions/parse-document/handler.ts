@@ -2,6 +2,7 @@
 // unit-tested in Node. index.ts wires in the user-scoped Supabase store and the
 // Anthropic extractor.
 import {
+  DEFAULT_MEMBER_PARSE_LIMIT,
   BILL_CATEGORIES, EVENT_TYPES, MAX_PARSE_IMAGE_BYTES, type DocumentDraft, type TripContext,
   isParseableMimeType, normaliseDocument,
 } from '../_shared/documentDraft.ts'
@@ -26,7 +27,7 @@ export type ParseResult = { status: 'parsed'; draft: DocumentDraft } | { status:
 export interface ParseLimits { member: number; trip: number }
 export type ParseClaim = 'claimed' | 'member_limit' | 'trip_limit'
 
-export const DEFAULT_PARSE_LIMITS: ParseLimits = { member: 20, trip: 100 }
+export const DEFAULT_PARSE_LIMITS: ParseLimits = { member: DEFAULT_MEMBER_PARSE_LIMIT, trip: 100 }
 
 /** Limits from SCAN_PARSE_DAILY_LIMIT_MEMBER / _TRIP; anything but a whole number ≥ 0 uses the default. */
 export function parseLimitsFromEnv(get: (name: string) => string | undefined): ParseLimits {
