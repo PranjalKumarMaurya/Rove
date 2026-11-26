@@ -9,17 +9,45 @@ export { EVENT_TYPES, isBillDraft, type BillDraft, type DocumentDraft, type Even
 
 export type FileProblem = 'empty' | 'unsupported' | 'too_large'
 
+/** Photos this big are accepted at selection: they are shrunk on the device before upload. */
+export const MAX_SELECTED_IMAGE_BYTES = 40 * 1024 * 1024
+
 /** Checked on selection, before anything leaves the device. Uses the browser-reported type only. */
 export function checkSelectedFile(file: { name: string; size: number; type: string }): FileProblem | null {
   if (!isStorableMimeType(file.type)) return 'unsupported'
   if (file.size <= 0) return 'empty'
-  if (file.size > MAX_DOCUMENT_BYTES) return 'too_large'
+  const limit = file.type.startsWith('image/') ? MAX_SELECTED_IMAGE_BYTES : MAX_DOCUMENT_BYTES
+  if (file.size > limit) return 'too_large'
   return null
+}
+
+// ─── Shrinking photos before upload ──────────────────────────────────────────
+// Phone photos are often 3–8 MB, more than the reader accepts (5 MB) and slow on
+// mobile data. A photo is re-encoded as JPEG with its long side at most
+// MAX_IMAGE_EDGE px, which keeps printed text sharp and lands well under 1 MB.
+
+export const MAX_IMAGE_EDGE = 2000
+/** Smaller photos already within MAX_IMAGE_EDGE are uploaded unchanged. */
+export const SHRINK_ABOVE_BYTES = 1.5 * 1024 * 1024
+
+export function shrinkTarget(width: number, height: number, bytes: number, type: string):
+  { width: number; height: number } | null {
+  if (!(width > 0 && height > 0)) return null
+  const heic = type === 'image/heic' || type === 'image/heif'
+  const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(width, height))
+  if (!heic && scale === 1 && bytes <= SHRINK_ABOVE_BYTES) return null
+  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) }
+}
+
+/** `IMG_4634.HEIC` -> `IMG_4634.jpg`. */
+export function jpegFileName(name: string): string {
+  const dot = name.lastIndexOf('.')
+  return `${dot > 0 ? name.slice(0, dot) : name || 'photo'}.jpg`
 }
 
 export const FILE_PROBLEM_MESSAGES: Record<FileProblem, string> = {
   unsupported: 'Choose a PDF, JPEG, PNG, WebP, or HEIC file.',
-  too_large: 'This file is larger than 10 MB. Choose a smaller file.',
+  too_large: 'This file is too large. Choose a PDF under 10 MB or a photo under 40 MB.',
   empty: 'This file is empty or could not be read. Choose it again.',
 }
 

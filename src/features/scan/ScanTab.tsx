@@ -1,9 +1,10 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { NeonBtn } from '../../components/ui/NeonBtn'
 import type { TripTabProps } from '../workspace/tripTab'
-import { billToEventDraft, emptyDraft, eventToBillDraft, type TripContext } from '../../../supabase/functions/_shared/documentDraft.ts'
+import { MAX_DOCUMENT_BYTES, billToEventDraft, emptyDraft, eventToBillDraft, type TripContext } from '../../../supabase/functions/_shared/documentDraft.ts'
 import { ExpenseForm } from '../split/ExpenseForm'
 import { DraftReviewForm } from './DraftReviewForm'
+import { prepareForUpload } from './prepareImage'
 import {
   ScanError, type TripDocument, addDocumentEvent, deleteTripDocument, isUnsplitBill, linkDocumentExpense, listTripDocuments,
   parseTripDocument, signedDocumentUrl, storedDraft, uploadTripDocument,
@@ -98,7 +99,10 @@ export function ScanTab({ trip, roster }: TripTabProps) {
     setPhase({ kind: 'uploading' })
     let document: TripDocument
     try {
-      document = await uploadTripDocument(trip.groupId, trip.groupMemberId, file)
+      // Photos are shrunk first so they upload quickly and stay within what the reader accepts.
+      const prepared = await prepareForUpload(file)
+      if (prepared.size > MAX_DOCUMENT_BYTES) throw new ScanError('too_large')
+      document = await uploadTripDocument(trip.groupId, trip.groupMemberId, prepared)
     } catch (error) {
       setFileError(UPLOAD_MESSAGES[error instanceof ScanError ? error.message : ''] ?? UPLOAD_MESSAGES.upload_failed)
       setPhase({ kind: 'idle' })

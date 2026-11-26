@@ -3,7 +3,7 @@ import test from 'node:test'
 
 import { normaliseExtraction } from '../../supabase/functions/_shared/documentDraft.ts'
 import {
-  checkSelectedFile, documentPath, draftToForm, fileKindLabel, formToEventInput, formatBytes, storageFileName,
+  checkSelectedFile, documentPath, jpegFileName, shrinkTarget, draftToForm, fileKindLabel, formToEventInput, formatBytes, storageFileName,
 } from '../../src/features/scan/scanRules.ts'
 
 const goa = { timezone: 'Asia/Kolkata', startDate: '2026-11-01', endDate: '2026-11-05' }
@@ -71,4 +71,22 @@ test('the review form requires a title and a valid start, and the end after it',
   assert.equal(ok.input?.flightNo, null)
   const badCode = formToEventInput({ ...base, eventType: 'flight', depCode: 'DELHI' })
   assert.ok(badCode.errors.depCode)
+})
+
+test('photos up to 40 MB are accepted at selection because they are shrunk before upload; PDFs stay at 10 MB', () => {
+  assert.equal(checkSelectedFile({ name: 'IMG_4634.jpeg', size: 8 * 1024 * 1024, type: 'image/jpeg' }), null)
+  assert.equal(checkSelectedFile({ name: 'IMG.jpeg', size: 40 * 1024 * 1024 + 1, type: 'image/jpeg' }), 'too_large')
+  assert.equal(checkSelectedFile({ name: 'pass.pdf', size: 10 * 1024 * 1024 + 1, type: 'application/pdf' }), 'too_large')
+})
+
+test('photos shrink to 2000 px on the long side; small ones are left alone; HEIC is always converted', () => {
+  assert.deepEqual(shrinkTarget(4032, 3024, 5_400_000, 'image/jpeg'), { width: 2000, height: 1500 })
+  assert.deepEqual(shrinkTarget(3024, 4032, 900_000, 'image/jpeg'), { width: 1500, height: 2000 })
+  assert.deepEqual(shrinkTarget(1600, 1200, 3_000_000, 'image/png'), { width: 1600, height: 1200 })
+  assert.equal(shrinkTarget(1600, 1200, 400_000, 'image/png'), null)
+  assert.deepEqual(shrinkTarget(1200, 900, 300_000, 'image/heic'), { width: 1200, height: 900 })
+  assert.equal(shrinkTarget(0, 900, 300_000, 'image/jpeg'), null)
+  assert.equal(jpegFileName('IMG_4634.HEIC'), 'IMG_4634.jpg')
+  assert.equal(jpegFileName('bill.final.png'), 'bill.final.jpg')
+  assert.equal(jpegFileName(''), 'photo.jpg')
 })

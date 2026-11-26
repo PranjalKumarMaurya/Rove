@@ -1,3 +1,4 @@
+import zlib from 'node:zlib'
 import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 import { createTrip, signUp } from '../support/trip-frame'
 
@@ -29,6 +30,28 @@ const accessToken = (page: Page) => page.evaluate(() => {
   return key ? (JSON.parse(localStorage.getItem(key) ?? '{}') as { access_token?: string }).access_token ?? '' : ''
 })
 
+/** A smooth RGB gradient PNG of the given size (compresses small but is too big in pixels). */
+function gradientPng(width: number, height: number): Buffer {
+  const chunk = (type: string, data: Buffer) => {
+    const length = Buffer.alloc(4); length.writeUInt32BE(data.length)
+    const body = Buffer.concat([Buffer.from(type, 'ascii'), data])
+    const crc = Buffer.alloc(4); crc.writeUInt32BE(zlib.crc32(body) >>> 0)
+    return Buffer.concat([length, body, crc])
+  }
+  const header = Buffer.alloc(13)
+  header.writeUInt32BE(width, 0); header.writeUInt32BE(height, 4)
+  header.writeUInt8(8, 8); header.writeUInt8(2, 9) // 8-bit RGB
+  const raw = Buffer.alloc((width * 3 + 1) * height)
+  for (let y = 0; y < height; y += 1) {
+    const row = y * (width * 3 + 1)
+    for (let x = 0; x < width; x += 1) {
+      raw[row + 1 + x * 3] = x % 256; raw[row + 2 + x * 3] = y % 256; raw[row + 3 + x * 3] = 160
+    }
+  }
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))])
+}
+
 test('Scan stores documents privately, drafts an Event for review, and FX converts with cached rates', async ({ browser }) => {
   const ownerContext = await browser.newContext()
   const strangerContext = await browser.newContext()
@@ -47,7 +70,7 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
     await fileInput.setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') })
     await expect(scan.getByRole('alert')).toContainText('Choose a PDF, JPEG, PNG, WebP, or HEIC file.')
     await fileInput.setInputFiles({ name: 'huge.pdf', mimeType: 'application/pdf', buffer: Buffer.alloc(10 * 1024 * 1024 + 1) })
-    await expect(scan.getByRole('alert')).toContainText('larger than 10 MB')
+    await expect(scan.getByRole('alert')).toContainText('Choose a PDF under 10 MB')
     await expect(owner.getByRole('button', { name: 'Upload and read' })).toBeDisabled()
 
     // Upload -> parse (stub) -> editable draft -> add to itinerary.
@@ -69,6 +92,17 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
     await expect(passRow).toContainText('In itinerary: Flight to Goa')
     await expect(passRow).toContainText('Scan Owner')
     await expect(passRow.getByRole('button', { name: 'Review boarding-pass.png' })).toHaveCount(0)
+
+    // A big phone photo is shrunk on the device (to a JPEG, 2000 px long side) and still read.
+    await fileInput.setInputFiles({ name: 'large-ticket-photo.png', mimeType: 'image/png', buffer: gradientPng(3000, 2000) })
+    await owner.getByRole('button', { name: 'Upload and read' }).click()
+    await expect(review.getByLabel('Title')).toHaveValue('IndiGo 6E-123 · DEL → GOI')
+    await review.getByRole('button', { name: 'Not now' }).click()
+    const bigRow = owner.getByTestId('scan-document').filter({ hasText: 'large-ticket-photo.jpg' })
+    await expect(bigRow).toContainText('JPG')
+    await bigRow.getByRole('button', { name: 'Delete large-ticket-photo.jpg' }).click()
+    await bigRow.getByRole('button', { name: 'Delete document' }).click()
+    await expect(scan).toContainText('Deleted large-ticket-photo.jpg')
 
     // A bill opens Split's form, filled in from the bill. "Not now" keeps it as a draft to split later.
     await fileInput.setInputFiles({ name: 'dinner-bill.png', mimeType: 'image/png', buffer: png })
