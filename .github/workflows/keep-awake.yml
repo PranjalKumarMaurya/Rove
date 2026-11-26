@@ -28,5 +28,10 @@ jobs:
             exit 0
           fi
           command -v psql >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client; }
-          psql "$SUPABASE_DB_URL" --no-psqlrc -v ON_ERROR_STOP=1 -tAc 'select count(*) from public.group_members' >/dev/null
+          # The repo is public, so errors never echo the connection string or any part of it.
+          if ! psql "$SUPABASE_DB_URL" --no-psqlrc -v ON_ERROR_STOP=1 -tAc 'select count(*) from public.group_members' >/dev/null 2>psql.err; then
+            sed -E 's#[^[:space:]"]*(@|://)[^[:space:]"]*#<hidden>#g' psql.err
+            echo "::error::Could not query the database. Check SUPABASE_DB_URL: the session pooler string, with a password of letters and digits only."
+            exit 1
+          fi
           echo "The database answered."

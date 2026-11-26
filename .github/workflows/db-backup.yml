@@ -45,7 +45,13 @@ jobs:
           version: 2.105.0
       - name: Dump and encrypt
         if: steps.config.outputs.ready == 'true'
-        run: scripts/db-backup.sh backup
+        # The repo is public, so errors never echo the connection string or any part of it.
+        run: |
+          if ! scripts/db-backup.sh backup 2>backup.err; then
+            sed -E 's#[^[:space:]"]*(@|://)[^[:space:]"]*#<hidden>#g' backup.err
+            echo "::error::The backup failed. Check SUPABASE_DB_URL: the session pooler string, with a password of letters and digits only."
+            exit 1
+          fi
       - if: steps.config.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
