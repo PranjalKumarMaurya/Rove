@@ -36,6 +36,9 @@ try {
   assert.equal(stack.psql(`SELECT count(*) || '|' || count(event_id) || '|' || count(expense_id) FROM public.trip_documents;`), '2|1|1')
   assert.equal(stack.psql(`SELECT description || '|' || original_amount || '|' || (spent_at IS NOT NULL)::text
     FROM public.trip_expenses AS expense JOIN public.trip_documents AS document ON document.expense_id = expense.id;`), 'Curlies by the Sea: food and drinks|7770.00|true')
+  // The flight's cost, split from the booking in the same flow, stays in Split after its document is deleted.
+  assert.equal(stack.psql(`SELECT description || '|' || original_amount || '|' || category FROM public.trip_expenses
+    WHERE description = 'Flight to Goa';`), 'Flight to Goa|12480.00|transport')
   assert.equal(stack.psql(`SELECT count(*) FROM storage.objects WHERE bucket_id = 'trip-documents';`), '2')
   assert.equal(stack.psql(`SELECT count(*) FROM storage.objects WHERE bucket_id = 'tickets';`), '0', 'legacy public bucket used')
 

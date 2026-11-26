@@ -38,7 +38,23 @@ export interface EventDraft {
   terminal: string | null
   bookingRef: string | null
   notes: string | null
+  /** How many people the booking is for ("5 adults" -> 5), when it says. */
+  partySize: number | null
+  /** Names of passengers or guests as printed, for matching to Trip members. */
+  travellers: string[]
+  /** What the booking cost, when it shows a price. */
+  price: BookingPrice | null
   warnings: DraftWarning[]
+}
+
+export type PaymentStatus = 'paid' | 'pay_later' | 'unknown'
+
+export interface BookingPrice {
+  /** Plain decimal, e.g. "9000000" or "54000.00". */
+  amount: string
+  currency: string | null
+  /** pay_later: to be paid at the property or later, so not split yet. */
+  status: PaymentStatus
 }
 
 export interface TripContext {
@@ -238,6 +254,7 @@ export function normaliseExtraction(raw: unknown, trip: TripContext): EventDraft
     bookingRef: normaliseBookingRef(input.booking_ref),
     notes: cleanText(input.notes, 1000),
   }
+  const priceAmount = normaliseAmount(input.price_total)
   return {
     eventType,
     title: cleanText(input.title) ?? defaultTitle(eventType, fields),
@@ -246,8 +263,30 @@ export function normaliseExtraction(raw: unknown, trip: TripContext): EventDraft
     startTimezone: start.timeZone,
     endTimezone: end.timeZone,
     ...fields,
+    partySize: normalisePartySize(input.party_size),
+    travellers: normaliseTravellers(input.travellers),
+    price: priceAmount ? {
+      amount: priceAmount,
+      currency: normaliseCurrency(input.price_currency),
+      status: input.payment_status === 'paid' || input.payment_status === 'pay_later' ? input.payment_status : 'unknown',
+    } : null,
     warnings: [...warnings],
   }
+}
+
+/** "5", "5 adults", 5 -> 5. Anything else, or more than 99, is unknown. */
+export function normalisePartySize(value: unknown): number | null {
+  const text = typeof value === 'number' ? String(value) : typeof value === 'string' ? value : ''
+  const match = /^\s*(\d{1,2})\b/u.exec(text)
+  const size = match ? Number(match[1]) : NaN
+  return size >= 1 && size <= 99 ? size : null
+}
+
+/** Names as printed, cleaned and de-duplicated; at most 20. */
+export function normaliseTravellers(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  const names = value.map((entry) => cleanText(entry, 80)).filter((name): name is string => Boolean(name))
+  return [...new Set(names)].slice(0, 20)
 }
 
 // ─── Bills ────────────────────────────────────────────────────────────────────
@@ -381,9 +420,14 @@ export function normaliseDocument(raw: unknown, trip: TripContext): DocumentDraf
 /** A booking draft looked at as a bill (when the reader guessed wrong). */
 export function eventToBillDraft(draft: EventDraft): BillDraft {
   return {
-    kind: 'bill', title: draft.title, merchant: draft.location, amount: null, currency: null,
+    kind: 'bill', title: draft.title, merchant: draft.location, amount: draft.price?.amount ?? null, currency: draft.price?.currency ?? null,
     spentAt: draft.startsAt, spentTimezone: draft.startTimezone, category: normaliseBillCategory(draft.eventType),
-    notes: draft.notes, warnings: draft.startsAt ? ['amount_missing'] : ['amount_missing', 'date_missing'],
+    notes: draft.notes,
+    warnings: [
+      ...(draft.price ? [] : ['amount_missing' as const]),
+      ...(draft.price && !draft.price.currency ? ['currency_missing' as const] : []),
+      ...(draft.startsAt ? [] : ['date_missing' as const]),
+    ],
   }
 }
 
@@ -433,6 +477,7 @@ export function readStoredDraft(value: unknown, trip: TripContext): EventDraft |
     ends_at: stored.endsAt ?? undefined, end_timezone: stored.endTimezone,
     location: stored.location, location_to: stored.locationTo, dep_code: stored.depCode, arr_code: stored.arrCode,
     flight_no: stored.flightNo, airline: stored.airline, terminal: stored.terminal, booking_ref: stored.bookingRef,
-    notes: stored.notes,
+    notes: stored.notes, party_size: stored.partySize ?? undefined, travellers: stored.travellers,
+    price_total: stored.price?.amount, price_currency: stored.price?.currency ?? undefined, payment_status: stored.price?.status,
   }, trip)
 }

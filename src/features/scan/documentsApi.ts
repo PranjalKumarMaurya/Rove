@@ -116,10 +116,11 @@ export async function linkDocumentExpense(documentId: string, expenseId: string)
 }
 
 /**
- * Add the booking to the itinerary, then who it is for. An empty audience means
- * everyone. `audienceSaved` is false when only the second step failed.
+ * Add the booking to the itinerary together with who it is for, in one
+ * transaction: a private booking is never briefly visible to the whole Trip.
+ * An empty audience means everyone.
  */
-export async function addDocumentEvent(documentId: string, input: EventInput, groupId: string, audience: string[] = []): Promise<{ eventId: string; audienceSaved: boolean }> {
+export async function addDocumentEvent(documentId: string, input: EventInput, audience: string[] = []): Promise<{ eventId: string }> {
   const { data, error } = await supabase.rpc('create_event_from_document', {
     p_document_id: documentId,
     p_event_type: input.eventType,
@@ -135,13 +136,12 @@ export async function addDocumentEvent(documentId: string, input: EventInput, gr
     p_airline: input.airline ?? undefined,
     p_terminal: input.terminal ?? undefined,
     p_booking_ref: input.bookingRef ?? undefined,
+    p_member_ids: audience.length ? audience : undefined,
   })
   if (error || typeof data !== 'string') {
     throw new ScanError(error?.message === 'document_unavailable' ? 'document_unavailable' : 'event_failed')
   }
-  if (!audience.length) return { eventId: data, audienceSaved: true }
-  const saved = await supabase.rpc('set_trip_event_audience', { p_group_id: groupId, p_event_id: data, p_member_ids: audience })
-  return { eventId: data, audienceSaved: !saved.error }
+  return { eventId: data }
 }
 
 /** A short-lived link to one object, issued only after Storage re-checks membership. */
@@ -161,4 +161,33 @@ export async function deleteTripDocument(document: TripDocument): Promise<void> 
   if (removed.error) throw new ScanError('delete_failed')
   const { data, error } = await supabase.from('trip_documents').delete().eq('id', document.id).select('id')
   if (error || !data?.length) throw new ScanError(removed.data?.length ? 'delete_partial' : 'delete_denied')
+}
+
+/** What an expense was made from, for its label in Split. */
+export interface ExpenseSource {
+  kind: 'booking' | 'bill'
+  /** The itinerary entry's title, for a booking the caller can see. */
+  title: string | null
+}
+
+/**
+ * Expenses made from scanned documents the caller can see. A private booking
+ * the caller isn't on simply has no label for them.
+ */
+export async function listExpenseSources(groupId: string): Promise<Map<string, ExpenseSource>> {
+  const { data, error } = await supabase.from('trip_documents').select('expense_id, event_id, event:trip_events(title)')
+    .eq('group_id', groupId).not('expense_id', 'is', null)
+  if (error || !data) return new Map()
+  const rows = data as unknown as { expense_id: string; event_id: string | null; event: { title: string } | { title: string }[] | null }[]
+  return new Map(rows.map((row) => {
+    const event = Array.isArray(row.event) ? row.event[0] : row.event
+    return [row.expense_id, row.event_id ? { kind: 'booking', title: event?.title ?? null } : { kind: 'bill', title: null }]
+  }))
+}
+
+/** Who an itinerary entry is for; empty means everyone. */
+export async function eventAudience(eventId: string): Promise<string[]> {
+  const { data, error } = await supabase.from('trip_event_audience').select('group_member_id').eq('event_id', eventId)
+  if (error || !data) throw new ScanError('audience_unavailable')
+  return data.map((row) => row.group_member_id)
 }

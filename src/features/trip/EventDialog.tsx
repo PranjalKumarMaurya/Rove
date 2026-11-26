@@ -163,7 +163,7 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
           {activeMembers.length > 1 && (
             <fieldset>
               <legend className="text-sm" style={{ color: 'var(--text-secondary)' }}>Who&rsquo;s on this</legend>
-              <p className="font-mono mt-0.5" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.08em' }}>Leave all unticked for everyone. Everyone can still see it.</p>
+              <p className="font-mono mt-0.5" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.08em' }}>Leave all unticked for everyone. If you tick people, only they and whoever added it can see it.</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {activeMembers.map((member) => (
                   <label key={member.groupMemberId} className="pill cursor-pointer" style={{ color: audience.includes(member.groupMemberId) ? 'var(--accent)' : 'var(--text-secondary)' }}>

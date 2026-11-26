@@ -131,7 +131,9 @@ test('crew status, invite sharing, crew info and the parse limit on a real stack
     const friend = await friendContext.newPage()
     await signIn(friend, 'friend-extras@example.test')
     await expect(chip(friend, 'Farah')).toContainText('Farah (you)')
-    await expect(chip(friend, 'Olive')).toContainText('In the air')
+    // Olive's flight is marked for Olive only, so Farah can't see it (093): her chip falls back to the Trip day.
+    await expect(chip(friend, 'Olive')).toContainText('On the trip')
+    await expect(chip(friend, 'Olive')).not.toContainText('In the air')
     await openTab(friend, 'Crew')
     await memberRow(friend, 'Farah Friend').getByRole('button', { name: 'Details for Farah Friend (you)' }).click()
     await expect(memberRow(friend, 'Farah Friend').getByTestId('crew-info')).toContainText('Only people in this Trip see what you share.')

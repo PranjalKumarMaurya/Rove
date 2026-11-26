@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { listExpenseSources, type ExpenseSource } from '../scan/documentsApi'
 import { NeonBtn } from '../../components/ui/NeonBtn'
 import { useTripMemberProfiles } from '../groups/useTripMemberProfiles'
 import type { TripTabProps } from '../workspace/tripTab'
@@ -78,6 +79,15 @@ export function SplitTab({ trip, roster, reloadRoster }: TripTabProps) {
   const totals = useMemo(() => computeGroupTotals(ledger?.expenses ?? [], active.map((member) => member.id)), [ledger, active])
   const money = (minor: bigint) => formatMoney(minor, currency)
 
+  // "From booking" labels: which expenses came from scanned documents I can see.
+  const [sources, setSources] = useState<Map<string, ExpenseSource>>(new Map())
+  const expenseKey = ledger?.expenses.map((expense) => expense.id).join(',') ?? ''
+  useEffect(() => {
+    let active = true
+    if (expenseKey) void listExpenseSources(trip.groupId).then((found) => { if (active) setSources(found) })
+    return () => { active = false }
+  }, [trip.groupId, expenseKey])
+
   const closeDialog = () => setDialog(null)
   const saved = () => { setDialog(null); void reload() }
 
@@ -125,7 +135,7 @@ export function SplitTab({ trip, roster, reloadRoster }: TripTabProps) {
           {ledger.expenses.length > 0 && <GroupTotals totals={totals} nameOf={nameOf} money={money} me={me} />}
 
           <ExpenseLog expenses={ledger.expenses} me={me} isOwner={isOwner} activeIds={activeIds} nameOf={nameOf}
-            money={money} timezone={trip.timezone} tripStartDate={trip.startDate} onEdit={(expense) => setDialog({ kind: 'edit', expense })} onChanged={() => void reload()} />
+            groupId={trip.groupId} sources={sources} money={money} timezone={trip.timezone} tripStartDate={trip.startDate} onEdit={(expense) => setDialog({ kind: 'edit', expense })} onChanged={() => void reload()} />
 
           {ledger.settlements.length > 0 && (
             <PaymentHistory settlements={ledger.settlements} me={me} isOwner={isOwner} nameOf={nameOf} money={money}
@@ -137,7 +147,7 @@ export function SplitTab({ trip, roster, reloadRoster }: TripTabProps) {
       {(dialog?.kind === 'add' || dialog?.kind === 'edit') && (
         <ExpenseForm key={dialog.kind === 'edit' ? dialog.expense.id : 'add'} groupId={trip.groupId} accountingCurrency={currency}
           timezone={trip.timezone} international={trip.isInternational} me={me} members={active} expense={dialog.kind === 'edit' ? dialog.expense : null}
-          onClose={closeDialog} onSaved={saved} />
+          existing={ledger?.expenses ?? []} onClose={closeDialog} onSaved={saved} />
       )}
       {dialog?.kind === 'settle' && (
         <SettleUpDialog groupId={trip.groupId} tripName={trip.tripName} currency={currency} me={me} isOwner={isOwner} members={active}
@@ -234,8 +244,22 @@ function expenseTime(expense: LedgerExpense): string {
   return expense.spentAt ?? expense.createdAt
 }
 
-function ExpenseLog({ expenses, me, isOwner, activeIds, nameOf, money, timezone, tripStartDate, onEdit, onChanged }: {
+/** Whether I paid towards or share in an expense. */
+export function involvesMe(expense: Pick<LedgerExpense, 'payers' | 'shares'>, me: string): boolean {
+  return expense.payers.some((line) => line.memberId === me) || expense.shares.some((line) => line.memberId === me)
+}
+
+type LogFilter = 'all' | 'mine'
+const filterKey = (groupId: string) => `rove:split-filter:${groupId}`
+
+function readFilter(groupId: string): LogFilter {
+  try { return window.localStorage.getItem(filterKey(groupId)) === 'mine' ? 'mine' : 'all' } catch { return 'all' }
+}
+
+function ExpenseLog({ expenses: allExpenses, me, isOwner, activeIds, nameOf, money, timezone, tripStartDate, onEdit, onChanged, groupId, sources }: {
   expenses: LedgerExpense[]
+  groupId: string
+  sources: ReadonlyMap<string, ExpenseSource>
   /** YYYY-MM-DD; expenses dated earlier (in Trip time) are listed under "Before the trip". */
   tripStartDate: string
   me: string
@@ -247,18 +271,39 @@ function ExpenseLog({ expenses, me, isOwner, activeIds, nameOf, money, timezone,
   onEdit: (expense: LedgerExpense) => void
   onChanged: () => void
 }) {
+  // Everyone sees every expense; "Only mine" is a per-Trip view choice kept on this device.
+  const [filter, setFilterState] = useState<LogFilter>(() => readFilter(groupId))
+  const setFilter = (next: LogFilter) => {
+    setFilterState(next)
+    try { window.localStorage.setItem(filterKey(groupId), next) } catch { /* storage may be unavailable */ }
+  }
+  const mineCount = allExpenses.filter((expense) => involvesMe(expense, me)).length
+  const expenses = filter === 'mine' ? allExpenses.filter((expense) => involvesMe(expense, me)) : allExpenses
   const ordered = [...expenses].sort((a, b) => Date.parse(expenseTime(b)) - Date.parse(expenseTime(a)))
   const isBefore = (expense: LedgerExpense) => Boolean(tripStartDate) && spentLocalFor(expenseTime(expense), { timezone }).slice(0, 10) < tripStartDate
   const during = ordered.filter((expense) => !isBefore(expense))
   const before = ordered.filter(isBefore)
   const card = (expense: LedgerExpense) => (
-    <ExpenseCard key={expense.id} expense={expense} me={me} canChange={expense.createdBy === me || isOwner}
+    <ExpenseCard key={expense.id} expense={expense} me={me} mine={involvesMe(expense, me)} source={sources.get(expense.id) ?? null} canChange={expense.createdBy === me || isOwner}
       involvesFormer={expenseMemberIds(expense).some((id) => !activeIds.has(id))} nameOf={nameOf} money={money}
       timezone={timezone} onEdit={() => onEdit(expense)} onChanged={onChanged} />
   )
   return (
     <section aria-labelledby="split-log-heading" className="flex flex-col gap-3">
-      <h3 id="split-log-heading" className="serif-eyebrow" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Expenses</h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 id="split-log-heading" className="serif-eyebrow" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Expenses</h3>
+        {allExpenses.length > 0 && (
+          <div role="group" aria-label="Show expenses" className="flex rounded-full border p-0.5 text-xs" style={{ borderColor: 'var(--border)' }}>
+            {([['all', 'All'], ['mine', `Only mine · ${mineCount}`]] as const).map(([value, label]) => (
+              <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}
+                className="min-h-9 rounded-full px-3"
+                style={{ background: filter === value ? 'var(--accent-soft)' : 'transparent', color: filter === value ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       {expenses.length > 0 && during.length > 0 && (
         <ul aria-label="Expenses" className="flex flex-col gap-2">{during.map(card)}</ul>
       )}
@@ -270,17 +315,24 @@ function ExpenseLog({ expenses, me, isOwner, activeIds, nameOf, money, timezone,
           <ul aria-label="Expenses before the trip" className="flex flex-col gap-2">{before.map(card)}</ul>
         </section>
       )}
-      {expenses.length === 0 ? (
+      {allExpenses.length === 0 ? (
         <p className="py-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }} data-testid="expenses-empty">
           No expenses yet. Tap “Add expense” to log the first one.
+        </p>
+      ) : expenses.length === 0 ? (
+        <p className="py-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }} data-testid="expenses-mine-empty">
+          You’re not on any expenses yet. Switch to All to see the whole Trip’s.
         </p>
       ) : null}
     </section>
   )
 }
 
-function ExpenseCard({ expense, me, canChange, involvesFormer, nameOf, money, timezone, onEdit, onChanged }: {
+function ExpenseCard({ expense, me, mine, source, canChange, involvesFormer, nameOf, money, timezone, onEdit, onChanged }: {
   expense: LedgerExpense
+  /** I paid or share in it: a quiet accent border. */
+  mine: boolean
+  source: ExpenseSource | null
   me: string
   canChange: boolean
   involvesFormer: boolean
@@ -311,7 +363,8 @@ function ExpenseCard({ expense, me, canChange, involvesFormer, nameOf, money, ti
 
   return (
     <li>
-      <article aria-label={expense.description} className="surface flex flex-col gap-2 p-3.5" data-testid="expense-card">
+      <article aria-label={expense.description} className="surface flex flex-col gap-2 p-3.5" data-testid="expense-card"
+        data-mine={mine ? 'true' : undefined} style={mine ? { borderColor: 'rgba(255,139,77,0.38)' } : undefined}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="serif-display truncate" style={{ color: 'var(--text-primary)', fontSize: 16 }}>{expense.description}</p>
@@ -332,6 +385,11 @@ function ExpenseCard({ expense, me, canChange, involvesFormer, nameOf, money, ti
         </div>
         {myShare !== undefined && (
           <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Your share {money(myShare)}</p>
+        )}
+        {source && (
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }} data-testid="expense-source">
+            {source.kind === 'booking' ? `From booking${source.title ? `: ${source.title}` : ''} · In itinerary` : 'From a scanned bill'}
+          </p>
         )}
         {converted && expense.fxRate && (
           <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>

@@ -1,7 +1,9 @@
-// Private Trip documents (migration 050): Storage object policies through the real
-// Storage API, `trip_documents` metadata RLS, the parse-document Edge Function
-// (stub extractor) running as the caller, cross-Trip Event links, the
-// create_event_from_document RPC, delete rules, and member removal.
+// Private Trip documents (migrations 050 and 093): Storage object policies through
+// the real Storage API, `trip_documents` metadata RLS, the parse-document Edge
+// Function (stub extractor) running as the caller, cross-Trip Event links, the
+// create_event_from_document RPC, delete rules, and member removal. Since 093 an
+// unreviewed upload is only its uploader's, a booking follows "Who's on this",
+// and a bill is the whole Trip's.
 import assert from 'node:assert/strict'
 import { createLocalStack } from '../../support/local-stack.mjs'
 import { createTrip, quote, sqlAs } from '../../support/db-fixtures.mjs'
@@ -115,19 +117,21 @@ try {
   assert.notEqual(moved.status, 200, 'move into another Trip')
   assert.equal(objectExists(friendPath), true)
 
-  // Reads: Trip members only, for download, signed URLs, and listing.
-  const fetched = await download(owner, friendPath)
-  assert.equal(fetched.status, 200, 'member download')
+  // Reads: an unreviewed upload is its uploader's only, for download, signed URLs, and listing.
+  const fetched = await download(friend, friendPath)
+  assert.equal(fetched.status, 200, 'uploader download')
   assert.equal(fetched.text, new TextDecoder().decode(pdf))
-  const signed = await sign(friend, ownerPath)
-  assert.equal(signed.status, 200, 'member signed URL')
+  assert.equal(reason(await download(owner, friendPath)), '404', 'another member before review')
+  assert.notEqual((await sign(friend, ownerPath)).status, 200, 'another member signs before review')
+  const signed = await sign(owner, ownerPath)
+  assert.equal(signed.status, 200, 'uploader signed URL')
   assert.equal((await fetch(`${stack.apiUrl}/storage/v1${signed.json.signedURL}`)).status, 200, 'signed URL works')
   assert.equal(reason(await download(stranger, friendPath)), '404', 'stranger download')
   assert.equal(reason(await download(other, friendPath)), '404', 'other Trip download')
   assert.equal(reason(await download({ token: keys.anonKey }, friendPath)), '404', 'anon download')
   assert.notEqual((await sign(stranger, friendPath)).status, 200, 'stranger signed URL')
   assert.notEqual((await sign(friend, otherPath)).status, 200, 'cross-Trip signed URL')
-  assert.equal((await list(friend, tripA)).json.length, 2)
+  assert.equal((await list(friend, tripA)).json.length, 1)
   assert.deepEqual((await list(friend, tripB)).json, [])
   assert.deepEqual((await list(stranger, tripA)).json, [])
   assert.deepEqual(sqlAs(stack, null, `SELECT count(*) FROM storage.objects WHERE bucket_id = '${bucket}';`).rows, [['0']])
@@ -149,7 +153,8 @@ try {
   const otherDocId = otherDoc.rows[0][0]
 
   // The Edge Function reads documents as the caller and returns a draft without creating Events.
-  const parsed = await parse(friend, ownerDocId)
+  assert.equal((await parse(friend, ownerDocId)).status, 404, 'another member parses an unreviewed upload')
+  const parsed = await parse(owner, ownerDocId)
   assert.equal(parsed.status, 200, parsed.text)
   assert.equal(parsed.json.draft.flightNo, '6E-123')
   assert.equal(parsed.json.draft.startsAt, '2026-11-01T00:45:00.000Z')
@@ -161,25 +166,26 @@ try {
   assert.equal((await parse({ token: 'not-a-jwt' }, ownerDocId)).status, 401, 'forged token')
   assert.equal((await parse(friend, 'not-a-uuid')).status, 400)
 
-  // Metadata reads are Trip-scoped.
+  // Metadata reads: unreviewed uploads are their uploader's only.
   const names = (userId) => sqlAs(stack, userId, 'SELECT group_id FROM public.trip_documents ORDER BY group_id;').rows
-  assert.deepEqual(names(friend.id), [[tripA], [tripA]])
-  assert.deepEqual(names(owner.id), [[tripA], [tripA], [tripB]])
+  assert.deepEqual(names(friend.id), [[tripA]])
+  assert.deepEqual(names(owner.id), [[tripA]])
   assert.deepEqual(names(stranger.id), [])
   assert.equal(sqlAs(stack, null, 'SELECT count(*) FROM public.trip_documents;').ok, false, 'anon metadata read')
 
-  // Fixed facts cannot change; parse results can.
-  assert.equal(sqlAs(stack, owner.id, `UPDATE public.trip_documents SET group_id = ${quote(tripB)} WHERE id = ${quote(friendDocId)};`).ok, false)
-  assert.equal(sqlAs(stack, owner.id, `UPDATE public.trip_documents SET storage_path = ${quote(otherPath)} WHERE id = ${quote(friendDocId)};`).ok, false)
-  assert.equal(sqlAs(stack, owner.id, `UPDATE public.trip_documents SET uploaded_by = ${quote(memberOf(a, owner))} WHERE id = ${quote(friendDocId)};`).ok, false)
-  assert.deepEqual(sqlAs(stack, owner.id, `UPDATE public.trip_documents SET parse_status = 'parsed', extracted = '{"title":"x"}'
+  // Fixed facts cannot change; parse results can, by whoever can see the document.
+  assert.equal(sqlAs(stack, friend.id, `UPDATE public.trip_documents SET group_id = ${quote(tripB)} WHERE id = ${quote(friendDocId)};`).ok, false)
+  assert.equal(sqlAs(stack, friend.id, `UPDATE public.trip_documents SET storage_path = ${quote(otherPath)} WHERE id = ${quote(friendDocId)};`).ok, false)
+  assert.equal(sqlAs(stack, friend.id, `UPDATE public.trip_documents SET uploaded_by = ${quote(memberOf(a, owner))} WHERE id = ${quote(friendDocId)};`).ok, false)
+  assert.deepEqual(sqlAs(stack, owner.id, `UPDATE public.trip_documents SET parse_status = 'failed' WHERE id = ${quote(friendDocId)} RETURNING id;`).rows, [], 'hidden from another member')
+  assert.deepEqual(sqlAs(stack, friend.id, `UPDATE public.trip_documents SET parse_status = 'parsed', extracted = '{"title":"x"}'
     WHERE id = ${quote(friendDocId)} RETURNING parse_status;`).rows, [['parsed']])
   assert.deepEqual(sqlAs(stack, stranger.id, `UPDATE public.trip_documents SET parse_status = 'failed' WHERE id = ${quote(friendDocId)} RETURNING id;`).rows, [])
 
   // Event links never cross Trips.
   const foreignEvent = sqlAs(stack, other.id, `INSERT INTO public.trip_events (group_id, event_type, title, starts_at, created_by)
     VALUES (${quote(tripB)}, 'hotel', 'Jaipur hotel', '2026-11-02T08:00:00Z', ${quote(memberOf(b, other))}) RETURNING id;`).rows[0][0]
-  const crossLink = sqlAs(stack, owner.id, `UPDATE public.trip_documents SET event_id = ${quote(foreignEvent)} WHERE id = ${quote(friendDocId)};`)
+  const crossLink = sqlAs(stack, friend.id, `UPDATE public.trip_documents SET event_id = ${quote(foreignEvent)} WHERE id = ${quote(friendDocId)};`)
   assert.equal(crossLink.ok, false, 'cross-Trip event link')
   assert.match(crossLink.error, /trip_documents_event_same_group/u)
 
@@ -196,9 +202,23 @@ try {
   assert.equal(sqlAs(stack, null, createEvent(ownerDocId)).ok, false, 'anon RPC')
   assert.equal(sqlAs(stack, owner.id, `SELECT public.create_event_from_document(${quote(ownerDocId)}, 'flight', ' ', now());`).ok, false, 'blank title')
   assert.equal(stack.psql(`SELECT event_id IS NULL FROM public.trip_documents WHERE id = ${quote(ownerDocId)};`), 't', 'failed RPC left no link')
+  // Added for everyone, the document and its file are the whole Trip's.
+  assert.equal((await download(owner, friendPath)).status, 200, 'public booking file')
+  assert.deepEqual(names(owner.id), [[tripA], [tripA]])
   // Deleting the Event keeps the document and only unlinks it.
   assert.deepEqual(sqlAs(stack, owner.id, `DELETE FROM public.trip_events WHERE id = ${quote(eventId)} RETURNING id;`).rows, [[eventId]])
   assert.equal(stack.psql(`SELECT coalesce(event_id::text, 'none') FROM public.trip_documents WHERE id = ${quote(friendDocId)};`), 'none')
+
+  // A booking for some of the Trip: its file is out of reach for everyone else, through Storage too.
+  const privateEvent = sqlAs(stack, owner.id, `SELECT public.create_event_from_document(p_document_id => ${quote(ownerDocId)},
+    p_event_type => 'hotel', p_title => 'Owner suite', p_starts_at => '2026-11-01T08:00:00Z',
+    p_member_ids => ARRAY[${quote(memberOf(a, owner))}]::uuid[]);`)
+  assert.equal(privateEvent.ok, true, privateEvent.error)
+  assert.equal((await download(owner, ownerPath)).status, 200, 'on the booking')
+  assert.equal(reason(await download(friend, ownerPath)), '404', 'not on the booking: download')
+  assert.notEqual((await sign(friend, ownerPath)).status, 200, 'not on the booking: signed URL')
+  assert.equal((await list(friend, tripA)).json.length, 1, 'not on the booking: listing')
+  assert.deepEqual(sqlAs(stack, friend.id, `SELECT id FROM public.trip_events WHERE id = ${quote(privateEvent.rows[0][0])};`).rows, [])
 
   // Delete: a non-uploading Member can delete neither object nor metadata.
   assert.deepEqual((await remove(friend, ownerPath)).json, [])
@@ -208,10 +228,17 @@ try {
   assert.deepEqual((await remove(owner, otherPath)).json, [], 'Member of B deleted Owner-of-B object')
   assert.equal(objectExists(otherPath), true)
 
-  // The Owner may delete a Member's document; the uploader may delete their own.
+  // The Owner may delete a Member's document they can see; the uploader may delete their own.
   const leaverPath = pathIn(tripA, 'ferry.png')
   assert.equal((await upload(leaver, leaverPath, { type: 'image/png' })).status, 200)
-  assert.equal(sqlAs(stack, leaver.id, insertDocument(tripA, leaverPath, memberOf(a, leaver)).replace("'application/pdf'", "'image/png'")).ok, true)
+  const leaverDoc = sqlAs(stack, leaver.id, insertDocument(tripA, leaverPath, memberOf(a, leaver)).replace("'application/pdf'", "'image/png'"))
+  assert.equal(leaverDoc.ok, true, leaverDoc.error)
+  // Read as a bill: shared with the whole Trip.
+  assert.deepEqual(sqlAs(stack, leaver.id, `UPDATE public.trip_documents SET parse_status = 'parsed', extracted = '{"kind":"bill","title":"Ferry"}'
+    WHERE id = ${quote(leaverDoc.rows[0][0])} RETURNING id;`).rows, [[leaverDoc.rows[0][0]]])
+  // The friend's unlinked booking is private to them again, so the Owner can't remove it until it's shared.
+  assert.deepEqual((await remove(owner, friendPath)).json, [], 'Owner cannot delete a private upload')
+  assert.equal(sqlAs(stack, friend.id, createEvent(friendDocId, 'Flight again')).ok, true)
   assert.equal((await remove(owner, friendPath)).json.length, 1, 'Owner object delete')
   assert.deepEqual(sqlAs(stack, owner.id, `DELETE FROM public.trip_documents WHERE id = ${quote(friendDocId)} RETURNING id;`).rows, [[friendDocId]])
   assert.equal((await remove(other, otherPath)).json.length, 1, 'uploader object delete')

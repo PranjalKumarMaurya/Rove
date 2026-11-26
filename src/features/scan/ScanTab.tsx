@@ -2,15 +2,17 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { NeonBtn } from '../../components/ui/NeonBtn'
 import type { TripTabProps } from '../workspace/tripTab'
 import { MAX_DOCUMENT_BYTES, billToEventDraft, emptyDraft, eventToBillDraft, type TripContext } from '../../../supabase/functions/_shared/documentDraft.ts'
-import { ExpenseForm } from '../split/ExpenseForm'
+import { ExpenseForm, type ExpensePrefill } from '../split/ExpenseForm'
+import type { LedgerExpense } from '../split/ledger'
+import { loadLedger } from '../split/splitApi'
 import { DraftReviewForm } from './DraftReviewForm'
 import { prepareForUpload } from './prepareImage'
 import {
-  ScanError, type TripDocument, addDocumentEvent, deleteTripDocument, isUnsplitBill, linkDocumentExpense, listTripDocuments,
+  ScanError, type TripDocument, addDocumentEvent, deleteTripDocument, eventAudience, isUnsplitBill, linkDocumentExpense, listTripDocuments,
   parseTripDocument, signedDocumentUrl, storedDraft, uploadTripDocument,
 } from './documentsApi'
 import {
-  BILL_WARNING_MESSAGES, FILE_PROBLEM_MESSAGES, type BillDraft, type DocumentDraft, type EventInput, billPrefill, checkSelectedFile,
+  BILL_WARNING_MESSAGES, FILE_PROBLEM_MESSAGES, type BillDraft, type DocumentDraft, type EventInput, billPrefill, bookingCostPrefill, checkSelectedFile,
   fileKindLabel, formatBytes, isBillDraft, parseFailureMessage,
 } from './scanRules'
 
@@ -21,6 +23,8 @@ type Phase =
   | { kind: 'uploading' }
   | { kind: 'parsing'; document: TripDocument }
   | { kind: 'review'; document: TripDocument; draft: DocumentDraft; notice: string | null; canRetry: boolean }
+  /** A booking in the itinerary whose cost is being split. `justAdded`: straight after adding it. */
+  | { kind: 'cost'; document: TripDocument; title: string; prefill: ExpensePrefill; justAdded: boolean }
 
 type ListState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; documents: TripDocument[] }
 
@@ -50,6 +54,15 @@ export function ScanTab({ trip, roster }: TripTabProps) {
   const [list, setList] = useState<ListState>({ kind: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
   const reload = useCallback(() => setReloadCount((value) => value + 1), [])
+  // Expenses already in Split, to warn before the same cost is added twice.
+  const [existing, setExisting] = useState<LedgerExpense[]>([])
+  const splitting = phase.kind === 'cost' || (phase.kind === 'review' && isBillDraft(phase.draft))
+  useEffect(() => {
+    if (!splitting) return
+    let active = true
+    loadLedger(trip.groupId).then((ledger) => { if (active) setExisting(ledger.expenses) }).catch(() => { /* the warning is optional */ })
+    return () => { active = false }
+  }, [splitting, trip.groupId])
 
   useEffect(() => {
     let active = true
@@ -121,16 +134,21 @@ export function ScanTab({ trip, roster }: TripTabProps) {
     else void read(document)
   }
 
-  const addToItinerary = async (input: EventInput, audience: string[]) => {
-    if (phase.kind !== 'review') return
+  const addToItinerary = async (input: EventInput, audience: string[], addToSplit: boolean) => {
+    if (phase.kind !== 'review' || isBillDraft(phase.draft)) return
+    const { document, draft } = phase
     setSaving(true)
     setSaveError(null)
     try {
-      const saved = await addDocumentEvent(phase.document.id, input, trip.groupId, audience)
-      setPhase({ kind: 'idle' })
-      setMessage(saved.audienceSaved
-        ? `Added to the itinerary: ${input.title}`
-        : `Added to the itinerary: ${input.title}. Who it’s for couldn’t be saved; set it from the Trip tab.`)
+      await addDocumentEvent(document.id, input, audience)
+      if (addToSplit) {
+        const included = audience.length ? audience : members.map((member) => member.id)
+        setPhase({ kind: 'cost', document, title: input.title, justAdded: true,
+          prefill: bookingCostPrefill(draft, input, trip.accountingCurrency, included) })
+      } else {
+        setPhase({ kind: 'idle' })
+        setMessage(`Added to the itinerary: ${input.title}`)
+      }
       reload()
     } catch (error) {
       setSaveError(error instanceof ScanError && error.message === 'document_unavailable'
@@ -153,6 +171,32 @@ export function ScanTab({ trip, roster }: TripTabProps) {
     reload()
   }
 
+  // Split a booking that is already in the itinerary (from Trip documents).
+  const splitCost = async (document: TripDocument) => {
+    setMessage(null)
+    let audience: string[] = []
+    try { audience = document.eventId ? await eventAudience(document.eventId) : [] } catch { /* fall back to everyone */ }
+    const draft = storedDraft(document, tripContext)
+    const booking = draft && !isBillDraft(draft) ? draft : null
+    const title = document.eventTitle ?? booking?.title ?? document.fileName
+    const active = new Set(members.map((member) => member.id))
+    const included = audience.filter((id) => active.has(id))
+    setPhase({ kind: 'cost', document, title, justAdded: false, prefill: bookingCostPrefill(
+      { price: booking?.price ?? null }, { title, eventType: booking?.eventType ?? 'other' }, trip.accountingCurrency,
+      included.length ? included : [...active]) })
+  }
+
+  const costSplit = async (document: TripDocument, title: string, expenseId: string) => {
+    setPhase({ kind: 'idle' })
+    try {
+      await linkDocumentExpense(document.id, expenseId)
+      setMessage(`In the itinerary and in Split: ${title}`)
+    } catch {
+      setMessage(`Added to Split: ${title}. The document doesn’t show it yet; don’t split it again.`)
+    }
+    reload()
+  }
+
   const switchKind = () => {
     if (phase.kind !== 'review') return
     setSaveError(null)
@@ -164,7 +208,7 @@ export function ScanTab({ trip, roster }: TripTabProps) {
       <div className="surface px-4 py-5">
         <h2 className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 25 }}>Scan</h2>
         <p className="mt-2" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-          Add a ticket, hotel voucher, or booking for the itinerary, or a bill to split. Only members of this Trip can open it. You review the details before anything is saved.
+          Add a ticket, hotel voucher, or booking for the itinerary, or a bill to split. You review the details before anything is saved. A booking stays private to you until you pick who’s on it; bills are shared with the Trip.
         </p>
         <label className="mt-5 flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed px-4 py-7 text-center focus-within:ring-2 focus-within:ring-[#FF8B4D]"
           style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)', opacity: busy ? 0.5 : 1 }}>
@@ -194,21 +238,34 @@ export function ScanTab({ trip, roster }: TripTabProps) {
       {phase.kind === 'review' && !isBillDraft(phase.draft) && (
         <DraftReviewForm key={`${phase.document.id}-${phase.draft.startsAt ?? ''}-${phase.notice ?? ''}`} draft={phase.draft}
           fileName={phase.document.fileName} notice={phase.notice} tripTimezone={trip.timezone} saving={saving} saveError={saveError}
-          members={members} onSwitchToBill={switchKind}
-          onSubmit={(input, audience) => void addToItinerary(input, audience)} onCancel={() => setPhase({ kind: 'idle' })}
+          members={members} me={trip.groupMemberId} onSwitchToBill={switchKind}
+          onSubmit={(input, audience, addToSplit) => void addToItinerary(input, audience, addToSplit)} onCancel={() => setPhase({ kind: 'idle' })}
           onRetryRead={phase.canRetry ? () => void read(phase.document) : undefined} />
       )}
       {phase.kind === 'review' && isBillDraft(phase.draft) && (
         <ExpenseForm key={`bill-${phase.document.id}`} groupId={trip.groupId} accountingCurrency={trip.accountingCurrency}
           timezone={trip.timezone} international={trip.isInternational} me={trip.groupMemberId} members={members} expense={null}
-          prefill={billPrefill(phase.draft, trip.accountingCurrency)} requestId={phase.document.id} heading="Split this bill"
+          prefill={billPrefill(phase.draft, trip.accountingCurrency)} requestId={phase.document.id} heading="Split this bill" existing={existing}
           notice={<BillNotice fileName={phase.document.fileName} draft={phase.draft} onSwitchToBooking={switchKind} />}
           onClose={() => setPhase({ kind: 'idle' })}
           onSaved={(expenseId) => { if (phase.kind === 'review' && isBillDraft(phase.draft)) void billSplit(phase.document, phase.draft, expenseId) }} />
       )}
+      {phase.kind === 'cost' && (
+        <ExpenseForm key={`cost-${phase.document.id}`} groupId={trip.groupId} accountingCurrency={trip.accountingCurrency}
+          timezone={trip.timezone} international={trip.isInternational} me={trip.groupMemberId} members={members} expense={null}
+          prefill={phase.prefill} requestId={phase.document.id} heading="Split this booking" existing={existing}
+          notice={<p className="text-sm" data-testid="scan-cost-notice" style={{ color: 'var(--text-secondary)' }}>
+            {phase.justAdded ? `${phase.title} is in the itinerary. ` : ''}Split the cost between the people on this booking, or change who shares it.
+          </p>}
+          onClose={() => {
+            if (phase.justAdded) setMessage(`Added to the itinerary: ${phase.title}. Split the cost any time from Trip documents.`)
+            setPhase({ kind: 'idle' })
+          }}
+          onSaved={(expenseId) => { if (phase.kind === 'cost') void costSplit(phase.document, phase.title, expenseId) }} />
+      )}
 
       <DocumentList state={list} names={names} trip={trip} tripContext={tripContext} disabled={busy || saving}
-        onRetry={reload} onReview={review} onDeleted={(document) => {
+        onRetry={reload} onReview={review} onSplitCost={(document) => void splitCost(document)} onDeleted={(document) => {
           if (phase.kind === 'review' && phase.document.id === document.id) setPhase({ kind: 'idle' })
           setMessage(`Deleted ${document.fileName}`)
           reload()
@@ -232,7 +289,7 @@ function BillNotice({ fileName, draft, onSwitchToBooking }: { fileName: string; 
   )
 }
 
-function DocumentList({ state, names, trip, tripContext, disabled, onRetry, onReview, onDeleted }: {
+function DocumentList({ state, names, trip, tripContext, disabled, onRetry, onReview, onSplitCost, onDeleted }: {
   state: ListState
   names: Map<string, string>
   trip: TripTabProps['trip']
@@ -240,6 +297,7 @@ function DocumentList({ state, names, trip, tripContext, disabled, onRetry, onRe
   disabled: boolean
   onRetry: () => void
   onReview: (document: TripDocument) => void
+  onSplitCost: (document: TripDocument) => void
   onDeleted: (document: TripDocument) => void
 }) {
   const dateFormat = useMemo(() => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: trip.timezone }), [trip.timezone])
@@ -254,7 +312,7 @@ function DocumentList({ state, names, trip, tripContext, disabled, onRetry, onRe
         </div>
       )}
       {state.kind === 'ready' && state.documents.length === 0 && (
-        <p className="mt-3 text-sm" style={{ color: 'var(--text-secondary)' }}>No documents yet. Tickets, vouchers, and bills you add appear here for the whole Trip.</p>
+        <p className="mt-3 text-sm" style={{ color: 'var(--text-secondary)' }}>No documents yet. Bills you add show to the whole Trip; a booking shows only to the people on it.</p>
       )}
       {state.kind === 'ready' && state.documents.length > 0 && (
         <ul aria-label="Trip documents" className="mt-3 flex flex-col gap-2">
@@ -262,7 +320,7 @@ function DocumentList({ state, names, trip, tripContext, disabled, onRetry, onRe
             <DocumentRow key={document.id} document={document} disabled={disabled} unsplitBill={isUnsplitBill(document, tripContext)}
               uploader={names.get(document.uploadedBy) ?? 'Former member'} date={dateFormat.format(new Date(document.createdAt))}
               canDelete={document.uploadedBy === trip.groupMemberId || trip.role === 'owner'}
-              onReview={() => onReview(document)} onDeleted={() => onDeleted(document)} />
+              onReview={() => onReview(document)} onSplitCost={() => onSplitCost(document)} onDeleted={() => onDeleted(document)} />
           ))}
         </ul>
       )}
@@ -270,7 +328,7 @@ function DocumentList({ state, names, trip, tripContext, disabled, onRetry, onRe
   )
 }
 
-function DocumentRow({ document, uploader, date, canDelete, disabled, unsplitBill, onReview, onDeleted }: {
+function DocumentRow({ document, uploader, date, canDelete, disabled, unsplitBill, onReview, onSplitCost, onDeleted }: {
   document: TripDocument
   unsplitBill: boolean
   uploader: string
@@ -278,6 +336,7 @@ function DocumentRow({ document, uploader, date, canDelete, disabled, unsplitBil
   canDelete: boolean
   disabled: boolean
   onReview: () => void
+  onSplitCost: () => void
   onDeleted: () => void
 }) {
   const [confirming, setConfirming] = useState(false)
@@ -319,7 +378,9 @@ function DocumentRow({ document, uploader, date, canDelete, disabled, unsplitBil
   }
 
   const done = Boolean(document.eventId || document.expenseId)
-  const status = document.eventId
+  const status = document.eventId && document.expenseId
+    ? `In itinerary · In Split${document.eventTitle ? `: ${document.eventTitle}` : ''}`
+    : document.eventId
     ? `In itinerary${document.eventTitle ? `: ${document.eventTitle}` : ''}`
     : document.expenseId
       ? `In Split${document.expenseTitle ? `: ${document.expenseTitle}` : ''}`
@@ -343,6 +404,7 @@ function DocumentRow({ document, uploader, date, canDelete, disabled, unsplitBil
         <div className="mt-2 flex flex-wrap gap-4 text-sm">
           <button type="button" onClick={() => void view()} disabled={working !== null} aria-label={`View ${document.fileName}`} style={{ color: 'var(--accent)' }}>{working === 'view' ? 'Opening…' : 'View'}</button>
           {!done && <button type="button" onClick={onReview} disabled={disabled} aria-label={`${unsplitBill ? 'Split' : 'Review'} ${document.fileName}`} style={{ color: 'var(--text-primary)' }}>{unsplitBill ? 'Split bill' : 'Review'}</button>}
+          {document.eventId && !document.expenseId && <button type="button" onClick={onSplitCost} disabled={disabled} aria-label={`Split cost of ${document.fileName}`} style={{ color: 'var(--text-primary)' }}>Split cost</button>}
           {canDelete && <button type="button" onClick={() => setConfirming(true)} disabled={disabled} aria-label={`Delete ${document.fileName}`} style={{ color: 'var(--text-secondary)' }}>Delete</button>}
         </div>
       )}

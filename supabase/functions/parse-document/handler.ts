@@ -156,6 +156,7 @@ const text = { type: 'string' }
 const EXTRACTED_FIELDS = ['start_local', 'start_timezone', 'end_local', 'end_timezone', 'location', 'location_to',
   'dep_code', 'arr_code', 'flight_no', 'airline', 'terminal', 'booking_ref', 'notes'] as const
 const BILL_FIELDS = ['merchant', 'total_amount', 'currency', 'spent_local', 'spent_timezone'] as const
+const PARTY_FIELDS = ['party_size', 'price_total', 'price_currency'] as const
 
 /** JSON schema for the model's answer (structured outputs). */
 export const EXTRACTION_SCHEMA = {
@@ -168,8 +169,12 @@ export const EXTRACTION_SCHEMA = {
     ...Object.fromEntries(EXTRACTED_FIELDS.map((field) => [field, text])),
     ...Object.fromEntries(BILL_FIELDS.map((field) => [field, text])),
     bill_category: { type: 'string', enum: [...BILL_CATEGORIES] },
+    ...Object.fromEntries(PARTY_FIELDS.map((field) => [field, text])),
+    travellers: { type: 'array', items: text },
+    payment_status: { type: 'string', enum: ['paid', 'pay_later', 'unknown'] },
   },
-  required: ['document_kind', 'event_type', 'title', ...EXTRACTED_FIELDS, ...BILL_FIELDS, 'bill_category'],
+  required: ['document_kind', 'event_type', 'title', ...EXTRACTED_FIELDS, ...BILL_FIELDS, 'bill_category',
+    ...PARTY_FIELDS, 'travellers', 'payment_status'],
 }
 
 export const EXTRACTION_SYSTEM_PROMPT = 'You read one document a friend uploaded to a group trip. It is either a booking '
@@ -197,6 +202,11 @@ export function buildExtractionPrompt(trip: TripContext): string {
     '- notes: a short summary such as "5 covers, 6 drinks". Set event_type to the closest type (food for a meal) and every booking field to an empty string.',
     '',
     'For a booking: set every bill field to an empty string, bill_category to other, and extract the primary booking.',
+    '- party_size: how many people the booking is for, as digits, for example 5 for "5 adults" or 2 for "2 tickets" (count adults and children together). Empty string if it does not say.',
+    '- travellers: every passenger or guest name printed on it, as printed, for example ["Rahul Sharma", "Priya Mehta"]. An empty list if no names are shown.',
+    '- price_total: the total price of the whole booking, digits only like total_amount. price_currency: its ISO 4217 code. Empty strings if no price is shown.',
+    '- payment_status: "paid" if it says paid, prepaid, charged or confirmed with payment; "pay_later" if it is to be paid at the property, on arrival or later; otherwise "unknown".',
+    'For a bill: set party_size, price_total and price_currency to empty strings, travellers to an empty list and payment_status to unknown.',
     '',
     'Times:',
     '- start_local is the departure, check-in, or start clock time; end_local is the arrival, check-out, or end time.',
@@ -240,6 +250,7 @@ export function createStubExtractor(): Extractor {
       end_local: `${trip.startDate}T08:45`, end_timezone: 'Asia/Kolkata',
       location: 'Delhi (DEL)', location_to: 'Goa (GOI)', dep_code: 'del', arr_code: 'goi',
       flight_no: '6e 123', airline: 'IndiGo', terminal: 'T1', booking_ref: 'stub42', notes: 'Seat 12A',
+      party_size: '2 adults', travellers: ['Asha Rao', 'Ravi Kumar'], price_total: '12,480', price_currency: 'INR', payment_status: 'paid',
     }
   }
 }

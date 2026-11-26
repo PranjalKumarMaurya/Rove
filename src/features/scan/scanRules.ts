@@ -245,3 +245,95 @@ export function parseFailureMessage(code: ParseFailure): string {
     default: return 'We could not read this document. Enter the details yourself.'
   }
 }
+
+// ─── Who's on a booking, and its cost ────────────────────────────────────────
+
+export interface AudienceMember {
+  id: string
+  name: string
+}
+
+const nameTokens = (name: string): string[] =>
+  name.normalize('NFKD').replace(/[̀-ͯ]/gu, '').toLowerCase()
+    // Titles printed on tickets and vouchers.
+    .replace(/\b(mr|mrs|ms|miss|mstr|master|dr)\b\.?/gu, ' ')
+    .split(/[^a-z0-9]+/u).filter((token) => token.length > 1)
+
+/**
+ * Members whose name matches a passenger or guest printed on the booking. A
+ * match is a shared first name, or a member's single-word name equal to any
+ * word of the printed name ("RAO/ASHA MS" matches "Asha"). Each printed name
+ * picks at most one member, and only when exactly one member fits.
+ */
+export function matchTravellers(travellers: readonly string[], members: readonly AudienceMember[]): string[] {
+  const picked = new Set<string>()
+  for (const traveller of travellers) {
+    const printed = nameTokens(traveller)
+    if (!printed.length) continue
+    const fits = members.filter((member) => {
+      const own = nameTokens(member.name)
+      if (!own.length) return false
+      // Full name printed in any order.
+      if (own.length > 1 && own.every((token) => printed.includes(token))) return true
+      return printed.includes(own[0])
+    })
+    if (fits.length === 1) picked.add(fits[0].id)
+  }
+  return members.filter((member) => picked.has(member.id)).map((member) => member.id)
+}
+
+export interface AudienceChoice {
+  everyone: boolean
+  picked: string[]
+}
+
+/**
+ * Where "Who's on this booking?" starts: the members named on it; otherwise
+ * just me when it is for fewer people than the Trip; otherwise everyone.
+ */
+export function initialAudience(draft: Pick<EventDraft, 'partySize' | 'travellers'>, members: readonly AudienceMember[], me: string): AudienceChoice {
+  const named = matchTravellers(draft.travellers ?? [], members)
+  if (named.length && named.length < members.length) return { everyone: false, picked: named }
+  if (draft.partySize && draft.partySize < members.length) {
+    return { everyone: false, picked: members.some((member) => member.id === me) ? [me] : [] }
+  }
+  return { everyone: true, picked: [] }
+}
+
+/** The line under "Who's on this booking?". */
+export function audienceHint(partySize: number | null, choice: AudienceChoice, memberCount: number): string {
+  const count = choice.everyone ? memberCount : choice.picked.length
+  const people = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`
+  if (!partySize) return choice.everyone ? `Everyone · ${people(memberCount)}` : `${count} picked`
+  return `For ${people(partySize)} · ${count} of ${partySize} picked`
+}
+
+/** A gentle note when the picked count doesn't match what the booking says. */
+export function audienceMismatch(partySize: number | null, choice: AudienceChoice, memberCount: number): string | null {
+  if (!partySize) return null
+  const count = choice.everyone ? memberCount : choice.picked.length
+  if (count === partySize || count === 0) return null
+  return `The booking says ${partySize}, and ${count} ${count === 1 ? 'is' : 'are'} picked. That's fine if some people aren't in this Trip.`
+}
+
+/** "Also add to Split" starts on only for a booking that says it is paid. */
+export function defaultAddToSplit(draft: Pick<EventDraft, 'price'>): boolean {
+  return draft.price?.status === 'paid'
+}
+
+const COST_CATEGORY: Record<EventType, string> = {
+  flight: 'transport', ferry: 'transport', transport: 'transport', hotel: 'stay', activity: 'activity', food: 'food', other: 'other',
+}
+
+/** What a booking's cost fills into Split's expense form. */
+export function bookingCostPrefill(draft: Pick<EventDraft, 'price'>, input: { title: string; eventType: EventType }, accountingCurrency: string, included: string[]): BillPrefill & { included: string[] } {
+  return {
+    description: input.title.slice(0, 120),
+    amount: draft.price?.amount ?? '',
+    currency: draft.price?.currency ?? accountingCurrency,
+    category: COST_CATEGORY[input.eventType],
+    // Paid when booked; the booking doesn't say when, so the form starts at now.
+    spentAt: null,
+    included,
+  }
+}

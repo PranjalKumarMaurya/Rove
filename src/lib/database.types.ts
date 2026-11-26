@@ -1383,6 +1383,7 @@ export type Database = {
           p_flight_no?: string
           p_location?: string
           p_location_to?: string
+          p_member_ids?: string[]
           p_notes?: string
           p_starts_at: string
           p_terminal?: string

@@ -6,6 +6,7 @@ import {
 import { fetchLiveRate } from './fxRate'
 import type { LedgerExpense } from './ledger'
 import { equalSplit, formatMoney, type MoneyLine } from './money'
+import { findSimilarExpenses } from './similarExpense'
 import { commitExpense, SplitRequestError, updateExpense } from './splitApi'
 import { Field, SplitDialog, inputClass, inputStyle } from './SplitDialog'
 import { splitErrorMessage } from './splitErrors'
@@ -28,10 +29,13 @@ export interface ExpensePrefill {
   category: string
   /** UTC instant from the bill, or null to use now. */
   spentAt: string | null
+  /** Who shares it (e.g. the people on a booking); empty or missing means everyone. */
+  included?: string[]
 }
 
 export function ExpenseForm({
   groupId, accountingCurrency, timezone, me, members, expense, onClose, onSaved, international = true, prefill, requestId: fixedRequestId, notice, heading,
+  existing = [],
 }: {
   groupId: string
   accountingCurrency: string
@@ -53,14 +57,18 @@ export function ExpenseForm({
   /** Shown above the form, e.g. what to check on a scanned bill. */
   notice?: ReactNode
   heading?: string
+  /** Expenses already in Split, to warn about adding the same cost twice. */
+  existing?: readonly LedgerExpense[]
 }) {
   const context = useMemo(() => ({ accountingCurrency, memberIds: members.map((member) => member.id), timezone }), [accountingCurrency, members, timezone])
   const [initial] = useState<ExpenseDraft>(() => {
     if (expense) return draftFromExpense(expense, context)
     const empty = emptyDraft(context, me)
     if (!prefill) return empty
+    const included = (prefill.included ?? []).filter((id) => context.memberIds.includes(id))
     return {
       ...empty,
+      included: included.length ? included : empty.included,
       description: prefill.description,
       amount: prefill.amount,
       currency: international ? prefill.currency : accountingCurrency,
@@ -107,6 +115,9 @@ export function ExpenseForm({
     setDraft((current) => ({ ...current, ...changes }))
   }
   const money = (minor: bigint, code = currency) => formatMoney(minor, code)
+  const similar = useMemo(() => findSimilarExpenses(existing, draft.amount, currency, expense?.id)[0] ?? null,
+    [existing, draft.amount, currency, expense?.id])
+  const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Someone'
 
   const requestClose = () => {
     if (saving) return
@@ -309,6 +320,13 @@ export function ExpenseForm({
             </Choice>
           </fieldset>
 
+          {similar && (
+            <p role="status" data-testid="similar-expense" className="rounded-lg px-3 py-2 text-xs"
+              style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-strong)' }}>
+              {similar.createdBy === me ? 'You' : memberName(similar.createdBy)} already added {money(similar.originalAmount, similar.originalCurrency)} for
+              “{similar.description}” on {formatDay(similar.spentAt ?? similar.createdAt, timezone)}. Check it isn’t the same cost before saving.
+            </p>
+          )}
           {serverError && (
             <p role="alert" className="surface px-3.5 py-3 text-sm" style={{ color: 'var(--text-primary)' }}>{serverError}</p>
           )}
@@ -343,6 +361,14 @@ function rateHint(state: RateState, kept: LedgerExpense | null, timezone: string
   if (state.kind === 'error') return 'Could not fetch a live rate. Enter the rate you were charged.'
   if (kept?.fxCapturedAt) return `Rate captured ${formatWhen(kept.fxCapturedAt, timezone)}. Keeping it leaves the recorded conversion unchanged.`
   return 'Use the rate you were charged, or fetch a live reference rate.'
+}
+
+function formatDay(iso: string, timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat(undefined, { timeZone: timezone, day: 'numeric', month: 'short' }).format(new Date(iso))
+  } catch {
+    return iso.slice(0, 10)
+  }
 }
 
 export function formatWhen(iso: string, timezone: string): string {
