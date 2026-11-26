@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
 
 export function BrandMark() {
-  return <p className="brand-mark"><span className="brand-mark__dot" aria-hidden="true" />TRIP</p>
+  return <p className="brand-mark"><span className="brand-mark__dot" aria-hidden="true" />ROVE</p>
 }
 
 /**

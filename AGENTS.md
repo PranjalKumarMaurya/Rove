@@ -2,6 +2,10 @@
 
 Start with [`docs/STATUS.md`](docs/STATUS.md): how we work, what is verified, what is next, and the parallel workstream ranges. Update it in the same commit as the work it describes.
 
+## Name
+
+The product is called **Rove** (renamed from "Trip" on 2026-11-26); its auth email sender is `rove.noreply@gmail.com`. "Trip" stays wherever it means the thing people plan together (a Trip, the Trip tab, `TripTabProps`, `trip_*` tables): that is the domain, not the brand. The brand appears in `index.html`, the PWA manifest in `vite.config.ts`, the brand mark in `src/components/ui/ScreenFrame.tsx`, `LegalPage.tsx`, `appInfo.ts` and `README.md`. Use Rove for any new user-facing mention of the app.
+
 ## Working rules
 
 - Lightweight process: tests plus a short STATUS.md update. Do not create gate, authorisation, evidence-manifest, change-control, or packet documents.

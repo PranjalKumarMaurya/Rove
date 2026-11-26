@@ -10,5 +10,5 @@ export const SUPPORT_EMAIL: string | null = (() => {
 })()
 
 export function supportMailto(email: string): string {
-  return `mailto:${email}?subject=${encodeURIComponent(`Trip app feedback (version ${APP_VERSION})`)}`
+  return `mailto:${email}?subject=${encodeURIComponent(`Rove feedback (version ${APP_VERSION})`)}`
 }

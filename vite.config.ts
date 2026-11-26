@@ -16,8 +16,8 @@ const pwa = VitePWA({
   includeManifestIcons: false,
   manifest: {
     id: '/',
-    name: 'Trip',
-    short_name: 'Trip',
+    name: 'Rove',
+    short_name: 'Rove',
     description: 'Plan, split and share your group trip.',
     lang: 'en',
     start_url: '/',

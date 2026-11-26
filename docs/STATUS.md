@@ -38,8 +38,8 @@ Unit tests: `npm run test:unit`. All mocked browser tests: `npm run test:browser
 
 ## Not done yet
 
-- **Nothing after migration 009 is deployed.** Follow the [deploy runbook](#deploy-runbook-free-tier) below.
-- **Bali data import** (one-time script). The v1 data lives in the old "Travel" Supabase project, which was paused when checked on 2026-11-16; the script reads it (including the private `tickets` bucket, with the service role) and writes into the new project.
+- **Deploy in progress (2026-11-26).** The app is now called **Rove**. Production Supabase project `trip` (ref `whpsbyhvbagaxvthacdc`, Mumbai, personal account): all 38 migrations applied with `supabase db push` and recorded; custom SMTP set to Gmail (`rove.noreply@gmail.com`, sender "Rove") with a raised email rate limit. Still to do from the [deploy runbook](#deploy-runbook-free-tier): `ANTHROPIC_API_KEY` secret and the `parse-document` function, Cloudflare Pages, Site URL and Redirect URLs, GitHub secrets for backups and keep-awake, and the smoke test.
+- **Bali data import** (one-time script), deferred. The v1 data is in Partha's own Supabase project (`tplbxaqjqbeokdxdkhbo`), not the old "Travel" project (that was only a v2 test project and is empty). It needs Partha's export or access; the Bali people and phone numbers are kept privately outside the repo.
 - Error monitoring for production. Backups: `.github/workflows/db-backup.yml` (weekly, encrypted; tested locally by `npm run test:db:backup`), not yet run on GitHub.
 - Unverified until deploy: real Claude extraction (stub only locally; the call now uses Claude Haiku 5.5 at low effort and type-checks against the Anthropic SDK 1.8.0 the function loads), the change-email round trip, and `delete_my_account` deleting `auth.users` as hosted `postgres` (works locally).
 - Smaller gaps: co-members' photo avatars are not shown in Crew/Split yet (hooks exist); one-step "transfer and leave"; invitation list shows the newest 50; archived Trips can be restored but not browsed; roster is not live; privacy/terms text is placeholder (it should say that scanned documents are sent to Anthropic).

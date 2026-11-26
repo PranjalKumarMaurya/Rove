@@ -1,8 +1,8 @@
-# Trip
+# Rove
 
 **A group-trip app for friends: shared itinerary, expense splitting, AI ticket scanning and live crew status, in one installable web app.**
 
-Trip started as a private app that [@vibecoderpartha](https://github.com/vibecoderpartha) built for five friends' Bali trip (v1, on `main`). **v2** (the `v2` branch) rebuilds it as a multi-user app anyone can use: real accounts, any number of Trips, invitations, and each Trip's data kept separate inside the database.
+Rove started as a private app that [@vibecoderpartha](https://github.com/vibecoderpartha) built for five friends' Bali trip (v1, on `main`). **v2** (the `v2` branch) rebuilds it as a multi-user app anyone can use: real accounts, any number of Trips, invitations, and each Trip's data kept separate inside the database.
 
 > **Status:** v2 runs end to end on a local Supabase stack, with every feature below covered by tests. It is not deployed yet. See [`docs/STATUS.md`](docs/STATUS.md) for the details.
 

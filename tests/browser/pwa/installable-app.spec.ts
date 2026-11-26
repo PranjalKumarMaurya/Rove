@@ -29,7 +29,7 @@ async function cachedUrls(page: Page): Promise<string[]> {
 test('the manifest, icons and service worker are served', async ({ request }) => {
   const manifest = await (await request.get('/manifest.webmanifest')).json()
   expect(manifest).toMatchObject({
-    name: 'Trip', short_name: 'Trip', display: 'standalone', start_url: '/', theme_color: '#0F0B08', background_color: '#0F0B08',
+    name: 'Rove', short_name: 'Rove', display: 'standalone', start_url: '/', theme_color: '#0F0B08', background_color: '#0F0B08',
   })
   const icons = manifest.icons as { src: string; sizes: string; purpose: string }[]
   for (const size of ['192x192', '512x512']) {

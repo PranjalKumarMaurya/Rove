@@ -18,7 +18,7 @@ const pages = {
   terms: {
     title: 'Terms of use',
     sections: [
-      ['Using the app', 'Trip helps friends plan a trip together. Use it for trips you are part of, and only add things you are allowed to share.'],
+      ['Using the app', 'Rove helps friends plan a trip together. Use it for trips you are part of, and only add things you are allowed to share.'],
       ['Money', 'Split shows who owes whom. It records payments you make outside the app; it does not move money.'],
       ['Exchange rates', 'Rates are references only. Check the rate you were actually charged.'],
       ['Changes', 'We may update these terms. We will tell you in the app when we do.'],
