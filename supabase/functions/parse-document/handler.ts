@@ -179,6 +179,8 @@ export const EXTRACTION_SYSTEM_PROMPT = 'You read one document a friend uploaded
 
 export function buildExtractionPrompt(trip: TripContext): string {
   return [
+    'Which document: photos often catch other papers or screen text at the edges. Read only the main document, the one most completely visible and central in the image. Ignore anything cut off at the edges or only partly shown. Only if one complete document lists several bookings (for example a multi-leg itinerary), use the earliest.',
+    '',
     'First decide document_kind:',
     '- "bill" when its main point is money spent: a restaurant, bar, cafe or shop bill, a receipt, a taxi or fuel receipt, an invoice for something already used.',
     '- "booking" when it confirms a future journey, stay or activity, even if it shows a price.',
@@ -194,7 +196,7 @@ export function buildExtractionPrompt(trip: TripContext): string {
     '- bill_category: food, transport, stay, activity, shopping or other.',
     '- notes: a short summary such as "5 covers, 6 drinks". Set event_type to the closest type (food for a meal) and every booking field to an empty string.',
     '',
-    'For a booking: set every bill field to an empty string, bill_category to other, and extract the primary booking. If it lists several, use the earliest one.',
+    'For a booking: set every bill field to an empty string, bill_category to other, and extract the primary booking.',
     '',
     'Times:',
     '- start_local is the departure, check-in, or start clock time; end_local is the arrival, check-out, or end time.',

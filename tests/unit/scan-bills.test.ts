@@ -147,3 +147,10 @@ test('empty strings for "not shown" read as missing, for bills and bookings', ()
   assert.equal(booking.depCode, null)
   assert.equal(booking.startsAt, '2026-12-12T00:40:00.000Z')
 })
+
+test('the reader is told to read the main document in a photo, not fragments at the edges', () => {
+  const prompt = buildExtractionPrompt(bali)
+  assert.match(prompt, /most completely visible and central/u)
+  assert.match(prompt, /Ignore anything cut off at the edges/u)
+  assert.doesNotMatch(prompt, /If it lists several, use the earliest one\./u)
+})

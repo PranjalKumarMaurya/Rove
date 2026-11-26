@@ -172,7 +172,7 @@ function SettingsForm({ trip, display, currencyLocked, onClose, onSaved }: {
       <Field id="settings-destination" label="Destination" error={show('destination')}>
         <NeonInput value={form.destination} onChange={(event) => update({ destination: event.target.value })} disabled={saving} autoComplete="off" style={inputStyle} />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 [&>*]:min-w-0">
         <Field id="settings-start" label="Start date" error={show('startDate')}>
           <NeonInput type="date" value={form.startDate} onChange={(event) => update({ startDate: event.target.value })} disabled={saving} style={inputStyle} />
         </Field>

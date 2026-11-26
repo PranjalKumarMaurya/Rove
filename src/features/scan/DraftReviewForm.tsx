@@ -73,7 +73,7 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
         <Field label="Title" error={errors.title}>
           <NeonInput aria-label="Title" value={form.title} onChange={set('title')} disabled={saving} maxLength={200} />
         </Field>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [&>*]:min-w-0">
           <Field label="Starts" error={errors.startLocal}>
             <NeonInput aria-label="Starts" type="datetime-local" value={form.startLocal} onChange={set('startLocal')} disabled={saving} style={dateStyle} />
           </Field>
