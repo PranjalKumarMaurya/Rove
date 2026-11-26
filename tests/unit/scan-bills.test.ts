@@ -120,3 +120,30 @@ test('the local stub reads a file named like a bill as a bill', async () => {
   const ticket = normaliseDocument(await stub({ file, fileName: 'ticket.png', trip: bali }), bali)
   assert.ok(!isBillDraft(ticket))
 })
+
+test('the reader’s schema stays within structured outputs’ limit of 16 union-typed fields (it uses none)', () => {
+  const unions = (node: unknown): number => {
+    if (!node || typeof node !== 'object') return 0
+    const own = 'anyOf' in node || Array.isArray((node as { type?: unknown }).type) ? 1 : 0
+    return own + Object.values(node).reduce<number>((sum, child) => sum + unions(child), 0)
+  }
+  assert.equal(unions(EXTRACTION_SCHEMA), 0)
+})
+
+test('empty strings for "not shown" read as missing, for bills and bookings', () => {
+  const bill = normaliseDocument({ document_kind: 'bill', title: 'Cafe', merchant: '', total_amount: '450', currency: '',
+    spent_local: '', spent_timezone: '', bill_category: 'food', notes: '' }, bali)
+  assert.ok(isBillDraft(bill))
+  assert.equal(bill.merchant, null)
+  assert.equal(bill.currency, null)
+  assert.equal(bill.spentAt, null)
+  assert.equal(bill.notes, null)
+  const booking = normaliseDocument({ document_kind: 'booking', event_type: 'flight', title: 'SK 482', start_local: '2026-12-12T06:10',
+    start_timezone: 'Asia/Kolkata', end_local: '', end_timezone: '', location: '', location_to: '', dep_code: '', arr_code: '',
+    flight_no: '', airline: '', terminal: '', booking_ref: '', notes: '', merchant: '', total_amount: '', currency: '', spent_local: '',
+    spent_timezone: '', bill_category: 'other' }, bali)
+  assert.ok(!isBillDraft(booking))
+  assert.equal(booking.endsAt, null)
+  assert.equal(booking.depCode, null)
+  assert.equal(booking.startsAt, '2026-12-12T00:40:00.000Z')
+})

@@ -129,7 +129,10 @@ export function createParseHandler({ openStore, extractor, limits = DEFAULT_PARS
     let raw: unknown
     try {
       raw = await extractor({ file, fileName: document.fileName, trip })
-    } catch {
+    } catch (error) {
+      // Only the HTTP status and error type, never document content or keys.
+      const detail = error && typeof error === 'object' ? error as { status?: unknown; name?: unknown } : {}
+      log(`extractor_error status=${typeof detail.status === 'number' ? detail.status : 'none'} type=${typeof detail.name === 'string' ? detail.name.replace(/[^A-Za-z]/gu, '').slice(0, 40) : 'unknown'}`)
       return fail(502, 'parse_failed')
     }
     // The draft is returned for review; no Event or expense is created here.
@@ -147,7 +150,9 @@ export function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
-const nullableString = { anyOf: [{ type: 'string' }, { type: 'null' }] }
+// Plain strings, never `anyOf`/null: structured outputs allow at most 16 union-typed
+// fields per schema, so "not shown" is an empty string (normalisation treats it as missing).
+const text = { type: 'string' }
 const EXTRACTED_FIELDS = ['start_local', 'start_timezone', 'end_local', 'end_timezone', 'location', 'location_to',
   'dep_code', 'arr_code', 'flight_no', 'airline', 'terminal', 'booking_ref', 'notes'] as const
 const BILL_FIELDS = ['merchant', 'total_amount', 'currency', 'spent_local', 'spent_timezone'] as const
@@ -160,9 +165,9 @@ export const EXTRACTION_SCHEMA = {
     document_kind: { type: 'string', enum: ['booking', 'bill'] },
     event_type: { type: 'string', enum: [...EVENT_TYPES] },
     title: { type: 'string' },
-    ...Object.fromEntries(EXTRACTED_FIELDS.map((field) => [field, nullableString])),
-    ...Object.fromEntries(BILL_FIELDS.map((field) => [field, nullableString])),
-    bill_category: { anyOf: [{ type: 'string', enum: [...BILL_CATEGORIES] }, { type: 'null' }] },
+    ...Object.fromEntries(EXTRACTED_FIELDS.map((field) => [field, text])),
+    ...Object.fromEntries(BILL_FIELDS.map((field) => [field, text])),
+    bill_category: { type: 'string', enum: [...BILL_CATEGORIES] },
   },
   required: ['document_kind', 'event_type', 'title', ...EXTRACTED_FIELDS, ...BILL_FIELDS, 'bill_category'],
 }
@@ -170,7 +175,7 @@ export const EXTRACTION_SCHEMA = {
 export const EXTRACTION_SYSTEM_PROMPT = 'You read one document a friend uploaded to a group trip. It is either a booking '
   + '(boarding pass, e-ticket, hotel voucher, ferry, train or activity booking) that belongs on the itinerary, or a bill '
   + '(restaurant or bar bill, shop receipt, taxi receipt, any paid or payable total) that the group will split. '
-  + 'Report only what the document shows; use null for anything it does not show.'
+  + 'Report only what the document shows; use an empty string for anything it does not show.'
 
 export function buildExtractionPrompt(trip: TripContext): string {
   return [
@@ -184,17 +189,17 @@ export function buildExtractionPrompt(trip: TripContext): string {
     '- title: the place and what it was for, for example "Sky Garden: food and drinks" or "Big Bazaar: groceries".',
     '- merchant: the business name as printed.',
     '- total_amount: the final total actually charged, after tax, service and discounts. Digits only, with "." for decimals and no thousands separators, for example 1461075 or 7770.00.',
-    '- currency: the ISO 4217 code, for example INR for ₹ or Rs, IDR for Rp. Use null if the bill does not make it clear.',
-    '- spent_local: the date and time printed on the bill, as YYYY-MM-DDTHH:mm in local time. spent_timezone: the IANA timezone of the place, or null.',
+    '- currency: the ISO 4217 code, for example INR for ₹ or Rs, IDR for Rp. Use an empty string if the bill does not make it clear.',
+    '- spent_local: the date and time printed on the bill, as YYYY-MM-DDTHH:mm in local time. spent_timezone: the IANA timezone of the place, or an empty string.',
     '- bill_category: food, transport, stay, activity, shopping or other.',
-    '- notes: a short summary such as "5 covers, 6 drinks". Set event_type to the closest type (food for a meal) and every booking field to null.',
+    '- notes: a short summary such as "5 covers, 6 drinks". Set event_type to the closest type (food for a meal) and every booking field to an empty string.',
     '',
-    'For a booking: set every bill field to null and extract the primary booking. If it lists several, use the earliest one.',
+    'For a booking: set every bill field to an empty string, bill_category to other, and extract the primary booking. If it lists several, use the earliest one.',
     '',
     'Times:',
     '- start_local is the departure, check-in, or start clock time; end_local is the arrival, check-out, or end time.',
     '- Write them as YYYY-MM-DDTHH:mm exactly as printed on the document, in local time. Do not convert between timezones.',
-    '- start_timezone and end_timezone are the IANA timezones of the places those times apply to (for a flight: departure airport, then arrival airport), for example Asia/Kolkata or Asia/Makassar. Use null if you cannot tell.',
+    '- start_timezone and end_timezone are the IANA timezones of the places those times apply to (for a flight: departure airport, then arrival airport), for example Asia/Kolkata or Asia/Makassar. Use an empty string if you cannot tell.',
     '- A duration such as "2h 30m" is never a clock time.',
     '- If no year is printed, use the year that puts the date within or nearest the trip dates.',
     '',
