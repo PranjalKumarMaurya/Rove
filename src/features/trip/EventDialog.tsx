@@ -1,3 +1,4 @@
+import { lockBodyScroll } from '../../hooks/useBodyScrollLock'
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { NeonBtn } from '../../components/ui/NeonBtn'
 import { NeonInput } from '../../components/ui/NeonInput'
@@ -30,7 +31,7 @@ function formFromEvent(event: TripEvent, timeZone: string): EventFormValues {
 
 const overlay: CSSProperties = {
   position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(15, 11, 8, 0.82)', backdropFilter: 'blur(14px)',
-  display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: 16,
+  display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'contain', padding: 16,
 }
 const sheet: CSSProperties = {
   width: '100%', maxWidth: 480, margin: 'auto', background: 'var(--bg-elevated)', border: '1px solid var(--border)',
@@ -64,10 +65,9 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null
     firstField.current?.focus()
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockBodyScroll()
     return () => {
-      document.body.style.overflow = previousOverflow
+      unlock()
       opener?.focus?.()
     }
   }, [])

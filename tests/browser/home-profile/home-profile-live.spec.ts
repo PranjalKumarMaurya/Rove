@@ -130,6 +130,57 @@ test('Trips home, Profile, Trip settings and domestic vs International Trips', a
     await expect(settings).toHaveCount(0)
     await expect(workspace(owner).getByRole('heading', { name: 'Goa long weekend', exact: true })).toBeVisible()
     await expect(tabs(owner)).toHaveText(['Trip', 'Todos', 'Split', 'Scan', 'FX', 'Crew'])
+
+    // ---- On a phone: nothing slides sideways, no scroll bars, sheets drag down -------
+    const desktopSize = owner.viewportSize()
+    await owner.setViewportSize({ width: 390, height: 844 })
+    const noSidewaysOverflow = async (label: string) => {
+      const widths = await owner.evaluate(() => ({ page: document.documentElement.scrollWidth, screen: window.innerWidth }))
+      expect(widths.page, `${label}: page wider than the screen`).toBeLessThanOrEqual(widths.screen)
+    }
+    for (const tab of ['Trip', 'Todos', 'Split', 'Scan', 'FX', 'Crew']) {
+      await owner.getByRole('tab', { name: tab }).click()
+      await noSidewaysOverflow(tab)
+    }
+    await workspace(owner).getByRole('button', { name: 'Trip settings' }).click()
+    const sheet = owner.getByTestId('trip-settings-sheet')
+    await expect(sheet.getByLabel('Trip name')).toBeVisible()
+    // The page behind is locked; the sheet scrolls only up and down, with no visible scroll bar.
+    await expect(owner.locator('body')).toHaveAttribute('data-scroll-locked', 'true')
+    const sheetBox = await sheet.evaluate((element) => ({
+      scrollWidth: element.scrollWidth, clientWidth: element.clientWidth,
+      overflowX: getComputedStyle(element).overflowX, scrollbar: getComputedStyle(element).scrollbarWidth,
+    }))
+    expect(sheetBox.scrollWidth).toBeLessThanOrEqual(sheetBox.clientWidth)
+    expect(sheetBox.overflowX).toBe('hidden')
+    expect(sheetBox.scrollbar).toBe('none')
+    // Both date fields sit inside the sheet.
+    for (const name of ['Start date', 'End date']) {
+      const field = await sheet.getByLabel(name).boundingBox()
+      const frame = await sheet.boundingBox()
+      expect(field && frame && field.x + field.width <= frame.x + frame.width + 0.5, `${name} inside the sheet`).toBe(true)
+    }
+    const handle = sheet.getByTestId('sheet-drag-handle')
+    const grip = await handle.boundingBox()
+    if (!grip) throw new Error('no-sheet-handle')
+    const startX = grip.x + 40
+    const startY = grip.y + grip.height / 2
+    // A small pull springs back.
+    await owner.mouse.move(startX, startY)
+    await owner.mouse.down()
+    await owner.mouse.move(startX, startY + 30, { steps: 5 })
+    await owner.mouse.up()
+    await expect(sheet).toBeVisible()
+    await expect.poll(() => sheet.evaluate((element) => element.style.transform)).toBe('')
+    // Pulling the handle well down closes it, and the page is unlocked again.
+    await owner.mouse.move(startX, startY)
+    await owner.mouse.down()
+    await owner.mouse.move(startX, startY + 220, { steps: 12 })
+    await owner.mouse.up()
+    await expect(sheet).toHaveCount(0)
+    await expect(owner.locator('body')).not.toHaveAttribute('data-scroll-locked', /.*/u)
+    if (desktopSize) await owner.setViewportSize(desktopSize)
+
     // International now: Split offers other currencies.
     await owner.getByRole('tab', { name: 'Split' }).click()
     await owner.getByRole('button', { name: 'Add expense' }).click()

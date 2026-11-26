@@ -20,6 +20,7 @@ const overlay: CSSProperties = {
   alignItems: 'flex-start',
   justifyContent: 'center',
   overflowY: 'auto',
+  overflowX: 'hidden',
   overscrollBehavior: 'contain',
   padding: '16px 16px env(safe-area-inset-bottom, 16px)',
 }

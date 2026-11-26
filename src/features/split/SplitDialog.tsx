@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { lockBodyScroll } from '../../hooks/useBodyScrollLock'
 
 /**
  * Modal sheet capped at 480px. Focus starts on the heading; Escape and the
@@ -19,9 +20,7 @@ export function SplitDialog({ title, onClose, locked = false, testId, children }
 
   useEffect(() => {
     heading.current?.focus()
-    const overflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = overflow }
+    return lockBodyScroll()
   }, [])
 
   useEffect(() => {
@@ -32,7 +31,7 @@ export function SplitDialog({ title, onClose, locked = false, testId, children }
   }, [locked])
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex justify-center overflow-y-auto px-4 py-6"
+    <div className="fixed inset-0 z-50 flex justify-center overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-6"
       style={{ background: 'rgba(15, 11, 8, 0.82)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }}
       onClick={() => { if (!locked) close.current() }}>
       <div role="dialog" aria-modal="true" aria-labelledby={headingId} data-testid={testId}
