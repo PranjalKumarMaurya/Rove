@@ -1,7 +1,7 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { NeonBtn } from '../../components/ui/NeonBtn'
 import {
-  CATEGORIES, draftFromExpense, emptyDraft, evaluateDraft, switchSplitMode, type DraftField, type ExpenseDraft, type TotalCheck,
+  CATEGORIES, draftFromExpense, emptyDraft, evaluateDraft, spentLocalFor, switchSplitMode, type DraftField, type ExpenseDraft, type TotalCheck,
 } from './expenseDraft'
 import { fetchLiveRate } from './fxRate'
 import type { LedgerExpense } from './ledger'
@@ -20,7 +20,19 @@ export interface SplitMember {
 
 type RateState = { kind: 'idle' } | { kind: 'loading' } | { kind: 'live'; asOf: string | null } | { kind: 'error' }
 
-export function ExpenseForm({ groupId, accountingCurrency, timezone, me, members, expense, onClose, onSaved, international = true }: {
+/** Values a scanned bill fills in before the form opens. */
+export interface ExpensePrefill {
+  description: string
+  amount: string
+  currency: string
+  category: string
+  /** UTC instant from the bill, or null to use now. */
+  spentAt: string | null
+}
+
+export function ExpenseForm({
+  groupId, accountingCurrency, timezone, me, members, expense, onClose, onSaved, international = true, prefill, requestId: fixedRequestId, notice, heading,
+}: {
   groupId: string
   accountingCurrency: string
   timezone: string
@@ -32,10 +44,30 @@ export function ExpenseForm({ groupId, accountingCurrency, timezone, me, members
   /** The Expense being edited, or null to add one. */
   expense: LedgerExpense | null
   onClose: () => void
-  onSaved: () => void
+  /** Called with the saved Expense's id. */
+  onSaved: (expenseId: string) => void
+  /** A new expense started from a scanned bill. */
+  prefill?: ExpensePrefill
+  /** Reuse one request id (e.g. the scanned document's) so saving twice returns the same Expense. */
+  requestId?: string
+  /** Shown above the form, e.g. what to check on a scanned bill. */
+  notice?: ReactNode
+  heading?: string
 }) {
-  const context = useMemo(() => ({ accountingCurrency, memberIds: members.map((member) => member.id) }), [accountingCurrency, members])
-  const [initial] = useState<ExpenseDraft>(() => (expense ? draftFromExpense(expense, context) : emptyDraft(context, me)))
+  const context = useMemo(() => ({ accountingCurrency, memberIds: members.map((member) => member.id), timezone }), [accountingCurrency, members, timezone])
+  const [initial] = useState<ExpenseDraft>(() => {
+    if (expense) return draftFromExpense(expense, context)
+    const empty = emptyDraft(context, me)
+    if (!prefill) return empty
+    return {
+      ...empty,
+      description: prefill.description,
+      amount: prefill.amount,
+      currency: international ? prefill.currency : accountingCurrency,
+      category: prefill.category,
+      spentLocal: prefill.spentAt ? spentLocalFor(prefill.spentAt, context) : empty.spentLocal,
+    }
+  })
   const [draft, setDraft] = useState<ExpenseDraft>(initial)
   const [touched, setTouched] = useState<ReadonlySet<DraftField>>(new Set())
   const [attempted, setAttempted] = useState(false)
@@ -44,7 +76,7 @@ export function ExpenseForm({ groupId, accountingCurrency, timezone, me, members
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [rateState, setRateState] = useState<RateState>({ kind: 'idle' })
   // One request id per form: a retry after a lost response returns the same Expense.
-  const requestId = useRef(crypto.randomUUID())
+  const requestId = useRef(fixedRequestId ?? crypto.randomUUID())
   const seenMembers = useRef(new Set(context.memberIds))
 
   // People who appear while a new expense is open (the roster refreshes when it
@@ -109,9 +141,14 @@ export function ExpenseForm({ groupId, accountingCurrency, timezone, me, members
     if (!request) return
     setSaving(true)
     try {
-      if (expense) await updateExpense(expense.id, expense.version, request)
-      else await commitExpense(groupId, request, requestId.current)
-      onSaved()
+      let savedId: string
+      if (expense) {
+        await updateExpense(expense.id, expense.version, request)
+        savedId = expense.id
+      } else {
+        savedId = await commitExpense(groupId, request, requestId.current)
+      }
+      onSaved(savedId)
     } catch (error) {
       setServerError(splitErrorMessage(error instanceof SplitRequestError ? error.code : null))
       setSaving(false)
@@ -126,7 +163,7 @@ export function ExpenseForm({ groupId, accountingCurrency, timezone, me, members
     : null
 
   return (
-    <SplitDialog title={expense ? 'Edit expense' : 'Add expense'} onClose={requestClose} locked={saving} testId="expense-form">
+    <SplitDialog title={heading ?? (expense ? 'Edit expense' : 'Add expense')} onClose={requestClose} locked={saving} testId="expense-form">
       {confirmDiscard ? (
         <section aria-label="Discard changes" className="flex flex-col gap-4">
           <p style={{ color: 'var(--text-secondary)' }}>Discard what you’ve entered? Nothing has been saved.</p>
@@ -138,6 +175,7 @@ export function ExpenseForm({ groupId, accountingCurrency, timezone, me, members
       ) : (
         <form onSubmit={(event) => void save(event)} aria-label={expense ? 'Edit expense' : 'Add expense'} aria-busy={saving}
           noValidate className="flex flex-col gap-4">
+          {notice}
           <fieldset disabled={saving} className="flex flex-col gap-4">
             <Field label="Description" error={show('description')}>
               {(control) => <input {...control} className={inputClass} style={inputStyle} value={draft.description}
@@ -189,6 +227,11 @@ export function ExpenseForm({ groupId, accountingCurrency, timezone, me, members
                   {CATEGORIES.map((category) => <option key={category.id} value={category.id}>{category.label}</option>)}
                 </select>
               )}
+            </Field>
+
+            <Field label="When" error={show('spentAt')} hint={`In Trip time (${timezone}). Bills from before the Trip are fine.`}>
+              {(control) => <input {...control} type="datetime-local" className={inputClass} style={{ ...inputStyle, colorScheme: 'dark' }}
+                value={draft.spentLocal} onChange={(event) => update({ spentLocal: event.target.value })} onBlur={touch('spentAt')} />}
             </Field>
 
             <Choice legend="Paid by" name="payer-mode" value={draft.payerMode}

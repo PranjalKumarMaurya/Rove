@@ -14,7 +14,7 @@ function expense(id: string, total: bigint, payers: [string, bigint][], shares: 
   return {
     id, description: id, category: null, originalAmount: total, originalCurrency: 'INR', accountingAmount: total,
     accountingCurrency: 'INR', fxRate: null, fxSource: null, fxCapturedAt: null, splitMethod: 'exact', createdBy: ana,
-    version: 1, createdAt: '', updatedAt: '',
+    version: 1, createdAt: '', updatedAt: '', spentAt: null,
     payers: payers.map(([memberId, amount]) => ({ memberId, amount })),
     shares: shares.map(([memberId, amount]) => ({ memberId, amount })),
   }

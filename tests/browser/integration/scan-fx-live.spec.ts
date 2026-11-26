@@ -41,7 +41,7 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
     await owner.getByRole('tab', { name: 'Scan' }).click()
     const scan = owner.getByTestId('scan-tab')
     await expect(scan).toContainText('No documents yet')
-    const fileInput = owner.getByLabel('Ticket or booking file')
+    const fileInput = owner.getByLabel('Ticket, booking, or bill file')
 
     // Local checks reject unsupported and oversize files before any upload.
     await fileInput.setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') })
@@ -69,6 +69,29 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
     await expect(passRow).toContainText('In itinerary: Flight to Goa')
     await expect(passRow).toContainText('Scan Owner')
     await expect(passRow.getByRole('button', { name: 'Review boarding-pass.png' })).toHaveCount(0)
+
+    // A bill opens Split's form, filled in from the bill. "Not now" keeps it as a draft to split later.
+    await fileInput.setInputFiles({ name: 'dinner-bill.png', mimeType: 'image/png', buffer: png })
+    await owner.getByRole('button', { name: 'Upload and read' }).click()
+    const billForm = owner.getByTestId('expense-form')
+    await expect(billForm).toContainText('Split this bill')
+    await expect(billForm.getByTestId('scan-bill-notice')).toContainText('dinner-bill.png')
+    await expect(billForm.getByLabel('Description')).toHaveValue('Curlies by the Sea: food and drinks')
+    await expect(billForm.getByLabel('Total amount')).toHaveValue('7770.00')
+    await expect(billForm.getByLabel('When')).toHaveValue(/T\d\d:\d\d$/u)
+    await billForm.getByRole('button', { name: 'Cancel' }).click()
+    const billRow = owner.getByTestId('scan-document').filter({ hasText: 'dinner-bill.png' })
+    await expect(billRow).toContainText('Bill ready to split')
+    // The next morning: open it from the list and split it.
+    await billRow.getByRole('button', { name: 'Split dinner-bill.png' }).click()
+    await expect(billForm.getByLabel('Description')).toHaveValue('Curlies by the Sea: food and drinks')
+    await billForm.getByRole('button', { name: 'Save expense' }).click()
+    await expect(scan).toContainText('Added to Split: Curlies by the Sea: food and drinks')
+    await expect(billRow).toContainText('In Split: Curlies by the Sea: food and drinks')
+    await expect(billRow.getByRole('button', { name: 'Split dinner-bill.png' })).toHaveCount(0)
+    await owner.getByRole('tab', { name: 'Split' }).click()
+    await expect(owner.getByTestId('expense-card').filter({ hasText: 'Curlies by the Sea' })).toBeVisible()
+    await owner.getByRole('tab', { name: 'Scan' }).click()
 
     // A parse failure still allows manual entry.
     await fileInput.setInputFiles({ name: 'unreadable-voucher.pdf', mimeType: 'application/pdf', buffer: pdf })
@@ -121,8 +144,9 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
     await passRow.getByRole('button', { name: 'Delete boarding-pass.png' }).click()
     await passRow.getByRole('button', { name: 'Delete document' }).click()
     await expect(scan).toContainText('Deleted boarding-pass.png')
-    await expect(owner.getByTestId('scan-document')).toHaveCount(1)
-    await expect(owner.getByTestId('scan-document')).toContainText('In itinerary: Hotel check-in')
+    // Left: the hotel voucher and the split bill.
+    await expect(owner.getByTestId('scan-document')).toHaveCount(2)
+    await expect(owner.getByTestId('scan-document').filter({ hasText: 'unreadable-voucher.pdf' })).toContainText('In itinerary: Hotel check-in')
     expect((await ownerContext.request.get(signedUrl)).ok()).toBe(false)
 
     // FX: accounting currency against IDR (a Bali Trip), mocked live rates, two-way input.

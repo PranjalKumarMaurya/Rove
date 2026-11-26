@@ -3,7 +3,7 @@ import { NeonBtn } from '../../components/ui/NeonBtn'
 import { useTripMemberProfiles } from '../groups/useTripMemberProfiles'
 import type { TripTabProps } from '../workspace/tripTab'
 import { ExpenseForm, formatWhen, type SplitMember } from './ExpenseForm'
-import { CATEGORIES, expenseMemberIds } from './expenseDraft'
+import { CATEGORIES, expenseMemberIds, spentLocalFor } from './expenseDraft'
 import {
   computeBalances, computeGroupTotals, suggestSettlements, type Ledger, type LedgerExpense, type LedgerSettlement,
   type ShareLine, type SplitMethod,
@@ -125,7 +125,7 @@ export function SplitTab({ trip, roster, reloadRoster }: TripTabProps) {
           {ledger.expenses.length > 0 && <GroupTotals totals={totals} nameOf={nameOf} money={money} me={me} />}
 
           <ExpenseLog expenses={ledger.expenses} me={me} isOwner={isOwner} activeIds={activeIds} nameOf={nameOf}
-            money={money} timezone={trip.timezone} onEdit={(expense) => setDialog({ kind: 'edit', expense })} onChanged={() => void reload()} />
+            money={money} timezone={trip.timezone} tripStartDate={trip.startDate} onEdit={(expense) => setDialog({ kind: 'edit', expense })} onChanged={() => void reload()} />
 
           {ledger.settlements.length > 0 && (
             <PaymentHistory settlements={ledger.settlements} me={me} isOwner={isOwner} nameOf={nameOf} money={money}
@@ -229,8 +229,15 @@ function listNames(names: string[]): string {
   return `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`
 }
 
-function ExpenseLog({ expenses, me, isOwner, activeIds, nameOf, money, timezone, onEdit, onChanged }: {
+/** When an expense happened: the date spent, or when it was entered. */
+function expenseTime(expense: LedgerExpense): string {
+  return expense.spentAt ?? expense.createdAt
+}
+
+function ExpenseLog({ expenses, me, isOwner, activeIds, nameOf, money, timezone, tripStartDate, onEdit, onChanged }: {
   expenses: LedgerExpense[]
+  /** YYYY-MM-DD; expenses dated earlier (in Trip time) are listed under "Before the trip". */
+  tripStartDate: string
   me: string
   isOwner: boolean
   activeIds: ReadonlySet<string>
@@ -240,22 +247,34 @@ function ExpenseLog({ expenses, me, isOwner, activeIds, nameOf, money, timezone,
   onEdit: (expense: LedgerExpense) => void
   onChanged: () => void
 }) {
+  const ordered = [...expenses].sort((a, b) => Date.parse(expenseTime(b)) - Date.parse(expenseTime(a)))
+  const isBefore = (expense: LedgerExpense) => Boolean(tripStartDate) && spentLocalFor(expenseTime(expense), { timezone }).slice(0, 10) < tripStartDate
+  const during = ordered.filter((expense) => !isBefore(expense))
+  const before = ordered.filter(isBefore)
+  const card = (expense: LedgerExpense) => (
+    <ExpenseCard key={expense.id} expense={expense} me={me} canChange={expense.createdBy === me || isOwner}
+      involvesFormer={expenseMemberIds(expense).some((id) => !activeIds.has(id))} nameOf={nameOf} money={money}
+      timezone={timezone} onEdit={() => onEdit(expense)} onChanged={onChanged} />
+  )
   return (
     <section aria-labelledby="split-log-heading" className="flex flex-col gap-3">
       <h3 id="split-log-heading" className="serif-eyebrow" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Expenses</h3>
+      {expenses.length > 0 && during.length > 0 && (
+        <ul aria-label="Expenses" className="flex flex-col gap-2">{during.map(card)}</ul>
+      )}
+      {before.length > 0 && (
+        <section aria-labelledby="split-before-heading" className="flex flex-col gap-2" data-testid="expenses-before-trip">
+          <h4 id="split-before-heading" className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            Before the trip · {before.length === 1 ? '1 expense' : `${before.length} expenses`}
+          </h4>
+          <ul aria-label="Expenses before the trip" className="flex flex-col gap-2">{before.map(card)}</ul>
+        </section>
+      )}
       {expenses.length === 0 ? (
         <p className="py-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }} data-testid="expenses-empty">
           No expenses yet. Tap “Add expense” to log the first one.
         </p>
-      ) : (
-        <ul aria-label="Expenses" className="flex flex-col gap-2">
-          {expenses.map((expense) => (
-            <ExpenseCard key={expense.id} expense={expense} me={me} canChange={expense.createdBy === me || isOwner}
-              involvesFormer={expenseMemberIds(expense).some((id) => !activeIds.has(id))} nameOf={nameOf} money={money}
-              timezone={timezone} onEdit={() => onEdit(expense)} onChanged={onChanged} />
-          ))}
-        </ul>
-      )}
+      ) : null}
     </section>
   )
 }
@@ -337,7 +356,7 @@ function ExpenseCard({ expense, me, canChange, involvesFormer, nameOf, money, ti
           </dl>
         </details>
         <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          Added by {nameOf(expense.createdBy)}{expense.createdBy === me ? ' (you)' : ''} · {formatWhen(expense.createdAt, timezone)}
+          {expense.spentAt ? `${formatWhen(expense.spentAt, timezone)} · ` : ''}Added by {nameOf(expense.createdBy)}{expense.createdBy === me ? ' (you)' : ''}{expense.spentAt ? '' : ` · ${formatWhen(expense.createdAt, timezone)}`}
           {expense.version > 1 ? ` · edited ${formatWhen(expense.updatedAt, timezone)}` : ''}
         </p>
         {canChange && involvesFormer && (

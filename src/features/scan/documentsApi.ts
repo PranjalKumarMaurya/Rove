@@ -1,6 +1,6 @@
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
-import { DOCUMENT_BUCKET, type EventDraft, type TripContext, readStoredDraft } from '../../../supabase/functions/_shared/documentDraft.ts'
+import { DOCUMENT_BUCKET, type DocumentDraft, type TripContext, readStoredDocument } from '../../../supabase/functions/_shared/documentDraft.ts'
 import { type EventInput, type ParseFailure, documentPath } from './scanRules'
 
 export interface TripDocument {
@@ -12,6 +12,9 @@ export interface TripDocument {
   uploadedBy: string
   eventId: string | null
   eventTitle: string | null
+  /** The expense made from this document (a scanned bill), if any. */
+  expenseId: string | null
+  expenseTitle: string | null
   parseStatus: 'pending' | 'parsed' | 'failed'
   extracted: unknown
   createdAt: string
@@ -19,16 +22,18 @@ export interface TripDocument {
 
 export class ScanError extends Error {}
 
-const DOCUMENT_COLUMNS = 'id, storage_path, file_name, mime_type, size_bytes, uploaded_by, event_id, parse_status, extracted, created_at, event:trip_events(title)'
+const DOCUMENT_COLUMNS = 'id, storage_path, file_name, mime_type, size_bytes, uploaded_by, event_id, expense_id, parse_status, extracted, created_at, event:trip_events(title), expense:trip_expenses(description)'
 
 type DocumentRow = {
   id: string; storage_path: string; file_name: string; mime_type: string; size_bytes: number; uploaded_by: string
-  event_id: string | null; parse_status: string; extracted: unknown; created_at: string
+  event_id: string | null; expense_id: string | null; parse_status: string; extracted: unknown; created_at: string
   event: { title: string } | { title: string }[] | null
+  expense: { description: string } | { description: string }[] | null
 }
 
 function toDocument(row: DocumentRow): TripDocument {
   const event = Array.isArray(row.event) ? row.event[0] : row.event
+  const expense = Array.isArray(row.expense) ? row.expense[0] : row.expense
   return {
     id: row.id,
     storagePath: row.storage_path,
@@ -38,6 +43,8 @@ function toDocument(row: DocumentRow): TripDocument {
     uploadedBy: row.uploaded_by,
     eventId: row.event_id,
     eventTitle: event?.title ?? null,
+    expenseId: row.expense_id ?? null,
+    expenseTitle: expense?.description ?? null,
     parseStatus: row.parse_status === 'parsed' || row.parse_status === 'failed' ? row.parse_status : 'pending',
     extracted: row.extracted,
     createdAt: row.created_at,
@@ -70,7 +77,7 @@ export async function uploadTripDocument(groupId: string, groupMemberId: string,
   return toDocument(data as unknown as DocumentRow)
 }
 
-export type ParseOutcome = { ok: true; draft: EventDraft } | { ok: false; code: ParseFailure }
+export type ParseOutcome = { ok: true; draft: DocumentDraft } | { ok: false; code: ParseFailure }
 
 const PARSE_FAILURES: readonly string[] = ['not_authenticated', 'document_not_found', 'unsupported_for_parsing',
   'too_large_to_parse', 'document_unavailable', 'parser_unavailable', 'parse_failed', 'parse_limit_reached']
@@ -87,16 +94,32 @@ export async function parseTripDocument(documentId: string, trip: TripContext): 
     return { ok: false, code: 'unknown' }
   }
   // The function already normalised the draft; normalise again so the form never trusts the wire.
-  const draft = readStoredDraft(data?.draft, trip)
+  const draft = readStoredDocument(data?.draft, trip)
   return draft ? { ok: true, draft } : { ok: false, code: 'unknown' }
 }
 
 /** A stored draft from an earlier parse, if any. */
-export function storedDraft(document: TripDocument, trip: TripContext): EventDraft | null {
-  return document.parseStatus === 'parsed' ? readStoredDraft(document.extracted, trip) : null
+export function storedDraft(document: TripDocument, trip: TripContext): DocumentDraft | null {
+  return document.parseStatus === 'parsed' ? readStoredDocument(document.extracted, trip) : null
 }
 
-export async function addDocumentEvent(documentId: string, input: EventInput): Promise<string> {
+/** Whether this document is a scanned bill that hasn't been split yet. */
+export function isUnsplitBill(document: TripDocument, trip: TripContext): boolean {
+  const draft = !document.eventId && !document.expenseId ? storedDraft(document, trip) : null
+  return draft !== null && 'kind' in draft && draft.kind === 'bill'
+}
+
+/** Mark the document as split: it then shows the expense it became. */
+export async function linkDocumentExpense(documentId: string, expenseId: string): Promise<void> {
+  const { error } = await supabase.from('trip_documents').update({ expense_id: expenseId }).eq('id', documentId)
+  if (error) throw new ScanError('link_failed')
+}
+
+/**
+ * Add the booking to the itinerary, then who it is for. An empty audience means
+ * everyone. `audienceSaved` is false when only the second step failed.
+ */
+export async function addDocumentEvent(documentId: string, input: EventInput, groupId: string, audience: string[] = []): Promise<{ eventId: string; audienceSaved: boolean }> {
   const { data, error } = await supabase.rpc('create_event_from_document', {
     p_document_id: documentId,
     p_event_type: input.eventType,
@@ -116,7 +139,9 @@ export async function addDocumentEvent(documentId: string, input: EventInput): P
   if (error || typeof data !== 'string') {
     throw new ScanError(error?.message === 'document_unavailable' ? 'document_unavailable' : 'event_failed')
   }
-  return data
+  if (!audience.length) return { eventId: data, audienceSaved: true }
+  const saved = await supabase.rpc('set_trip_event_audience', { p_group_id: groupId, p_event_id: data, p_member_ids: audience })
+  return { eventId: data, audienceSaved: !saved.error }
 }
 
 /** A short-lived link to one object, issued only after Storage re-checks membership. */

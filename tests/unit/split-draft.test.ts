@@ -23,7 +23,23 @@ test('equal split request: 100.00 among three with the extra paisa by member id'
     splitMethod: 'equal',
     payers: [{ member_id: ana, amount: '100.00' }],
     shares: [{ member_id: ana, amount: '33.34' }, { member_id: ben, amount: '33.33' }, { member_id: cara, amount: '33.33' }],
+    spentAt: result.request?.spentAt,
   })
+  // A new expense is dated now unless the date is changed.
+  assert.ok(result.request?.spentAt && Math.abs(Date.parse(result.request.spentAt) - Date.now()) < 120_000)
+})
+
+test('the date spent is read in Trip time; blank means not given; the future is refused', () => {
+  const bali = { ...inr, timezone: 'Asia/Makassar', now: Date.parse('2026-12-14T12:00:00Z') }
+  const dated = evaluateDraft(draft({ amount: '100', spentLocal: '2026-12-14T20:15' }, bali), bali)
+  assert.equal(dated.request?.spentAt, '2026-12-14T12:15:00.000Z')
+  assert.equal(evaluateDraft(draft({ amount: '100', spentLocal: '' }, bali), bali).request?.spentAt, null)
+  // Before the trip is fine.
+  assert.equal(evaluateDraft(draft({ amount: '100', spentLocal: '2026-11-02T10:00' }, bali), bali).request?.spentAt, '2026-11-02T02:00:00.000Z')
+  assert.equal(evaluateDraft(draft({ amount: '100', spentLocal: '2026-12-20T10:00' }, bali), bali).errors.spentAt, 'Pick a time that isn’t in the future.')
+  assert.equal(evaluateDraft(draft({ amount: '100', spentLocal: '2026-13-40T10:00' }, bali), bali).errors.spentAt, 'Enter a valid date and time.')
+  // A new draft starts at "now" in Trip time.
+  assert.equal(emptyDraft(bali, ana).spentLocal, '2026-12-14T20:00')
 })
 
 test('multiple payers must add up to the total; blank counts as zero', () => {

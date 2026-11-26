@@ -32,8 +32,11 @@ try {
   assert.equal(stack.psql(`SELECT string_agg(event.title || '|' || (member.id = event.created_by)::text, ',' ORDER BY event.title)
     FROM public.trip_events AS event JOIN public.group_members AS member ON member.group_id = event.group_id;`),
   'Flight to Goa|true,Hotel check-in|true')
-  assert.equal(stack.psql(`SELECT count(*) || '|' || count(event_id) FROM public.trip_documents;`), '1|1')
-  assert.equal(stack.psql(`SELECT count(*) FROM storage.objects WHERE bucket_id = 'trip-documents';`), '1')
+  // Left: the hotel voucher (an itinerary event) and the dinner bill (an expense, dated from the bill).
+  assert.equal(stack.psql(`SELECT count(*) || '|' || count(event_id) || '|' || count(expense_id) FROM public.trip_documents;`), '2|1|1')
+  assert.equal(stack.psql(`SELECT description || '|' || original_amount || '|' || (spent_at IS NOT NULL)::text
+    FROM public.trip_expenses AS expense JOIN public.trip_documents AS document ON document.expense_id = expense.id;`), 'Curlies by the Sea: food and drinks|7770.00|true')
+  assert.equal(stack.psql(`SELECT count(*) FROM storage.objects WHERE bucket_id = 'trip-documents';`), '2')
   assert.equal(stack.psql(`SELECT count(*) FROM storage.objects WHERE bucket_id = 'tickets';`), '0', 'legacy public bucket used')
 
   stack.stop()

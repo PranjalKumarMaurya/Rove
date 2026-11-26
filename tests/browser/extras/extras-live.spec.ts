@@ -142,7 +142,7 @@ test('crew status, invite sharing, crew info and the parse limit on a real stack
     // ---- Parse limit (one automatic read per person) ---------------------------
     await openTab(friend, 'Scan')
     const scan = friend.getByTestId('scan-tab')
-    const fileInput = friend.getByLabel('Ticket or booking file')
+    const fileInput = friend.getByLabel('Ticket, booking, or bill file')
     const review = friend.getByTestId('scan-review')
     await fileInput.setInputFiles({ name: 'boarding-pass.png', mimeType: 'image/png', buffer: png })
     await friend.getByRole('button', { name: 'Upload and read' }).click()

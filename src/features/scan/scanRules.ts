@@ -1,11 +1,11 @@
 // Pure Scan-tab rules: local file checks, storage naming, and the review form.
 // No Supabase imports, so these run under `node --test`.
 import {
-  EVENT_TYPES, MAX_DOCUMENT_BYTES, type DraftWarning, type EventDraft, type EventType,
-  isStorableMimeType, isValidTimeZone, parseWallTime, utcToZonedWallTime, zonedWallTimeToUtc,
+  EVENT_TYPES, MAX_DOCUMENT_BYTES, type BillDraft, type BillWarning, type DocumentDraft, type DraftWarning, type EventDraft, type EventType,
+  isBillDraft, isStorableMimeType, isValidTimeZone, parseWallTime, utcToZonedWallTime, zonedWallTimeToUtc,
 } from '../../../supabase/functions/_shared/documentDraft.ts'
 
-export { EVENT_TYPES, type EventDraft, type EventType }
+export { EVENT_TYPES, isBillDraft, type BillDraft, type DocumentDraft, type EventDraft, type EventType }
 
 export type FileProblem = 'empty' | 'unsupported' | 'too_large'
 
@@ -59,6 +59,33 @@ export const WARNING_MESSAGES: Record<DraftWarning, string> = {
   end_before_start: 'The end time looked wrong, so it was left blank.',
   end_implausible: 'The end time looked wrong, so it was left blank.',
   outside_trip_dates: 'This booking falls outside the Trip dates. Check the date.',
+}
+
+export const BILL_WARNING_MESSAGES: Record<BillWarning, string> = {
+  amount_missing: 'The total could not be read. Enter it.',
+  currency_missing: 'The currency was not clear, so the Trip currency is filled in. Check it.',
+  date_missing: 'No date was found on the bill. Check the date and time.',
+  time_missing: 'The bill shows a date without a time. Check the time.',
+  timezone_assumed: 'The time zone was not clear, so the Trip time zone was assumed.',
+}
+
+/** What a scanned bill fills into Split's expense form. */
+export interface BillPrefill {
+  description: string
+  amount: string
+  currency: string
+  category: string
+  spentAt: string | null
+}
+
+export function billPrefill(draft: BillDraft, accountingCurrency: string): BillPrefill {
+  return {
+    description: draft.title.slice(0, 120),
+    amount: draft.amount ?? '',
+    currency: draft.currency ?? accountingCurrency,
+    category: draft.category ?? '',
+    spentAt: draft.spentAt,
+  }
 }
 
 export interface EventForm {

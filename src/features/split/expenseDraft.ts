@@ -10,6 +10,7 @@ import {
   minorUnits, parseAmount, parsePercent, parseRate, parseShareWeight, sumLines, toDecimalString, weightedSplit,
   type MoneyLine, type WeightLine,
 } from './money.ts'
+import { utcToZonedWallTime, zonedWallTimeToUtc } from '../../../supabase/functions/_shared/documentDraft.ts'
 
 export const CATEGORIES = [
   { id: 'food', label: 'Food & drink' },
@@ -37,12 +38,18 @@ export interface ExpenseDraft {
   sharePercents: Record<string, string>
   /** Shares split: each person's whole number of shares; blank or 0 leaves them out. */
   shareWeights: Record<string, string>
+  /** When it was spent, as a datetime-local value in the Trip timezone; blank means not given. */
+  spentLocal: string
 }
 
 export interface DraftContext {
   accountingCurrency: string
   /** Active members who can pay or share, in display order. */
   memberIds: readonly string[]
+  /** The Trip timezone that `spentLocal` is read in (default UTC). */
+  timezone?: string
+  /** "Now", for checking a date isn't in the future (tests pass a fixed time). */
+  now?: number
 }
 
 export interface ExpenseRequest {
@@ -56,9 +63,11 @@ export interface ExpenseRequest {
   payers: { member_id: string; amount: string }[]
   /** `weight` is sent for percent ("33.33") and shares ("2") splits only. */
   shares: { member_id: string; amount: string; weight?: string }[]
+  /** UTC instant it was spent, or null when not given. */
+  spentAt: string | null
 }
 
-export type DraftField = 'description' | 'amount' | 'currency' | 'rate' | 'payers' | 'shares'
+export type DraftField = 'description' | 'amount' | 'currency' | 'rate' | 'payers' | 'shares' | 'spentAt'
 
 export interface TotalCheck {
   /** Entered and required totals, in the expense's own currency minor units. */
@@ -84,6 +93,11 @@ export interface DraftEvaluation {
   request: ExpenseRequest | null
 }
 
+/** A datetime-local value for an instant in the Trip timezone. */
+export function spentLocalFor(iso: string, context: Pick<DraftContext, 'timezone'>): string {
+  return utcToZonedWallTime(iso, context.timezone ?? 'UTC')
+}
+
 export function emptyDraft(context: DraftContext, me: string): ExpenseDraft {
   return {
     description: '',
@@ -100,6 +114,7 @@ export function emptyDraft(context: DraftContext, me: string): ExpenseDraft {
     shareAmounts: {},
     sharePercents: {},
     shareWeights: {},
+    spentLocal: spentLocalFor(new Date(context.now ?? Date.now()).toISOString(), context),
   }
 }
 
@@ -153,6 +168,14 @@ export function evaluateDraft(draft: ExpenseDraft, context: DraftContext): Draft
   const description = draft.description.trim()
   if (!description) errors.description = 'Enter a description.'
   else if (description.length > 120) errors.description = 'Keep the description to 120 characters.'
+
+  let spentAt: string | null = null
+  if (draft.spentLocal.trim()) {
+    spentAt = zonedWallTimeToUtc(draft.spentLocal.trim(), context.timezone ?? 'UTC')
+    if (!spentAt) errors.spentAt = 'Enter a valid date and time.'
+    else if (Date.parse(spentAt) > (context.now ?? Date.now()) + 24 * 3600 * 1000) errors.spentAt = 'Pick a time that isn’t in the future.'
+    else if (Date.parse(spentAt) < Date.UTC(2000, 0, 1)) errors.spentAt = 'Enter a valid date and time.'
+  }
 
   if (!/^[A-Z]{3}$/u.test(currency)) errors.currency = 'Use a three-letter currency code, like USD.'
   const decimals = minorUnits(currency)
@@ -262,6 +285,7 @@ export function evaluateDraft(draft: ExpenseDraft, context: DraftContext): Draft
     shares: isWeighted(draft.splitMode)
       ? wire(result.shares).map((line) => ({ ...line, weight: weightText(weightOf.get(line.member_id) ?? 0n) }))
       : wire(result.shares),
+    spentAt,
   }
   return result
 }
@@ -299,6 +323,7 @@ export function draftFromExpense(expense: LedgerExpense, context: DraftContext):
     shareAmounts: expense.splitMethod === 'exact' ? toOriginal(expense, expense.shares) : {},
     sharePercents: weightInputs(expense, 'percent'),
     shareWeights: weightInputs(expense, 'shares'),
+    spentLocal: spentLocalFor(expense.spentAt ?? expense.createdAt, context),
   }
 }
 

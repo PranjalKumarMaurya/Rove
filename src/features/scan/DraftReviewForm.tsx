@@ -15,19 +15,26 @@ const selectStyle = {
 } as const
 const dateStyle = { colorScheme: 'dark' } as const
 
-export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving, saveError, onSubmit, onCancel, onRetryRead }: {
+export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving, saveError, onSubmit, onCancel, onRetryRead, members = [], onSwitchToBill }: {
   draft: EventDraft
+  /** Active members, for "Who's on this". */
+  members?: { id: string; name: string }[]
+  /** The reader guessed wrong: treat this document as a bill. */
+  onSwitchToBill?: () => void
   fileName: string
   notice: string | null
   tripTimezone: string
   saving: boolean
   saveError: string | null
-  onSubmit: (input: EventInput) => void
+  /** `audience` lists who it is for; empty means everyone. */
+  onSubmit: (input: EventInput, audience: string[]) => void
   onCancel: () => void
   onRetryRead?: () => void
 }) {
   const [form, setForm] = useState<EventForm>(() => draftToForm(draft))
   const [errors, setErrors] = useState<FormErrors>({})
+  const [audience, setAudience] = useState<string[]>([])
+  const toggle = (id: string) => setAudience((current) => (current.includes(id) ? current.filter((member) => member !== id) : [...current, id]))
   const headingRef = useRef<HTMLHeadingElement>(null)
   // Move focus (and the viewport on phones) to the form when it opens.
   useEffect(() => { headingRef.current?.focus() }, [])
@@ -39,7 +46,7 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
     if (saving) return
     const result = formToEventInput(form)
     setErrors(result.errors)
-    if (result.input) onSubmit(result.input)
+    if (result.input) onSubmit(result.input, audience.length === members.length ? [] : audience)
   }
 
   const flight = form.eventType === 'flight'
@@ -111,6 +118,23 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
         <Field label="Booking reference">
           <NeonInput aria-label="Booking reference" value={form.bookingRef} onChange={set('bookingRef')} disabled={saving} maxLength={40} />
         </Field>
+        {members.length > 1 && (
+          <fieldset className="flex flex-col gap-2" disabled={saving}>
+            <legend className="text-sm" style={{ color: 'var(--text-secondary)' }}>Who&rsquo;s on this</legend>
+            <p style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
+              Tick the people this booking is for, for example 5 of the group on this hotel booking. Leave all unticked for everyone.
+            </p>
+            <div className="flex flex-wrap gap-2" data-testid="scan-audience">
+              {members.map((member) => (
+                <label key={member.id} className="pill cursor-pointer" style={{ color: audience.includes(member.id) ? 'var(--accent)' : 'var(--text-secondary)' }}>
+                  <input type="checkbox" checked={audience.includes(member.id)} onChange={() => toggle(member.id)}
+                    style={{ accentColor: 'var(--accent)' }} className="mr-1.5" />
+                  {member.name}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
         <Field label="Notes">
           <textarea aria-label="Notes" value={form.notes} onChange={set('notes')} disabled={saving} rows={3} maxLength={1000}
             className="w-full rounded-md px-3.5 py-2.5" style={selectStyle} />
@@ -119,6 +143,7 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
         <NeonBtn type="submit" disabled={saving} className="w-full">{saving ? 'Adding…' : 'Add to itinerary'}</NeonBtn>
         <div className="flex flex-wrap justify-between gap-3">
           <button type="button" onClick={onCancel} disabled={saving} style={{ color: 'var(--text-secondary)' }}>Not now</button>
+          {onSwitchToBill && <button type="button" onClick={onSwitchToBill} disabled={saving} style={{ color: 'var(--text-secondary)' }}>This is a bill, not a booking</button>}
           {onRetryRead && <button type="button" onClick={onRetryRead} disabled={saving} style={{ color: 'var(--text-secondary)' }}>Try reading again</button>}
         </div>
       </form>

@@ -733,6 +733,7 @@ export type Database = {
         Row: {
           created_at: string
           event_id: string | null
+          expense_id: string | null
           extracted: Json | null
           file_name: string
           group_id: string
@@ -748,6 +749,7 @@ export type Database = {
         Insert: {
           created_at?: string
           event_id?: string | null
+          expense_id?: string | null
           extracted?: Json | null
           file_name: string
           group_id: string
@@ -763,6 +765,7 @@ export type Database = {
         Update: {
           created_at?: string
           event_id?: string | null
+          expense_id?: string | null
           extracted?: Json | null
           file_name?: string
           group_id?: string
@@ -781,6 +784,13 @@ export type Database = {
             columns: ["group_id", "event_id"]
             isOneToOne: false
             referencedRelation: "trip_events"
+            referencedColumns: ["group_id", "id"]
+          },
+          {
+            foreignKeyName: "trip_documents_expense_same_group"
+            columns: ["group_id", "expense_id"]
+            isOneToOne: false
+            referencedRelation: "trip_expenses"
             referencedColumns: ["group_id", "id"]
           },
           {
@@ -1007,6 +1017,7 @@ export type Database = {
           original_amount: number
           original_currency: string
           request_id: string | null
+          spent_at: string | null
           split_method: string
           updated_at: string
           version: number
@@ -1026,6 +1037,7 @@ export type Database = {
           original_amount: number
           original_currency: string
           request_id?: string | null
+          spent_at?: string | null
           split_method: string
           updated_at?: string
           version?: number
@@ -1045,6 +1057,7 @@ export type Database = {
           original_amount?: number
           original_currency?: string
           request_id?: string | null
+          spent_at?: string | null
           split_method?: string
           updated_at?: string
           version?: number
@@ -1353,6 +1366,7 @@ export type Database = {
           p_payers: Json
           p_request_id?: string
           p_shares: Json
+          p_spent_at?: string
           p_split_method: string
         }
         Returns: string
@@ -1621,6 +1635,7 @@ export type Database = {
           p_original_currency: string
           p_payers: Json
           p_shares: Json
+          p_spent_at?: string
           p_split_method: string
         }
         Returns: number

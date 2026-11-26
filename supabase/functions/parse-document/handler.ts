@@ -2,8 +2,8 @@
 // unit-tested in Node. index.ts wires in the user-scoped Supabase store and the
 // Anthropic extractor.
 import {
-  EVENT_TYPES, MAX_PARSE_IMAGE_BYTES, type EventDraft, type TripContext,
-  isParseableMimeType, normaliseExtraction,
+  BILL_CATEGORIES, EVENT_TYPES, MAX_PARSE_IMAGE_BYTES, type DocumentDraft, type TripContext,
+  isParseableMimeType, normaliseDocument,
 } from '../_shared/documentDraft.ts'
 
 export type ParseErrorCode =
@@ -20,7 +20,7 @@ export type ParseErrorCode =
 
 export interface StoredDocument { id: string; groupId: string; storagePath: string; fileName: string; mimeType: string }
 export interface DocumentFile { bytes: Uint8Array; mimeType: string }
-export type ParseResult = { status: 'parsed'; draft: EventDraft } | { status: 'failed'; error: ParseErrorCode }
+export type ParseResult = { status: 'parsed'; draft: DocumentDraft } | { status: 'failed'; error: ParseErrorCode }
 
 /** Model calls allowed per person and per Trip in any 24 hours. */
 export interface ParseLimits { member: number; trip: number }
@@ -132,8 +132,8 @@ export function createParseHandler({ openStore, extractor, limits = DEFAULT_PARS
     } catch {
       return fail(502, 'parse_failed')
     }
-    // The draft is returned for review; no Event is created here.
-    const draft = normaliseExtraction(raw, trip)
+    // The draft is returned for review; no Event or expense is created here.
+    const draft = normaliseDocument(raw, trip)
     try { await store.saveResult(document.id, { status: 'parsed', draft }) } catch { log('save_failed') }
     return json(200, { draft })
   }
@@ -150,26 +150,46 @@ export function bytesToBase64(bytes: Uint8Array): string {
 const nullableString = { anyOf: [{ type: 'string' }, { type: 'null' }] }
 const EXTRACTED_FIELDS = ['start_local', 'start_timezone', 'end_local', 'end_timezone', 'location', 'location_to',
   'dep_code', 'arr_code', 'flight_no', 'airline', 'terminal', 'booking_ref', 'notes'] as const
+const BILL_FIELDS = ['merchant', 'total_amount', 'currency', 'spent_local', 'spent_timezone'] as const
 
 /** JSON schema for the model's answer (structured outputs). */
 export const EXTRACTION_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
+    document_kind: { type: 'string', enum: ['booking', 'bill'] },
     event_type: { type: 'string', enum: [...EVENT_TYPES] },
     title: { type: 'string' },
     ...Object.fromEntries(EXTRACTED_FIELDS.map((field) => [field, nullableString])),
+    ...Object.fromEntries(BILL_FIELDS.map((field) => [field, nullableString])),
+    bill_category: { anyOf: [{ type: 'string', enum: [...BILL_CATEGORIES] }, { type: 'null' }] },
   },
-  required: ['event_type', 'title', ...EXTRACTED_FIELDS],
+  required: ['document_kind', 'event_type', 'title', ...EXTRACTED_FIELDS, ...BILL_FIELDS, 'bill_category'],
 }
 
-export const EXTRACTION_SYSTEM_PROMPT = 'You read one travel document (boarding pass, e-ticket, hotel voucher, ferry or activity booking, receipt) '
-  + 'and extract a single booking for a group trip itinerary. Report only what the document shows; use null for anything it does not show.'
+export const EXTRACTION_SYSTEM_PROMPT = 'You read one document a friend uploaded to a group trip. It is either a booking '
+  + '(boarding pass, e-ticket, hotel voucher, ferry, train or activity booking) that belongs on the itinerary, or a bill '
+  + '(restaurant or bar bill, shop receipt, taxi receipt, any paid or payable total) that the group will split. '
+  + 'Report only what the document shows; use null for anything it does not show.'
 
 export function buildExtractionPrompt(trip: TripContext): string {
   return [
-    'Extract the primary booking in this document. If it lists several, use the earliest one.',
+    'First decide document_kind:',
+    '- "bill" when its main point is money spent: a restaurant, bar, cafe or shop bill, a receipt, a taxi or fuel receipt, an invoice for something already used.',
+    '- "booking" when it confirms a future journey, stay or activity, even if it shows a price.',
+    '',
     `Trip: ${trip.destination || 'unknown destination'}, ${trip.startDate} to ${trip.endDate}. Trip timezone: ${trip.timezone}.`,
+    '',
+    'For a bill:',
+    '- title: the place and what it was for, for example "Sky Garden: food and drinks" or "Big Bazaar: groceries".',
+    '- merchant: the business name as printed.',
+    '- total_amount: the final total actually charged, after tax, service and discounts. Digits only, with "." for decimals and no thousands separators, for example 1461075 or 7770.00.',
+    '- currency: the ISO 4217 code, for example INR for ₹ or Rs, IDR for Rp. Use null if the bill does not make it clear.',
+    '- spent_local: the date and time printed on the bill, as YYYY-MM-DDTHH:mm in local time. spent_timezone: the IANA timezone of the place, or null.',
+    '- bill_category: food, transport, stay, activity, shopping or other.',
+    '- notes: a short summary such as "5 covers, 6 drinks". Set event_type to the closest type (food for a meal) and every booking field to null.',
+    '',
+    'For a booking: set every bill field to null and extract the primary booking. If it lists several, use the earliest one.',
     '',
     'Times:',
     '- start_local is the departure, check-in, or start clock time; end_local is the arrival, check-out, or end time.',
@@ -199,7 +219,15 @@ export function parseModelText(text: string): unknown {
 export function createStubExtractor(): Extractor {
   return async ({ fileName, trip }) => {
     if (/unreadable/iu.test(fileName)) throw new Error('stub_unreadable')
+    if (/bill|receipt/iu.test(fileName)) {
+      return {
+        document_kind: 'bill', event_type: 'food', title: 'Curlies by the Sea: food and drinks',
+        merchant: 'Curlies by the Sea', total_amount: '7,770.00', currency: 'INR',
+        spent_local: `${trip.startDate}T21:48`, spent_timezone: 'Asia/Kolkata', bill_category: 'food', notes: '5 covers',
+      }
+    }
     return {
+      document_kind: 'booking',
       event_type: 'flight', title: 'IndiGo 6E-123 · DEL → GOI',
       start_local: `${trip.startDate}T06:15`, start_timezone: 'Asia/Kolkata',
       end_local: `${trip.startDate}T08:45`, end_timezone: 'Asia/Kolkata',

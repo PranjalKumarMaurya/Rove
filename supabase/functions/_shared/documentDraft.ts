@@ -250,6 +250,172 @@ export function normaliseExtraction(raw: unknown, trip: TripContext): EventDraft
   }
 }
 
+// ─── Bills ────────────────────────────────────────────────────────────────────
+// A bill or receipt becomes an expense draft instead of an itinerary entry. Its
+// payers and split are chosen in Split, now or later; until then the document
+// stays "ready to split".
+
+/** Same ids as Split's expense categories. */
+export const BILL_CATEGORIES = ['food', 'transport', 'stay', 'activity', 'shopping', 'other'] as const
+export type BillCategory = (typeof BILL_CATEGORIES)[number]
+
+export type BillWarning = 'amount_missing' | 'currency_missing' | 'date_missing' | 'time_missing' | 'timezone_assumed'
+
+export interface BillDraft {
+  kind: 'bill'
+  /** Expense description, e.g. "Sky Garden: food and drinks". */
+  title: string
+  merchant: string | null
+  /** Total paid as a plain decimal ("1461075", "7770.00"), or null if unreadable. */
+  amount: string | null
+  /** ISO 4217 code, or null when the bill did not make it clear. */
+  currency: string | null
+  /** UTC instant (ISO 8601) the bill was printed for, or null. */
+  spentAt: string | null
+  /** IANA zone the bill's time was printed in; the form edits the time in this zone. */
+  spentTimezone: string
+  category: BillCategory | null
+  notes: string | null
+  warnings: BillWarning[]
+}
+
+/** What one scanned document drafts: an itinerary entry or an expense. */
+export type DocumentDraft = EventDraft | BillDraft
+
+export function isBillDraft(draft: DocumentDraft): draft is BillDraft {
+  return (draft as BillDraft).kind === 'bill'
+}
+
+const MAX_BILL_AMOUNT = 1_000_000_000_000
+
+/**
+ * A printed total as a plain decimal string. Accepts what bills print:
+ * "₹7,770.00", "Rp 1.461.075", "1 461 075", "12,50". Thousands separators are
+ * dropped; a single separator followed by one or two digits is the decimal point.
+ */
+export function normaliseAmount(value: unknown): string | null {
+  const text = typeof value === 'number' && Number.isFinite(value) ? String(value) : typeof value === 'string' ? value : ''
+  // Currency words around the number are fine ("Rp 12.500", "INR 845"); letters inside it ("1e9") are not.
+  if (/\d\s*[A-Za-z]+\s*\d/u.test(text)) return null
+  let digits = text.replace(/[^\d.,]/gu, '')
+  if (!digits || !/\d/u.test(digits)) return null
+  const lastDot = digits.lastIndexOf('.')
+  const lastComma = digits.lastIndexOf(',')
+  if (lastDot >= 0 && lastComma >= 0) {
+    const decimal = lastDot > lastComma ? '.' : ','
+    const thousands = decimal === '.' ? ',' : '.'
+    digits = digits.split(thousands).join('').replace(decimal, '.')
+  } else if (lastComma >= 0) {
+    digits = /^\d+,\d{1,2}$/u.test(digits) ? digits.replace(',', '.') : digits.split(',').join('')
+  } else if (lastDot >= 0) {
+    const parts = digits.split('.')
+    if (parts.length > 2 || parts[1].length === 3) digits = parts.join('')
+  }
+  if (!/^\d+(\.\d{1,3})?$/u.test(digits)) return null
+  const [whole, fraction] = digits.split('.')
+  const cleanWhole = whole.replace(/^0+(?=\d)/u, '')
+  const amount = Number(`${cleanWhole}.${fraction ?? '0'}`)
+  if (!(amount > 0) || amount >= MAX_BILL_AMOUNT) return null
+  return fraction ? `${cleanWhole}.${fraction}` : cleanWhole
+}
+
+const CURRENCY_SYMBOLS: Record<string, string> = { '₹': 'INR', RS: 'INR', 'RS.': 'INR', RP: 'IDR', '€': 'EUR', '£': 'GBP', '฿': 'THB', '¥': 'JPY' }
+
+export function normaliseCurrency(value: unknown): string | null {
+  const text = cleanText(value, 10)?.toUpperCase().replace(/\s+/gu, '') ?? null
+  if (!text) return null
+  if (/^[A-Z]{3}$/u.test(text)) return text
+  return CURRENCY_SYMBOLS[text] ?? null
+}
+
+const BILL_CATEGORY_SYNONYMS: Record<string, BillCategory> = {
+  food: 'food', restaurant: 'food', bar: 'food', cafe: 'food', drinks: 'food', meal: 'food', dinner: 'food', lunch: 'food', groceries: 'food',
+  transport: 'transport', taxi: 'transport', cab: 'transport', fuel: 'transport', petrol: 'transport', train: 'transport', bus: 'transport', flight: 'transport', ferry: 'transport',
+  stay: 'stay', hotel: 'stay', villa: 'stay', accommodation: 'stay', hostel: 'stay',
+  activity: 'activity', tour: 'activity', tickets: 'activity', entry: 'activity', spa: 'activity',
+  shopping: 'shopping', shop: 'shopping', store: 'shopping', souvenir: 'shopping', clothes: 'shopping',
+  other: 'other',
+}
+
+export function normaliseBillCategory(value: unknown): BillCategory | null {
+  if (typeof value !== 'string') return null
+  return BILL_CATEGORY_SYNONYMS[value.trim().toLowerCase().replace(/[\s-]+/gu, '_')] ?? null
+}
+
+/** Turn raw bill extraction (model JSON, or anything else) into a safe expense draft. Never throws. */
+export function normaliseBill(raw: unknown, trip: TripContext): BillDraft {
+  const input = (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>
+  const tripZone = isValidTimeZone(trip.timezone) ? trip.timezone : 'UTC'
+  const warnings = new Set<BillWarning>()
+  const spent = resolveTime(input.spent_local ?? input.spent_at, input.spent_timezone, tripZone)
+  if (!spent.iso) warnings.add('date_missing')
+  else {
+    if (spent.missingTime) warnings.add('time_missing')
+    if (spent.assumedZone) warnings.add('timezone_assumed')
+  }
+  const amount = normaliseAmount(input.total_amount ?? input.amount)
+  if (!amount) warnings.add('amount_missing')
+  const currency = normaliseCurrency(input.currency)
+  if (!currency) warnings.add('currency_missing')
+  const merchant = cleanText(input.merchant, 80)
+  return {
+    kind: 'bill',
+    title: cleanText(input.title, 120) ?? merchant ?? 'Bill',
+    merchant,
+    amount,
+    currency,
+    spentAt: spent.iso,
+    spentTimezone: spent.timeZone,
+    category: normaliseBillCategory(input.bill_category ?? input.category),
+    notes: cleanText(input.notes, 300),
+    warnings: [...warnings],
+  }
+}
+
+/** The model labels each document; anything but an explicit bill is a booking. */
+export function normaliseDocument(raw: unknown, trip: TripContext): DocumentDraft {
+  const kind = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>).document_kind : null
+  return kind === 'bill' ? normaliseBill(raw, trip) : normaliseExtraction(raw, trip)
+}
+
+/** A booking draft looked at as a bill (when the reader guessed wrong). */
+export function eventToBillDraft(draft: EventDraft): BillDraft {
+  return {
+    kind: 'bill', title: draft.title, merchant: draft.location, amount: null, currency: null,
+    spentAt: draft.startsAt, spentTimezone: draft.startTimezone, category: normaliseBillCategory(draft.eventType),
+    notes: draft.notes, warnings: draft.startsAt ? ['amount_missing'] : ['amount_missing', 'date_missing'],
+  }
+}
+
+/** A bill draft looked at as a booking (when the reader guessed wrong). */
+export function billToEventDraft(draft: BillDraft, trip: TripContext): EventDraft {
+  const zone = isValidTimeZone(draft.spentTimezone) ? draft.spentTimezone : (isValidTimeZone(trip.timezone) ? trip.timezone : 'UTC')
+  return {
+    ...normaliseExtraction({}, trip),
+    eventType: draft.category === 'stay' ? 'hotel' : draft.category === 'transport' ? 'transport' : draft.category === 'activity' ? 'activity' : draft.category === 'food' ? 'food' : 'other',
+    title: draft.title,
+    startsAt: draft.spentAt,
+    startTimezone: zone,
+    endTimezone: zone,
+    location: draft.merchant,
+    notes: draft.notes,
+    warnings: draft.spentAt ? [] : ['start_missing'],
+  }
+}
+
+/** Read any stored draft back (`trip_documents.extracted`): a bill, or a booking in any older shape. */
+export function readStoredDocument(value: unknown, trip: TripContext): DocumentDraft | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const stored = value as Partial<BillDraft>
+  if (stored.kind !== 'bill') return readStoredDraft(value, trip)
+  if (typeof stored.title !== 'string') return null
+  const draft = normaliseBill({
+    title: stored.title, merchant: stored.merchant, total_amount: stored.amount, currency: stored.currency,
+    spent_at: stored.spentAt ?? undefined, spent_timezone: stored.spentTimezone, bill_category: stored.category, notes: stored.notes,
+  }, trip)
+  return { ...draft, title: stored.title.trim() || draft.title }
+}
+
 /** An empty draft for manual entry, dated at the start of the Trip. */
 export function emptyDraft(trip: TripContext): EventDraft {
   const zone = isValidTimeZone(trip.timezone) ? trip.timezone : 'UTC'

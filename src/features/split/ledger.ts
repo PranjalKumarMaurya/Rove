@@ -36,6 +36,8 @@ export interface LedgerExpense {
   version: number
   createdAt: string
   updatedAt: string
+  /** When it was spent, if given; otherwise use createdAt. */
+  spentAt: string | null
   payers: MoneyLine[]
   shares: ShareLine[]
 }
@@ -135,6 +137,7 @@ function parseExpense(raw: unknown): LedgerExpense | null {
     version: typeof raw.version === 'number' ? raw.version : 0,
     createdAt: str(raw.created_at) ?? '',
     updatedAt: str(raw.updated_at) ?? '',
+    spentAt: str(raw.spent_at),
     payers,
     shares,
   }

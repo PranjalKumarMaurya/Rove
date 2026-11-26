@@ -37,6 +37,7 @@ export async function commitExpense(groupId: string, request: ExpenseRequest, re
     p_fx_rate: optional(request.fxRate),
     p_fx_source: optional(request.fxSource),
     p_request_id: requestId,
+    p_spent_at: optional(request.spentAt),
   })
   if (error) fail(error)
   return data
@@ -55,6 +56,7 @@ export async function updateExpense(expenseId: string, version: number, request:
     p_category: optional(request.category),
     p_fx_rate: optional(request.fxRate),
     p_fx_source: optional(request.fxSource),
+    p_spent_at: optional(request.spentAt),
   })
   if (error) fail(error)
   return data
