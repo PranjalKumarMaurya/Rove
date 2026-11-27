@@ -107,9 +107,23 @@ function clearMotionStyles(element: HTMLElement): void {
   element.style.removeProperty('opacity')
 }
 
+/**
+ * Shows a lifted layer's page `offset` px down, as the window was scrolled. The layer
+ * is not a scroll container (screens.css: `overflow: clip`, content pulled up with
+ * `--rove-scroll`). The earlier scrolled `overflow: hidden` layer is the likely cause
+ * of the screen underneath showing doubled side by side on iPhone (WebKit compositing;
+ * Chromium rendered it correctly).
+ */
+export function setLayerScroll(element: HTMLElement, offset: number): void {
+  const content = element.firstElementChild as HTMLElement | null
+  const max = content ? Math.max(0, content.offsetHeight - element.clientHeight) : 0
+  element.style.setProperty('--rove-scroll', `${Math.round(Math.min(Math.max(0, offset), max))}px`)
+}
+
 /** Drops everything the swipe wrote on a layer, so it is an ordinary screen again. */
 export function clearLayerStyles(element: HTMLElement): void {
   clearMotionStyles(element)
+  element.style.removeProperty('--rove-scroll')
   element.querySelectorAll<HTMLElement>(SWIPE_PIN_SELECTOR).forEach(clearMotionStyles)
   element.removeAttribute('inert')
 }

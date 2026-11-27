@@ -1,6 +1,6 @@
 // In an installed iPhone web app, bars pinned with `position: fixed; bottom: 0`
-// are sometimes left too high after the keyboard closes, after a sheet unlocks
-// the page, or when the app comes back from the background, and only drop into
+// are sometimes left too high after launch, after the keyboard closes, after a
+// sheet unlocks the page, or when the app comes back from the background, and only drop into
 // place on the next touch. When any of those happens, make the browser lay the
 // fixed bars out again: re-layer them for one frame and nudge the scroll position
 // (a no-op visually, but it makes Safari recompute where "bottom" is).
@@ -38,5 +38,14 @@ export function startPinBottomBars(): void {
   })
   window.addEventListener('orientationchange', soon)
   window.addEventListener('pageshow', soon)
+  // Any size change, e.g. the screen growing to full height right after launch.
+  window.addEventListener('resize', soon)
+  // Cold launch from the home screen: iOS first lays the app out as if Safari's
+  // bottom toolbar were there, then grows it to the full screen without a
+  // reliable event, leaving the bars floating above the bottom until the first
+  // touch. Re-place them a few times while the launch settles.
+  const settle = () => { for (const delay of [0, 120, 350, 700, 1200, 2000]) window.setTimeout(repinBottomBars, delay) }
+  if (document.readyState === 'complete') settle()
+  else window.addEventListener('load', settle, { once: true })
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') soon() })
 }

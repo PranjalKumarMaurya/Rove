@@ -63,11 +63,14 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* An opaque strip over the status bar. iOS 26 blurs whatever scrolls under a
-   translucent status bar, so titles near the top looked smeared; with this on top
-   nothing ever shows there. Only native top-layer dialogs (sheets) sit above it. */
-body::before {
-  content: '';
+/* An opaque, full-width box over the status bar (index.html: .status-shield).
+   iOS 26 draws a Liquid Glass blur over the top of installed web apps, reaching
+   about 30-40pt below the status bar, unless a fixed, solid, full-width box
+   covers the top edge; WebKit finds that box by hit-testing, so it must be a
+   real element that takes pointer events (a pointer-events: none overlay or a
+   pseudo-element is ignored and the blur stays). It only covers the status bar,
+   where nothing in the app is tappable. Native top-layer dialogs sit above it. */
+.status-shield {
   position: fixed;
   top: 0;
   left: 0;
@@ -75,10 +78,9 @@ body::before {
   height: env(safe-area-inset-top, 0px);
   background: var(--bg-base);
   z-index: 10001;
-  pointer-events: none;
 }
-/* Scrolled: also cover the band below the status bar that iOS blurs (src/lib/topShade.ts). */
-html[data-scrolled="true"] body::before { height: calc(env(safe-area-inset-top, 0px) + 28px); }
+/* Scrolled: also cover the band below the status bar that content scrolls under (src/lib/topShade.ts). */
+html[data-scrolled="true"] .status-shield { height: calc(env(safe-area-inset-top, 0px) + 28px); }
 
 button { font-family: inherit; }
 input, textarea, select { font-family: inherit; }
@@ -705,7 +707,7 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
 
 /* One frame on a fresh layer makes iPhone re-place bottom-pinned bars (src/lib/pinBottomBars.ts). */
 html[data-repin="true"] .tab-bar,
-html[data-repin="true"] .home-nav { transform: translateZ(0); }
+html[data-repin="true"] .home-nav { transform: translateZ(0); bottom: 0.5px; }
 
 /* Feels like an app, not a web page: no text selection or long-press callout
    (copy/translate/look up) on the interface. Fields stay selectable so typing,

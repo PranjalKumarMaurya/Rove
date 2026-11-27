@@ -54,7 +54,11 @@ All streams are merged into `v2`. Every row below passed on the combined branch.
   - `ai_usage` holds one row per model call: tokens, model and cost in micro-USD from `supabase/functions/_shared/aiPricing.ts`.
   - The rows are written only by the server: `parse-document` uses the service role for this insert alone. Clients can read only their own rows.
   - Profile shows total tokens and cost in dollars (`get_my_ai_usage`), with no model or input/output split.
-- **App feel:** no text selection or long-press callout outside fields. The Add event form starts below the status bar. | `tests/unit/ai-pricing.test.ts`, `tests/unit/scan-parse-handler.test.ts`, `npm run test:scan:db`, browser suites | `tests/unit/split-travel.test.ts`, `tests/unit/navigation-gestures.test.ts`, browser suites |
+- **App feel:** no text selection or long-press callout outside fields. The Add event form starts below the status bar. | `tests/unit/ai-pricing.test.ts`, `tests/unit/scan-parse-handler.test.ts`, `npm run test:scan:db`, browser suites |
+| **iPhone fixes (2026-11-27, unverified on device):**
+- **Top blur:** iOS 26 skips its blur only when a solid, full-width box covers the top edge, and it finds that box by hit-testing. The status-bar strip is now a real element (`index.html` `.status-shield`) that takes pointer events, not a `pointer-events: none` pseudo-element.
+- **Bottom bars after launch:** they are re-placed several times during the first two seconds and on every resize, because iOS lays a cold launch out as if Safari's toolbar were there.
+- **Swipe layers:** no longer scroll containers. Scroll offset comes from a margin and they use `overflow: clip`, to stop WebKit drawing the underlay twice. | browser suites | `tests/unit/split-travel.test.ts`, `tests/unit/navigation-gestures.test.ts`, browser suites |
 | **FX tab** (international Trips): converter with live rates and offline cache | `npm run test:fx:unit`, scan-fx live test |
 | **Crew tab:** roster with each member's shared details, invitations with **Share… / WhatsApp**, revoke, roles, transfer, remove, leave, archive/restore (060) | `npm run test:crew:db`, `npm run test:crew:live`, `npm run test:crew:browser`, `npm run test:extras:live` |
 | **Installable app (PWA):** manifest, icons, app-shell service worker (never caches data or auth), offline notice, update prompt | `tests/browser/pwa/installable-app.spec.ts` |

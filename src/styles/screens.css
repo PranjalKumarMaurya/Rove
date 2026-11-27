@@ -3,18 +3,25 @@
    cubic-bezier(0.23, 1, 0.32, 1). Only transform and opacity animate. */
 
 /* ---- Edge swipe back: the current screen over the previous one ------------------
-   While a swipe is live both screens are viewport-sized fixed layers (each scrolled
-   to where its page was), so their fixed bars stay pinned to the bottom of the
-   screen while the layer moves (a transformed layer is their containing block). */
+   While a swipe is live both screens are viewport-sized fixed layers, so their fixed
+   bars stay pinned to the bottom of the screen while the layer moves (a transformed
+   layer is their containing block). Each shows its page where it was scrolled to by
+   pulling its content up (`--rove-scroll`, set by AuthBoundary), not by scrolling the
+   layer: a layer must not be a scroll container. A scrolled `overflow: hidden` layer
+   moved by transform (plus backface-visibility) is the likely cause of the screen
+   underneath showing doubled side by side on iPhone; Chromium drew it correctly. */
 .rove-layer--lifted,
 .rove-layer--under {
   position: fixed;
   inset: 0;
-  overflow: hidden;
-  overscroll-behavior: none;
+  overflow: hidden; /* fallback before overflow: clip (iOS 16) */
+  overflow: clip;
   background: var(--bg-base, #0F0B08);
-  backface-visibility: hidden;
   will-change: transform;
+}
+.rove-layer--lifted > :first-child,
+.rove-layer--under > :first-child {
+  margin-top: calc(-1 * var(--rove-scroll, 0px));
 }
 .rove-layer--under {
   z-index: 1;

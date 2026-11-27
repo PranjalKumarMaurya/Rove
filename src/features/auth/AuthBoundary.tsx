@@ -19,7 +19,7 @@ import {
   type View,
 } from './navigationHistory'
 import {
-  clearLayerStyles, notifySwipeSettled, registerSwipeHost, runNavTransition, systemAnimatedBack, takeSwipeNavigation,
+  clearLayerStyles, setLayerScroll, notifySwipeSettled, registerSwipeHost, runNavTransition, systemAnimatedBack, takeSwipeNavigation,
   type SwipeMode,
 } from '../../lib/screenTransition'
 
@@ -206,11 +206,11 @@ export function AuthBoundary() {
     if (underlay) {
       // Keep the page height so the window keeps its scroll offset meanwhile.
       stack.style.minHeight = `${start.pageHeight}px`
-      if (current) current.scrollTop = start.scrollY
+      if (current) setLayerScroll(current, start.scrollY)
       const under = stack.querySelector<HTMLElement>('[data-screen-layer="underlay"]')
       if (under) {
         under.setAttribute('inert', '')
-        under.scrollTop = scrollMemory.current.get(viewKey(underlay.view)) ?? 0
+        setLayerScroll(under, scrollMemory.current.get(viewKey(underlay.view)) ?? 0)
       }
     } else {
       swipeStart.current = null
