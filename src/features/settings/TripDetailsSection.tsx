@@ -63,9 +63,9 @@ export function TripDetailsSection({ trip, onSaved }: {
 
   const loading = display === null || (owner && locked === null)
   return (
-    <section data-testid="trip-details-section" aria-labelledby="settings-details-heading" className="settings-section">
+    <section data-testid="trip-details-section" aria-labelledby="settings-details-heading" className="settings-section" data-layout="section">
       <h2 id="settings-details-heading" className="t-title2" style={{ color: 'var(--text-primary)' }}>Trip details</h2>
-      <div className="surface settings-card">
+      <div className="surface settings-card" data-layout="card">
         <Swap id={loading ? 'loading' : 'ready'}>
           {loading
             ? <p role="status" className="t-callout flex items-center gap-3" style={{ color: 'var(--text-secondary)' }}>
@@ -177,7 +177,7 @@ function SettingsForm({ trip, display, currencyLocked, onSaved }: {
 
   return (
     <form onSubmit={(event) => void submit(event)} aria-label="Trip details" aria-busy={saving} noValidate className="flex flex-col gap-4">
-      <Collapse open={attempted && Object.keys(errors).length > 0} gap={16}>
+      <Collapse open={attempted && Object.keys(errors).length > 0} gap={4}>
         <p role="alert" className="notice notice--error">Check the highlighted fields.</p>
       </Collapse>
       <Field id="settings-name" label="Trip name" error={show('tripName')}>
@@ -215,7 +215,7 @@ function SettingsForm({ trip, display, currencyLocked, onSaved }: {
           </NeonSelect>
         </Field>}
 
-      <Collapse open={Boolean(failure)} gap={16}>
+      <Collapse open={Boolean(failure)} gap={4}>
         <p role="alert" className="notice notice--error">{failure && tripSettingsErrorMessage(failure)}</p>
       </Collapse>
       <AsyncButton type="submit" size="lg" className="w-full" status={action.status} busyLabel="Saving…" doneLabel="Saved">

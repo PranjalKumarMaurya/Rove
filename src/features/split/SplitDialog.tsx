@@ -37,13 +37,10 @@ export function SplitDialog({ title, onClose, locked = false, testId, children }
 
   return createPortal(
     // Starts below the status bar so nothing scrolls under it (iOS blurs content there).
-    <div className="m-backdrop fixed inset-x-0 bottom-0 z-50 flex justify-center overflow-y-auto overflow-x-hidden overscroll-none px-4 pt-6"
-      style={{ top: 'var(--safe-top)', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', background: 'rgba(15, 11, 8, 0.92)' }}
-      onClick={() => { if (!locked) close.current() }}>
+    <div className="dialog-overlay m-backdrop" onClick={() => { if (!locked) close.current() }}>
       <div ref={card} role="dialog" aria-modal="true" aria-labelledby={headingId} data-testid={testId}
-        className="m-dialog my-auto w-full max-w-[480px]" onClick={(event) => event.stopPropagation()}
-        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 20, padding: 22 }}>
-        <div className="mb-4 flex items-start justify-between gap-3">
+        className="dialog-card m-dialog" onClick={(event) => event.stopPropagation()}>
+        <div className="dialog-head">
           <h2 id={headingId} ref={heading} tabIndex={-1} className="t-title2 min-w-0 outline-none"
             style={{ color: 'var(--text-primary)' }}>{title}</h2>
           <button type="button" onClick={() => close.current()} disabled={locked} aria-label="Close"
@@ -73,7 +70,7 @@ export function Field({ label, error, hint, children }: {
   const noteId = `${id}-note`
   const note = error ?? hint
   return (
-    <div className="m-field flex flex-col gap-1.5 t-callout" style={{ color: 'var(--text-secondary)' }}>
+    <div className="m-field flex flex-col gap-2 t-callout" style={{ color: 'var(--text-secondary)' }}>
       <label htmlFor={id}>{label}</label>
       {children({ id, 'aria-describedby': note ? noteId : undefined, 'aria-invalid': error ? true : undefined })}
       {error
@@ -90,4 +87,4 @@ export const inputStyle = {
   fontSize: 'var(--type-field)',
 } as const
 
-export const inputClass = 'm-input w-full rounded-md px-3.5 py-2.5 outline-none'
+export const inputClass = 'm-input field-input w-full outline-none'

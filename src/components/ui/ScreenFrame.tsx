@@ -24,8 +24,8 @@ export function ScreenFrame({ testId, eyebrow = <BrandMark />, title, lede, top,
 }) {
   return (
     <main data-testid={testId} className={className ? `screen ${className}` : 'screen'} aria-busy={busy || undefined}>
-      {top && <div className="flex min-h-11 items-center justify-between gap-3">{top}</div>}
-      <div className={centered ? 'my-auto py-8' : 'pb-4 pt-6'}>
+      {top && <div className="flex min-h-tap items-center justify-between gap-3">{top}</div>}
+      <div className={centered ? 'my-auto py-8' : 'pt-6'}>
         {eyebrow}
         <h1 className="t-display mt-4" style={{ color: 'var(--text-primary)', overflowWrap: 'break-word' }}>{title}</h1>
         {lede && <p className="t-body mt-3" style={{ color: 'var(--text-secondary)', overflowWrap: 'anywhere' }}>{lede}</p>}

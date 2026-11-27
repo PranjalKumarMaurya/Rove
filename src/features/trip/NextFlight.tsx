@@ -50,7 +50,7 @@ export function NextFlight({ flight, tripTimeZone, localTimeZone }: { flight: Tr
   const details = [flight.airline, flight.flight_no, flight.terminal && terminalLabel(flight.terminal)].filter(Boolean).join(' · ')
 
   return (
-    <section aria-label={`Next ${kind}`} data-testid="next-flight" className="surface px-4 py-4">
+    <section aria-label={`Next ${kind}`} data-testid="next-flight" className="surface card" data-layout="section card">
       <div className="flex items-center justify-between gap-3">
         <p className="t-eyebrow min-w-0 truncate" style={{ color: 'var(--accent)' }}>next {kind}</p>
         {flight.flight_no && <span className="pill t-code shrink-0" style={{ fontSize: 'var(--type-caption)' }}>{flight.flight_no}</span>}

@@ -100,39 +100,39 @@ export function SplitTab({ trip, roster, reloadRoster }: TripTabProps) {
 
   return (
     <section data-testid="split-tab" className="flex flex-col gap-6" aria-labelledby="split-heading">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <div className="section-head flex-wrap gap-y-1" data-layout="section">
         <h2 id="split-heading" className="t-title2" style={{ color: 'var(--text-primary)' }}>Split</h2>
         <p className="t-eyebrow" style={{ color: 'var(--text-tertiary)' }} data-testid="split-currency">AMOUNTS IN {currency}</p>
       </div>
 
       {state.status === 'error' && (
-        <div role="alert" className="surface flex items-center justify-between gap-3 px-4 py-3 t-callout" style={{ color: 'var(--text-primary)' }}>
+        <div role="alert" data-layout="section" className="surface card--row flex items-center justify-between gap-3 t-callout" style={{ color: 'var(--text-primary)' }}>
           <span>
             {state.code === 'split_not_a_member'
               ? 'You no longer have access to this Trip’s expenses.'
               : ledger ? 'Couldn’t refresh. Showing the last figures loaded.' : 'We couldn’t load this Trip’s expenses.'}
           </span>
-          {state.code !== 'split_not_a_member' && <button type="button" className="min-h-11 shrink-0" style={{ color: 'var(--accent)' }} onClick={() => void reload()}>Retry</button>}
+          {state.code !== 'split_not_a_member' && <button type="button" className="min-h-tap shrink-0" style={{ color: 'var(--accent)' }} onClick={() => void reload()}>Retry</button>}
         </div>
       )}
 
       {!ledger ? (
         state.status === 'loading' && (
-          <div role="status" aria-label="Loading expenses" className="flex flex-col gap-2">
-            {[0, 1, 2].map((index) => <div key={index} className="animate-pulse-soft" style={{ height: 78, background: 'var(--bg-card)', borderRadius: 12 }} />)}
+          <div role="status" aria-label="Loading expenses" className="flex flex-col gap-3" data-layout="section">
+            {[0, 1, 2].map((index) => <div key={index} className="surface animate-pulse-soft" style={{ height: 78 }} />)}
           </div>
         )
       ) : (
         <>
           <BalanceSummary me={me} balances={balances} activeIds={activeIds} nameOf={nameOf} money={money} />
 
-          <div className="flex gap-2">
-            <NeonBtn type="button" className="min-h-11 flex-1" onClick={() => { reloadRoster(); setDialog({ kind: 'add' }) }}>Add expense</NeonBtn>
-            <NeonBtn type="button" variant="outline" color="#FF8B4D" className="min-h-11 flex-1" onClick={() => { reloadProfiles(); setDialog({ kind: 'settle' }) }}>Settle up</NeonBtn>
+          <div className="flex gap-2" data-layout="section">
+            <NeonBtn type="button" className="flex-1" onClick={() => { reloadRoster(); setDialog({ kind: 'add' }) }}>Add expense</NeonBtn>
+            <NeonBtn type="button" variant="outline" color="#FF8B4D" className="flex-1" onClick={() => { reloadProfiles(); setDialog({ kind: 'settle' }) }}>Settle up</NeonBtn>
           </div>
 
           {ledger.heldOut.length > 0 && (
-            <p role="alert" className="surface px-4 py-3 t-callout" style={{ color: 'var(--text-secondary)' }}>
+            <p role="alert" data-layout="section" className="surface card--row t-callout" style={{ color: 'var(--text-secondary)' }}>
               {ledger.heldOut.length} record{ledger.heldOut.length === 1 ? ' doesn’t' : 's don’t'} add up in {currency} and
               {ledger.heldOut.length === 1 ? ' is' : ' are'} left out of every balance. A Trip Owner should review
               {ledger.heldOut.length === 1 ? ' it' : ' them'}.
@@ -175,7 +175,7 @@ function BalanceSummary({ me, balances, activeIds, nameOf, money }: {
   const abs = (value: bigint) => (value < 0n ? -value : value)
   const others = [...balances].filter(([id, value]) => id !== me && (value !== 0n || activeIds.has(id)))
   return (
-    <section aria-labelledby="split-balance-heading" className="surface m-appear px-4 py-5" data-testid="split-balance">
+    <section aria-labelledby="split-balance-heading" className="surface card m-appear" data-testid="split-balance" data-layout="section card">
       <h3 id="split-balance-heading" className="t-eyebrow">
         {mine > 0n ? 'You’re owed' : mine < 0n ? 'You owe' : 'All settled up'}
       </h3>
@@ -184,7 +184,7 @@ function BalanceSummary({ me, balances, activeIds, nameOf, money }: {
         <span key={money(abs(mine))} className="m-swap">{money(abs(mine))}</span>
       </p>
       {others.length > 0 && (
-        <ul aria-label="Balances" className="mt-4 flex flex-col gap-1.5">
+        <ul aria-label="Balances" className="mt-4 flex flex-col gap-2">
           {others.map(([id, value]) => {
             const name = nameOf(id)
             return (
@@ -210,7 +210,7 @@ function GroupTotals({ totals, nameOf, money, me }: {
 }) {
   const rows = [...totals.members]
   return (
-    <section className="split-totals surface m-appear" aria-labelledby="split-totals-heading">
+    <section className="split-totals surface m-appear" aria-labelledby="split-totals-heading" data-layout="section">
       <div className="flex items-center justify-between gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
         <h3 id="split-totals-heading" className="t-eyebrow min-w-0 truncate">Group totals</h3>
         <p className="t-footnote t-num shrink-0 whitespace-nowrap" style={{ color: 'var(--text-tertiary)' }} data-testid="split-total-spend"><span key={money(totals.total)} className="m-swap">{money(totals.total)}</span> spent</p>
@@ -221,10 +221,10 @@ function GroupTotals({ totals, nameOf, money, me }: {
       <table className="split-totals__table t-footnote w-full" aria-labelledby="split-totals-heading">
         <thead>
           <tr style={{ color: 'var(--text-tertiary)' }}>
-            <th scope="col" className="split-totals__name-col px-4 py-1.5 text-left font-normal" style={{ width: '100%' }}>Person</th>
-            <th scope="col" className="px-2 py-1.5 text-right font-normal">Paid</th>
-            <th scope="col" className="px-2 py-1.5 text-right font-normal">Share</th>
-            <th scope="col" className="px-4 py-1.5 text-right font-normal">Net</th>
+            <th scope="col" className="split-totals__name-col px-4 py-2 text-left font-normal" style={{ width: '100%' }}>Person</th>
+            <th scope="col" className="px-2 py-2 text-right font-normal">Paid</th>
+            <th scope="col" className="px-2 py-2 text-right font-normal">Share</th>
+            <th scope="col" className="px-4 py-2 text-right font-normal">Net</th>
           </tr>
         </thead>
         {rows.map(([id, entry]) => {
@@ -352,14 +352,14 @@ function ExpenseLog({ expenses: allExpenses, me, isOwner, activeIds, nameOf, mon
   const afterDays = timeline.after.map((entry) => day(entry, 'h5'))
 
   return (
-    <section ref={logRef} aria-labelledby="split-log-heading" className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+    <section ref={logRef} aria-labelledby="split-log-heading" className="section" data-layout="section">
+      <div className="section-head flex-wrap gap-y-2">
         <h3 id="split-log-heading" className="t-eyebrow">Expenses</h3>
         {allExpenses.length > 0 && (
-          <div role="group" aria-label="Show expenses" className="flex rounded-full border p-0.5 t-footnote" style={{ borderColor: 'var(--border)' }}>
+          <div role="group" aria-label="Show expenses" className="segmented t-footnote">
             {([['all', 'All'], ['mine', `Only mine · ${mineCount}`]] as const).map(([value, label]) => (
               <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}
-                className="m-press t-num min-h-9 whitespace-nowrap rounded-full px-3"
+                className="segmented__item m-press t-num whitespace-nowrap"
                 style={{ background: filter === value ? 'var(--accent-soft)' : 'transparent', color: filter === value ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
                 {label}
               </button>
@@ -369,7 +369,7 @@ function ExpenseLog({ expenses: allExpenses, me, isOwner, activeIds, nameOf, mon
       </div>
       {todayShown && (
         <button type="button" onClick={jumpToToday} data-testid="expenses-jump-today"
-          className="m-press m-appear min-h-9 self-start rounded-full border px-3 t-footnote"
+          className="chip-btn m-press m-appear self-start t-footnote"
           style={{ borderColor: 'rgba(255,139,77,0.38)', color: 'var(--accent)' }}>
           Jump to today
         </button>
@@ -398,11 +398,11 @@ function ExpenseLog({ expenses: allExpenses, me, isOwner, activeIds, nameOf, mon
         )}
       </div>
       {withGhosts.length === 0 ? (
-        <p className="m-appear py-8 text-center t-callout" style={{ color: 'var(--text-tertiary)' }} data-testid="expenses-empty">
+        <p className="m-appear py-6 text-center t-callout" style={{ color: 'var(--text-tertiary)' }} data-testid="expenses-empty">
           No expenses yet. Tap “Add expense” to log the first one.
         </p>
       ) : shown.length === 0 ? (
-        <p className="py-8 text-center t-callout" style={{ color: 'var(--text-tertiary)' }} data-testid="expenses-mine-empty">
+        <p className="py-6 text-center t-callout" style={{ color: 'var(--text-tertiary)' }} data-testid="expenses-mine-empty">
           You’re not on any expenses yet. Switch to All to see the whole Trip’s.
         </p>
       ) : null}
@@ -431,7 +431,7 @@ function DayGroup({ day, level: Heading, index, filter, today, leaving, money, c
         <section aria-labelledby={id} data-testid="expense-day" data-day={day.date} className="split-day split-day--enter flex flex-col pb-4"
           style={enterIndex(index)}>
           <div className="split-day__header flex items-baseline justify-between gap-3 py-2">
-            <Heading id={id} className="flex min-w-0 items-baseline gap-1.5 truncate">
+            <Heading id={id} className="flex min-w-0 items-baseline gap-1 truncate">
               {day.dayNumber !== null ? (
                 <>
                   <span className="t-headline t-num shrink-0" style={{ color: 'var(--text-primary)' }}>Day {day.dayNumber}</span>
@@ -498,12 +498,12 @@ function ExpenseCard({ expense, time, me, mine, source, canChange, involvesForme
   return (
     <li className="split-fold" data-leaving={leaving ? 'true' : undefined} aria-hidden={leaving || undefined}>
       <div>
-        <div className="pb-1.5">
-          <article aria-label={expense.description} className="surface flex flex-col gap-1.5 px-3 pt-2.5 pb-1" data-testid="expense-card"
+        <div className="pb-3">
+          <article aria-label={expense.description} className="surface card--row flex flex-col gap-2" data-testid="expense-card" data-layout="row"
             data-mine={mine ? 'true' : undefined} style={mine ? { borderColor: 'rgba(255,139,77,0.38)' } : undefined}>
             {/* The whole row toggles the details for touch; the Breakdown button below is the accessible control. */}
-            <div className="grid cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3" onClick={() => setOpen((value) => !value)}>
-              <p className="t-footnote t-num whitespace-nowrap pt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+            <div className="grid cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-x-3" onClick={() => setOpen((value) => !value)}>
+              <p className="t-footnote t-num whitespace-nowrap" style={{ color: 'var(--text-tertiary)' }}>
                 <time dateTime={expenseMoment(expense)}>{time || '—'}</time>
               </p>
               <div className="min-w-0">
@@ -533,7 +533,7 @@ function ExpenseCard({ expense, time, me, mine, source, canChange, involvesForme
               </div>
             </div>
 
-            <div id={moreId} hidden={!open} className="split-row__more flex flex-col gap-1.5 t-footnote" style={{ color: 'var(--text-secondary)' }}>
+            <div id={moreId} hidden={!open} className="split-row__more flex flex-col gap-2 t-footnote" style={{ color: 'var(--text-secondary)' }}>
               <p style={{ color: 'var(--text-tertiary)' }}>{METHOD_TEXT[expense.splitMethod]} between {people}</p>
               {converted && expense.fxRate && (
                 <p style={{ color: 'var(--text-tertiary)' }}>
@@ -542,7 +542,7 @@ function ExpenseCard({ expense, time, me, mine, source, canChange, involvesForme
                   {expense.fxCapturedAt ? `, captured ${formatWhen(expense.fxCapturedAt, timezone)}` : ''}
                 </p>
               )}
-              <dl className="t-num grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5">
+              <dl className="t-num grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1">
                 {expense.payers.map((payer) => (
                   <div key={`p-${payer.memberId}`} className="contents">
                     <dt>{nameOf(payer.memberId)} paid</dt><dd className="t-num whitespace-nowrap text-right">{money(payer.amount)}</dd>
@@ -565,22 +565,22 @@ function ExpenseCard({ expense, time, me, mine, source, canChange, involvesForme
             )}
             {error && <p role="alert" className="t-footnote" style={{ color: 'var(--accent)' }}>{error}</p>}
             {canChange && confirming ? (
-              <div className="flex flex-wrap items-center gap-2 pb-1.5" role="group" aria-label={`Confirm deleting ${expense.description}`}>
+              <div className="flex flex-wrap items-center gap-2" role="group" aria-label={`Confirm deleting ${expense.description}`}>
                 <span className="t-footnote" style={{ color: 'var(--text-secondary)' }}>Delete for everyone? Balances will update.</span>
-                <NeonBtn type="button" disabled={busy} onClick={() => void remove()} className="min-h-11">{busy ? 'Deleting…' : 'Delete expense'}</NeonBtn>
-                <NeonBtn type="button" variant="ghost" disabled={busy} onClick={() => setConfirming(false)} className="min-h-11">Keep</NeonBtn>
+                <NeonBtn type="button" disabled={busy} onClick={() => void remove()} >{busy ? 'Deleting…' : 'Delete expense'}</NeonBtn>
+                <NeonBtn type="button" variant="ghost" disabled={busy} onClick={() => setConfirming(false)} >Keep</NeonBtn>
               </div>
             ) : (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 <button type="button" aria-expanded={open} aria-controls={moreId} onClick={() => setOpen((value) => !value)}
-                  className="m-press -ml-1 min-h-10 flex-1 px-1 text-left t-footnote" style={{ color: 'var(--text-tertiary)' }}>
+                  className="m-press min-h-tap flex-1 text-left t-footnote" style={{ color: 'var(--text-tertiary)' }}>
                   {open ? '▾' : '▸'} Breakdown
                 </button>
                 {canChange && !involvesFormer && (
-                  <button type="button" onClick={onEdit} aria-label={`Edit ${expense.description}`} className="m-press min-h-10 rounded-md border px-3 t-footnote" style={quiet}>Edit</button>
+                  <button type="button" onClick={onEdit} aria-label={`Edit ${expense.description}`} className="m-press min-h-tap rounded-md border px-3 t-footnote" style={quiet}>Edit</button>
                 )}
                 {canChange && (
-                  <button type="button" onClick={() => setConfirming(true)} aria-label={`Delete ${expense.description}`} className="m-press min-h-10 rounded-md border px-3 t-footnote" style={quiet}>Delete</button>
+                  <button type="button" onClick={() => setConfirming(true)} aria-label={`Delete ${expense.description}`} className="m-press min-h-tap rounded-md border px-3 t-footnote" style={quiet}>Delete</button>
                 )}
               </div>
             )}
@@ -601,12 +601,12 @@ function PaymentHistory({ settlements, me, isOwner, nameOf, money, timezone, onC
   onChanged: () => void
 }) {
   return (
-    <section aria-labelledby="split-payments-heading" className="flex flex-col gap-3">
+    <section aria-labelledby="split-payments-heading" className="section" data-layout="section">
       <h3 id="split-payments-heading" className="t-eyebrow t-num">
         Payments recorded · {settlements.length}
       </h3>
       <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>Records of payments made outside the app. No money moves here.</p>
-      <ul aria-label="Payments" className="m-list flex flex-col gap-1.5">
+      <ul aria-label="Payments" className="m-list flex flex-col gap-3">
         {settlements.map((settlement) => (
           <PaymentRow key={settlement.id} settlement={settlement} me={me} canDelete={settlement.recordedBy === me || isOwner}
             nameOf={nameOf} money={money} timezone={timezone} onChanged={onChanged} />
@@ -643,7 +643,7 @@ function PaymentRow({ settlement, me, canDelete, nameOf, money, timezone, onChan
   }
 
   return (
-    <li className="flex flex-col gap-1 rounded-md px-3 py-2" aria-label={label} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+    <li className="surface card--row flex flex-col gap-1" aria-label={label} data-layout="row">
       <div className="flex items-center justify-between gap-3">
         <p className="t-callout min-w-0 truncate" style={{ color: 'var(--text-secondary)' }}>{label}</p>
         <p className="t-headline t-num shrink-0 whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>{money(settlement.amount)}</p>
@@ -656,12 +656,12 @@ function PaymentRow({ settlement, me, canDelete, nameOf, money, timezone, onChan
       {canDelete && (confirming ? (
         <div className="flex flex-wrap items-center gap-2">
           <span className="t-footnote" style={{ color: 'var(--text-secondary)' }}>Delete this payment record?</span>
-          <NeonBtn type="button" disabled={busy} onClick={() => void remove()} className="min-h-11">{busy ? 'Deleting…' : 'Delete payment'}</NeonBtn>
-          <NeonBtn type="button" variant="ghost" disabled={busy} onClick={() => setConfirming(false)} className="min-h-11">Keep</NeonBtn>
+          <NeonBtn type="button" disabled={busy} onClick={() => void remove()} >{busy ? 'Deleting…' : 'Delete payment'}</NeonBtn>
+          <NeonBtn type="button" variant="ghost" disabled={busy} onClick={() => setConfirming(false)} >Keep</NeonBtn>
         </div>
       ) : (
         <button type="button" onClick={() => setConfirming(true)} aria-label={`Delete payment: ${label}`}
-          className="m-press min-h-11 self-start t-footnote" style={{ color: 'var(--text-tertiary)' }}>Delete</button>
+          className="m-press min-h-tap self-start t-footnote" style={{ color: 'var(--text-tertiary)' }}>Delete</button>
       ))}
     </li>
   )

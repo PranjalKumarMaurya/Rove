@@ -26,17 +26,17 @@ export function HomeNav({ active, onTrips, onCreate, onProfile, profile, account
       <div className="home-nav__inner">
         <button type="button" className={`home-nav__item${active === 'trips' ? ' is-active' : ''}`}
           aria-current={active === 'trips' ? 'page' : undefined} onClick={onTrips}>
-          <span className="home-nav__icon"><IconSuitcase size={24} /></span>
+          <span className="home-nav__icon"><IconSuitcase size="lg" /></span>
           <span>Trips</span>
         </button>
         <button type="button" className="home-nav__item home-nav__item--create" aria-label="Create Trip" onClick={onCreate}>
-          <span className="home-nav__icon"><span className="home-nav__fab"><IconPlus size={24} /></span></span>
+          <span className="home-nav__icon"><span className="home-nav__fab"><IconPlus size="lg" /></span></span>
           <span aria-hidden="true">New trip</span>
         </button>
         <button type="button" className={`home-nav__item${active === 'profile' ? ' is-active' : ''}`}
           aria-label="Profile" aria-current={active === 'profile' ? 'page' : undefined} onClick={onProfile}>
           <span className="home-nav__icon">
-            <UserAvatar size={26} className="home-nav__avatar" name={profile?.displayName || accountName}
+            <UserAvatar size={24} className="home-nav__avatar" name={profile?.displayName || accountName}
               emoji={profile?.avatarEmoji} imageUrl={photo} />
           </span>
           <span aria-hidden="true">Profile</span>

@@ -13,7 +13,7 @@ export function CrewInfo({ id, name, isMe, profile, loading, error }: {
 }) {
   const details = sharedDetails(profile)
   return (
-    <div id={id} data-testid="crew-info" className="mb-2 mt-1 rounded-md border px-3 py-3 t-callout" style={{ borderColor: 'var(--border)' }}>
+    <div id={id} data-testid="crew-info" className="card--nested card--row mt-2 border t-callout" style={{ borderColor: 'var(--border)' }}>
       {loading ? (
         <p style={{ color: 'var(--text-tertiary)' }}>Loading details…</p>
       ) : error ? (
@@ -25,7 +25,7 @@ export function CrewInfo({ id, name, isMe, profile, loading, error }: {
           {details.map((detail) => (
             <div key={detail.key}>
               <dt className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>{detail.label}</dt>
-              <dd className="mt-0.5 flex min-w-0 items-center justify-between gap-3" style={{ color: 'var(--text-primary)' }}>
+              <dd className="mt-1 flex min-w-0 items-center justify-between gap-3" style={{ color: 'var(--text-primary)' }}>
                 {detail.href
                   ? <a href={detail.href} className="t-link break-words" aria-label={`Call ${name}: ${detail.value}`}>{detail.value}</a>
                   : <span className={`min-w-0 break-words ${detail.copyable ? 't-code' : ''}`}>{detail.value}</span>}
@@ -59,7 +59,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   }
   return (
     <button type="button" onClick={() => void copy()} aria-label={label}
-      className="shrink-0 rounded-full px-3 t-footnote" style={{ minHeight: 32, border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
+      className="min-h-tap shrink-0 rounded-full px-3 t-footnote" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
       <span aria-live="polite">{state === 'copied' ? 'Copied' : state === 'failed' ? 'Copy failed' : 'Copy'}</span>
     </button>
   )

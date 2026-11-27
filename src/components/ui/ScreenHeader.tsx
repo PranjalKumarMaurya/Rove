@@ -2,9 +2,11 @@ import { type ReactNode } from 'react'
 import { IconBack } from './icons'
 
 /**
- * The header of a screen pushed above another (a Trip's To-dos and Settings): the
- * round back button on the left, then the title (t-display) and an optional subtitle,
- * laid out like the Trip header it sits above (.app-topbar, docs/DESIGN-SYSTEM.md §6).
+ * The one header for every screen with a way back (a Trip, its To-dos and Settings,
+ * Profile's pages): the round back button on the left, round icon buttons on the
+ * right, then the title (t-display) and an optional subtitle (.app-topbar,
+ * docs/DESIGN-SYSTEM.md §6). It ends with --space-3; the content below starts with
+ * --space-3, so content begins --space-6 under the subtitle.
  */
 export function ScreenHeader({ title, subtitle, onBack, backLabel, actions }: {
   title: ReactNode
@@ -19,14 +21,14 @@ export function ScreenHeader({ title, subtitle, onBack, backLabel, actions }: {
     <header className="app-topbar app-topbar--stacked">
       <div className="flex items-center gap-2">
         <button type="button" className="round-btn" aria-label={backLabel} onClick={onBack}>
-          <IconBack size={20} />
+          <IconBack size="md" />
         </button>
         <span className="flex-1" />
         {actions}
       </div>
       <div className="min-w-0">
         <h1 className="t-display line-clamp-2" style={{ color: 'var(--text-primary)' }}>{title}</h1>
-        {subtitle && <p className="t-footnote mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>{subtitle}</p>}
+        {subtitle && <p className="t-footnote truncate" style={{ color: 'var(--text-secondary)' }}>{subtitle}</p>}
       </div>
     </header>
   )

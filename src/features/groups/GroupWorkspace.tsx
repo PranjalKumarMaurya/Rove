@@ -1,5 +1,6 @@
 import { type CSSProperties, type KeyboardEvent, useRef } from 'react'
-import { IconBack, IconChat, IconChecklist, IconExchange, IconMap, IconReceipt, IconScan, IconSettings } from '../../components/ui/icons'
+import { ScreenHeader } from '../../components/ui/ScreenHeader'
+import { IconChat, IconChecklist, IconExchange, IconMap, IconReceipt, IconScan, IconSettings } from '../../components/ui/icons'
 import { ChatTab } from '../chat/ChatTab'
 import { FxTab } from '../fx/FxTab'
 import { ScanTab } from '../scan/ScanTab'
@@ -47,27 +48,18 @@ export function GroupWorkspace({ trip, tab, onTabChange, onBack, onRefresh, onOp
 
   return (
     <main data-testid="group-workspace" className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col">
-      <header className="app-topbar app-topbar--stacked">
-        <div className="flex items-center gap-2">
-          {/* Icon only: a "Trips" label beside the chevron read as clutter on a phone. */}
-          <button type="button" className="round-btn" aria-label="Back to Trips" onClick={onBack}>
-            <IconBack size={20} />
-          </button>
-          <span className="flex-1" />
+      {/* The same header as every pushed screen; the back button is icon only. */}
+      <ScreenHeader title={trip.tripName} subtitle={`${trip.destination} · ${owner ? 'Owner' : 'Member'}`}
+        onBack={onBack} backLabel="Back to Trips" actions={<>
           <button type="button" className="round-btn" onClick={onOpenTodos}
             aria-label={openTodos ? `To-dos, ${openTodos} open` : 'To-dos'}>
-            <IconChecklist size={20} />
+            <IconChecklist size="md" />
             {openTodos ? <span className="round-btn__badge" aria-hidden="true">{openTodos > 99 ? '99+' : openTodos}</span> : null}
           </button>
           <button type="button" className="round-btn" aria-label="Trip settings" onClick={onOpenSettings}>
-            <IconSettings size={20} />
+            <IconSettings size="md" />
           </button>
-        </div>
-        <div className="min-w-0">
-          <h1 className="t-display line-clamp-2" style={{ color: 'var(--text-primary)'}}>{trip.tripName}</h1>
-          <p className="t-footnote mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>{trip.destination} · {owner ? 'Owner' : 'Member'}</p>
-        </div>
-      </header>
+        </>} />
 
       {/* Keyed by Trip so opening another Trip remounts every tab with fresh state. */}
       <TripSections key={trip.groupId} trip={trip} tab={tab} onTabChange={onTabChange} onTripsChanged={onRefresh} />
@@ -124,7 +116,7 @@ function TripSections({ trip, tab, onTabChange, onTripsChanged }: {
               <button key={entry.id} ref={(node) => { tabRefs.current[entry.id] = node }} type="button" role="tab"
                 id={`trip-tab-${entry.id}`} aria-selected={active} aria-controls="trip-tab-panel" tabIndex={active ? 0 : -1}
                 onClick={() => choose(entry.id)} className={`nav-tab${active ? ' active' : ''}`}>
-                <entry.Icon />
+                <entry.Icon size="lg" />
                 <span>{entry.label}</span>
               </button>
             )

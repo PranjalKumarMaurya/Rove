@@ -68,7 +68,7 @@ export function TripCurrencyFields({
                 {code}
                 <button type="button" className="chip__remove" aria-label={`Remove ${code}`} disabled={disabled}
                   onClick={() => onExtras(shownExtras.filter((extra) => extra !== code))}>
-                  <IconClose size={14} />
+                  <IconClose size="sm" />
                 </button>
               </li>
             ))}

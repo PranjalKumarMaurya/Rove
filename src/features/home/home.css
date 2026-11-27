@@ -1,8 +1,12 @@
 /* Trips home: headline row, bottom nav and the invite-link popup. */
 
-/* Room under the last card for the fixed bottom nav (and its raised ＋). */
+/* The raised ＋: --fab-size across, its top --fab-rise above the nav's top border. */
+:root { --fab-size: 52px; --fab-rise: var(--space-6); }
+
+/* Room under the last card for the fixed bottom nav: the bar (--bar-clear), plus the
+   raised ＋ above its top edge (--fab-rise, less the 1px border it rises from), then --space-6. */
 .screen.home-nav-space {
-  padding-bottom: calc(var(--tab-bar-height, 60px) + 40px + max(6px, calc(env(safe-area-inset-bottom, 0px) - 14px)));
+  padding-bottom: calc(var(--bar-clear) + var(--fab-rise) - 1px + var(--space-6));
 }
 
 /* ---- Bottom nav (same surface as the in-Trip tab bar) -------------------- */
@@ -14,20 +18,22 @@
   z-index: 40;
   max-width: 480px;
   margin: 0 auto;
-  padding-bottom: max(6px, calc(env(safe-area-inset-bottom, 0px) - 14px));
+  padding-bottom: var(--tab-bar-bottom);
   background: var(--bg-base);
   border-top: 1px solid var(--border);
 }
-.home-nav__inner { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0 4px; }
+.home-nav__inner { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0 var(--space-1); }
 .home-nav__item {
   display: flex;
   min-width: 0;
-  min-height: var(--tab-bar-height, 60px);
+  position: relative;
+  min-height: var(--tab-bar-height);
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  gap: 3px;
-  padding: 8px 0 8px;
+  gap: var(--space-1);
+  /* Same as the in-Trip tab bar, so both bars are --tab-bar-height. */
+  padding: var(--space-1) 0;
   border: none;
   background: none;
   color: var(--text-tertiary);
@@ -47,7 +53,7 @@
 .home-nav__item.is-active, .home-nav__item.is-active:hover { color: var(--text-primary); }
 .home-nav__item.is-active .home-nav__icon svg { color: var(--accent); }
 .home-nav__item:focus-visible { outline: 2px solid var(--accent); outline-offset: -6px; border-radius: 14px; }
-.home-nav__icon { display: flex; height: 26px; align-items: center; justify-content: center; }
+.home-nav__icon { display: flex; height: var(--icon-lg); align-items: center; justify-content: center; }
 
 .home-nav__avatar { box-shadow: 0 0 0 1.5px transparent; transition: box-shadow var(--dur-fast) var(--ease-out); }
 .home-nav__item.is-active .home-nav__avatar { box-shadow: 0 0 0 1.5px var(--bg-base, #0F0B08), 0 0 0 3px var(--accent); }
@@ -55,11 +61,15 @@
 /* The raised ＋: overlaps the top border, ringed in the page colour. */
 .home-nav__item--create { color: var(--text-secondary); }
 .home-nav__item--create:focus-visible { outline: none; }
+/* Placed on the item (not in its flow), so how far it rises is exactly --fab-rise. */
 .home-nav__fab {
+  position: absolute;
+  top: calc(-1 * var(--fab-rise));
+  left: 50%;
+  margin-left: calc(var(--fab-size) / -2);
   display: flex;
-  width: 52px;
-  height: 52px;
-  margin-top: -30px;
+  width: var(--fab-size);
+  height: var(--fab-size);
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
@@ -88,7 +98,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: calc(16px + var(--safe-top)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  padding: calc(var(--space-4) + var(--safe-top)) var(--space-5) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
 }
 .invite-dialog__backdrop {
   position: absolute;
@@ -101,9 +111,9 @@
   position: relative;
   width: 100%;
   max-width: 400px;
-  padding: 22px 20px 20px;
+  padding: var(--space-5);
   border: 1px solid var(--border-strong);
-  border-radius: 22px;
+  border-radius: var(--radius-xl);
   background: var(--bg-elevated, #16110D);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
   opacity: 0;
@@ -129,16 +139,16 @@
 }
 .invite-dialog__close {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: var(--space-2);
+  right: var(--space-2);
   display: flex;
-  width: 44px;
-  height: 44px;
+  width: var(--tap);
+  height: var(--tap);
   align-items: center;
   justify-content: center;
   padding: 0;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-pill);
   background: none;
   color: var(--text-tertiary);
   cursor: pointer;
@@ -149,12 +159,12 @@
 .invite-dialog__paste {
   position: absolute;
   top: 50%;
-  right: 6px;
-  min-height: 36px;
-  padding: 0 12px;
+  right: var(--space-1);
+  min-height: var(--button-h-sm);
+  padding: 0 var(--space-3);
   transform: translateY(-50%);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(245, 241, 235, 0.05);
   color: var(--text-secondary);
   font-family: var(--font-ui);
@@ -163,6 +173,8 @@
   cursor: pointer;
   transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
 }
+/* Inside a field, so it is --button-h-sm; its hit area reaches --tap (documented exception). */
+.invite-dialog__paste::before { content: ''; position: absolute; inset: calc((var(--button-h-sm) - var(--tap)) / 2) 0; }
 .invite-dialog__paste:hover { background: rgba(245, 241, 235, 0.09); color: var(--text-primary); }
 /* Keeps its vertical centring while pressed. */
 .invite-dialog__paste:active { transform: translateY(-50%) scale(var(--m-press)); }
@@ -171,4 +183,4 @@
 
 /* The wordmark sits centred, close under the status bar (about half the usual top gap). */
 /* With an opaque status bar the inset is 0, so keep a little room under it. */
-.screen.home-top { padding-top: calc(10px + var(--safe-top)); }
+.screen.home-top { padding-top: calc(var(--space-2) + var(--safe-top)); }

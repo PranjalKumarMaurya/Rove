@@ -21,7 +21,8 @@ export function NeonInput({ color = 'var(--accent)', className = '', style: exte
 
   return (
     <input
-      className={`px-3.5 py-2.5 rounded-md w-full ${className}`}
+      // --field-h tall, --field-px inside, --radius-md (docs/DESIGN-SYSTEM.md §6 Field).
+      className={`field-input w-full ${className}`}
       style={{ ...base, ...externalStyle }}
       // Callers' focus/blur handlers run too; the focus border always resets on blur.
       onFocus={e => { e.currentTarget.style.borderColor = color; e.currentTarget.style.background = 'rgba(245,241,235,0.06)'; onFocus?.(e) }}

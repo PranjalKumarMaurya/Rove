@@ -28,18 +28,8 @@ type Phase =
   | { kind: 'success'; spec: ActionSpec; message: string }
   | { kind: 'error'; spec: ActionSpec; requestId: string; view: CrewErrorView }
 
-const sheetStyle: CSSProperties = {
-  margin: 'auto',
-  width: 'calc(100% - 32px)',
-  maxWidth: 448,
-  padding: 22,
-  borderRadius: 20,
-  background: 'var(--bg-elevated)',
-  border: '1px solid var(--border)',
-  color: 'var(--text-primary)',
-}
-
-export const buttonClass = 'rounded-full px-4 py-2 t-callout disabled:opacity-60'
+/** A --button-h pill; colours from the styles below. */
+export const buttonClass = 'inline-flex min-h-button items-center justify-center rounded-full px-4 t-callout disabled:opacity-60'
 export const quietButtonStyle: CSSProperties = { border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }
 export const accentButtonStyle: CSSProperties = { background: 'var(--accent)', border: '1px solid var(--accent)', color: '#1A0A03', fontWeight: 'var(--w-medium)' }
 export const dangerButtonStyle: CSSProperties = { background: 'var(--neon-pink)', border: '1px solid var(--neon-pink)', color: '#1A0A03', fontWeight: 'var(--w-medium)' }
@@ -105,29 +95,29 @@ export function ActionSheet({ title, intro, actions, onClose, testId = 'crew-act
 
   return (
     <dialog ref={dialogRef} data-testid={testId} aria-labelledby={titleId} aria-busy={busy}
-      className="backdrop:bg-black/70 backdrop:backdrop-blur-sm" style={sheetStyle}
+      className="action-dialog backdrop:bg-black/70 backdrop:backdrop-blur-sm"
       onCancel={(event) => { event.preventDefault(); finish() }}
       onClose={() => { if (mountedRef.current && busyRef.current) dialogRef.current?.showModal() }}>
       <h2 id={titleId} className="t-title2" style={{ color: 'var(--text-primary)' }}>{heading}</h2>
 
       {phase.kind === 'menu' && <>
-        {intro && <div className="t-callout mt-2" style={{ color: 'var(--text-secondary)' }}>{intro}</div>}
-        <div className="mt-5 flex flex-col gap-2">
+        {intro && <div className="t-callout mt-3" style={{ color: 'var(--text-secondary)' }}>{intro}</div>}
+        <div className="mt-4 flex flex-col gap-2">
           {actions.map((action, index) => (
             <button key={action.id} type="button" data-autofocus={index === 0 ? '' : undefined}
               onClick={() => setPhase({ kind: 'confirm', spec: action })}
-              className="rounded-md px-3 py-3 text-left" style={{ border: '1px solid var(--border)', color: action.tone === 'danger' ? 'var(--neon-pink)' : 'var(--text-primary)' }}>
+              className="list-option" style={{ color: action.tone === 'danger' ? 'var(--neon-pink)' : 'var(--text-primary)' }}>
               {action.menuLabel}
             </button>
           ))}
         </div>
-        <div className="mt-5 flex justify-end">
+        <div className="mt-6 flex justify-end">
           <button type="button" onClick={finish} className={buttonClass} style={quietButtonStyle}>Close</button>
         </div>
       </>}
 
       {spec && phase.kind !== 'menu' && <>
-        <div className="t-callout mt-2" style={{ color: 'var(--text-secondary)' }}>
+        <div className="t-callout mt-3" style={{ color: 'var(--text-secondary)' }}>
           {phase.kind === 'success' ? null : spec.blocked ?? spec.body}
         </div>
         {phase.kind === 'working' && <p role="status" className="mt-4" style={{ color: 'var(--text-secondary)' }}>{spec.busyLabel}</p>}

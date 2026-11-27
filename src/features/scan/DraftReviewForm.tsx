@@ -14,9 +14,6 @@ const COMMON_ZONES = ['Asia/Kolkata', 'Asia/Makassar', 'Asia/Jakarta', 'Asia/Sin
   'Asia/Tokyo', 'Europe/London', 'Europe/Paris', 'America/New_York', 'America/Los_Angeles', 'Australia/Sydney', 'UTC']
 
 const fieldStyle = { color: 'var(--text-secondary)' }
-const selectStyle = {
-  background: 'rgba(245,241,235,0.035)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontSize: 'var(--type-field)', colorScheme: 'dark',
-} as const
 const dateStyle = { colorScheme: 'dark' } as const
 
 export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving, saveStatus, saveError, onSubmit, onCancel, onRetryRead, members = [], me = '', onSwitchToBill, cancelLabel = 'Not now' }: {
@@ -85,22 +82,22 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
   const zones = [...new Set([tripTimezone, draft.startTimezone, draft.endTimezone, ...COMMON_ZONES])]
 
   return (
-    <section data-testid="scan-review" aria-label="Review booking" className="surface px-4 py-5">
+    <section data-testid="scan-review" aria-label="Review booking" className="surface card" data-layout="section card">
       <h2 ref={headingRef} tabIndex={-1} className="t-title2 outline-none" style={{ color: 'var(--text-primary)' }}>Review booking</h2>
       <p className="t-footnote mt-1 truncate" style={{ color: 'var(--text-secondary)' }}>From {fileName}</p>
       {onSwitchToBill && <div className="mt-3"><KindRow kind="booking" onChange={onSwitchToBill} disabled={saving} /></div>}
-      {notice && <p role="status" className="mt-3 rounded-md border px-3 py-2 t-callout" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>{notice}</p>}
+      {notice && <p role="status" className="mt-3 card--nested card--row border t-callout" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>{notice}</p>}
       {draft.warnings.length > 0 && (
         <ul aria-label="Check these details" className="mt-3 flex list-disc flex-col gap-1 pl-5 t-callout" style={{ color: 'var(--accent)' }}>
           {[...new Set(draft.warnings.map((warning) => WARNING_MESSAGES[warning]))].map((message) => <li key={message}>{message}</li>)}
         </ul>
       )}
       <form onSubmit={submit} aria-busy={saving} className="mt-4 flex flex-col gap-4" noValidate>
-        <Collapse open={Object.keys(errors).length > 0} gap={16}>
+        <Collapse open={Object.keys(errors).length > 0} gap={4}>
           <p role="alert" className="t-callout" style={{ color: 'var(--accent)' }}>Fix the highlighted fields before adding this to the itinerary.</p>
         </Collapse>
         <Field label="Type" error={errors.eventType}>
-          <select aria-label="Type" value={form.eventType} onChange={set('eventType')} disabled={saving} className="w-full rounded-md px-3 py-2.5" style={selectStyle}>
+          <select aria-label="Type" value={form.eventType} onChange={set('eventType')} disabled={saving} className="field-select w-full">
             {EVENT_TYPES.map((type) => <option key={type} value={type}>{EVENT_TYPE_LABELS[type]}</option>)}
           </select>
         </Field>
@@ -125,12 +122,12 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
         <Field label={journey ? 'From' : 'Location'}>
           <NeonInput aria-label={journey ? 'From' : 'Location'} value={form.location} onChange={set('location')} disabled={saving} />
         </Field>
-        <Collapse open={journey} gap={16}>
+        <Collapse open={journey} gap={4}>
           <Field label="To">
             <NeonInput aria-label="To" value={form.locationTo} onChange={set('locationTo')} disabled={saving} />
           </Field>
         </Collapse>
-        <Collapse open={flight} gap={16}>
+        <Collapse open={flight} gap={4}>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Departure airport" error={errors.depCode}>
               <NeonInput aria-label="Departure airport" value={form.depCode} onChange={set('depCode')} disabled={saving} maxLength={3} autoCapitalize="characters" />
@@ -159,21 +156,21 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
               {audienceHint(draft.partySize, choice, members.length)}
             </p>
             <div className="flex flex-wrap gap-2" data-testid="scan-audience">
-              <label className="pill cursor-pointer" data-on={choice.everyone} style={{ color: choice.everyone ? 'var(--accent)' : 'var(--text-secondary)' }}>
+              <label className="pill pill--tap cursor-pointer" data-on={choice.everyone} style={{ color: choice.everyone ? 'var(--accent)' : 'var(--text-secondary)' }}>
                 <Checkbox checked={choice.everyone} onChange={() => (choice.everyone ? setChoice({ everyone: false, picked: [] }) : pickEveryone())} />
                 Everyone in the Trip
               </label>
               {members.map((member) => (
-                <label key={member.id} className="pill cursor-pointer" data-on={isOn(member.id)} style={{ color: isOn(member.id) ? 'var(--accent)' : 'var(--text-secondary)' }}>
+                <label key={member.id} className="pill pill--tap cursor-pointer" data-on={isOn(member.id)} style={{ color: isOn(member.id) ? 'var(--accent)' : 'var(--text-secondary)' }}>
                   <Checkbox checked={isOn(member.id)} onChange={() => toggle(member.id)} />
                   {member.name}{member.id === me ? ' (you)' : ''}
                 </label>
               ))}
             </div>
-            <Collapse open={Boolean(audienceMismatch(draft.partySize, choice, members.length))} gap={8}>
+            <Collapse open={Boolean(audienceMismatch(draft.partySize, choice, members.length))} gap={2}>
               <p data-testid="scan-audience-mismatch" className="t-footnote" style={{ color: 'var(--text-secondary)' }}>{audienceMismatch(draft.partySize, choice, members.length)}</p>
             </Collapse>
-            <Collapse open={Boolean(audienceError)} gap={8}>
+            <Collapse open={Boolean(audienceError)} gap={2}>
               <p role="alert" className="t-footnote" style={{ color: 'var(--accent)' }}>{audienceError}</p>
             </Collapse>
             <p key={choice.everyone ? 'everyone' : 'picked'} className="m-text-swap t-footnote" style={{ color: 'var(--text-tertiary)' }}>
@@ -183,7 +180,7 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
             </p>
           </fieldset>
         )}
-        <fieldset className="surface flex flex-col gap-2 px-3.5 py-3" disabled={saving} data-testid="scan-cost">
+        <fieldset className="surface card--nested card flex flex-col gap-2" disabled={saving} data-testid="scan-cost" data-layout="card">
           <legend className="sr-only">Cost</legend>
           {priceText && (
             <p className="t-callout" style={{ color: 'var(--text-primary)' }}>
@@ -193,7 +190,7 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
               </span>
             </p>
           )}
-          <label className="flex min-h-11 cursor-pointer items-center gap-3 t-callout" style={{ color: 'var(--text-primary)' }}>
+          <label className="flex min-h-tap cursor-pointer items-center gap-3 t-callout" style={{ color: 'var(--text-primary)' }}>
             <Checkbox checked={addToSplit} onChange={(event) => setAddToSplit(event.target.checked)} />
             Also add the cost to Split
           </label>
@@ -206,17 +203,17 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
         </fieldset>
         <Field label="Notes">
           <textarea aria-label="Notes" value={form.notes} onChange={set('notes')} disabled={saving} rows={3} maxLength={1000}
-            className="w-full rounded-md px-3.5 py-2.5" style={selectStyle} />
+            className="field-textarea" />
         </Field>
-        <Collapse open={Boolean(saveError)} gap={16}>
+        <Collapse open={Boolean(saveError)} gap={4}>
           <p role="alert" className="t-callout" style={{ color: 'var(--accent)' }}>{saveError}</p>
         </Collapse>
         <AsyncButton type="submit" status={saveStatus ?? (saving ? 'busy' : 'idle')} busyLabel="Adding…" doneLabel="Added" className="w-full">
           {addToSplit ? 'Add to itinerary and split' : 'Add to itinerary'}
         </AsyncButton>
         <div className="flex flex-wrap justify-between gap-3">
-          <button type="button" onClick={onCancel} disabled={saving} style={{ color: 'var(--text-secondary)' }}>{cancelLabel}</button>
-          {onRetryRead && <button type="button" onClick={onRetryRead} disabled={saving} style={{ color: 'var(--text-secondary)' }}>Try reading again</button>}
+          <button type="button" onClick={onCancel} disabled={saving} className="min-h-tap" style={{ color: 'var(--text-secondary)' }}>{cancelLabel}</button>
+          {onRetryRead && <button type="button" onClick={onRetryRead} disabled={saving} className="min-h-tap" style={{ color: 'var(--text-secondary)' }}>Try reading again</button>}
         </div>
       </form>
     </section>
@@ -225,7 +222,7 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
 
 function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
   return (
-    <label className="m-field flex flex-col gap-1.5 t-callout" style={fieldStyle}>
+    <label className="m-field flex flex-col gap-2 t-callout" style={fieldStyle}>
       <span>{label}</span>
       {children}
       {error && <span role="alert" className="m-field-error t-footnote" style={{ color: 'var(--accent)' }}>{error}</span>}

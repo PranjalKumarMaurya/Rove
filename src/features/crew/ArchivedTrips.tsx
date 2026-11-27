@@ -30,9 +30,9 @@ export function ArchivedTrips({ refreshKey, onRestored, className = '' }: {
   if (trips.length === 0 && !restoring) return null
 
   return (
-    <section data-testid="archived-trips" aria-label="Archived Trips" className={`surface px-4 py-5 ${className}`}>
+    <section data-testid="archived-trips" aria-label="Archived Trips" data-layout="section card" className={`surface card ${className}`}>
       <h2 className="t-title3" style={{ color: 'var(--text-primary)' }}>Archived Trips</h2>
-      <p className="t-footnote mt-1.5" style={{ color: 'var(--text-secondary)' }}>
+      <p className="t-footnote mt-1" style={{ color: 'var(--text-secondary)' }}>
         Closed for everyone until an Owner restores them. Nothing in them was deleted.
       </p>
       <ul className="mt-4 flex flex-col gap-3">

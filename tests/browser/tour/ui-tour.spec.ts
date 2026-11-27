@@ -83,7 +83,7 @@ test('tour every screen', async ({ browser }) => {
     await owner.getByRole('button', { name: 'Keep my account' }).click()
     await owner.getByRole('button', { name: 'Privacy policy' }).click()
     await shot(owner, 'privacy-policy')
-    await owner.getByRole('button', { name: 'Profile' }).click()
+    await owner.getByRole('button', { name: 'Back to Profile' }).click()
     await goToTrips(owner)
   })
 

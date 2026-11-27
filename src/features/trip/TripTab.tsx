@@ -1,4 +1,5 @@
 import { type CSSProperties, useEffect, useMemo, useState } from 'react'
+import { space } from '../../components/ui/space'
 import { NeonBtn } from '../../components/ui/NeonBtn'
 import { Collapse } from '../../components/ui/Collapse'
 import { useExitList } from '../../components/ui/motion'
@@ -71,44 +72,46 @@ export function TripTab({ trip, roster }: TripTabProps) {
       {!loading && !error && <CrewStatusStrip trip={trip} roster={roster} events={events} audience={audience} tripTimeZone={tripZone} />}
       <NextFlight flight={flight} tripTimeZone={tripZone} localTimeZone={localTimeZone} />
 
-      <div>
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="t-title2 min-w-0" style={{ color: 'var(--text-primary)' }}>Itinerary</h2>
-          <NeonBtn type="button" variant="outline" color="#FF8B4D" className="min-h-11 shrink-0" onClick={() => setEditing({ mode: 'add' })}>
-            Add event
-          </NeonBtn>
-        </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 t-footnote" style={{ color: 'var(--text-tertiary)' }}>
-          <span>Times in {timeZoneCity(tripZone)} time{showsLocal ? ` · yours shown below each` : ''}</span>
-          <LiveBadge status={live} />
+      <div className="section" data-layout="section">
+        <div>
+          <div className="section-head">
+            <h2 className="t-title2" style={{ color: 'var(--text-primary)' }}>Itinerary</h2>
+            <NeonBtn type="button" variant="outline" color="#FF8B4D" onClick={() => setEditing({ mode: 'add' })}>
+              Add event
+            </NeonBtn>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 t-footnote" style={{ color: 'var(--text-tertiary)' }}>
+            <span>Times in {timeZoneCity(tripZone)} time{showsLocal ? ` · yours shown below each` : ''}</span>
+            <LiveBadge status={live} />
+          </div>
         </div>
 
-        <Collapse open={Boolean(notice)}>
-          <p role="status" className="surface mt-4 px-3.5 py-3 t-callout" style={{ color: 'var(--text-secondary)' }}>
-            {notice} <button type="button" onClick={() => setNotice(null)} style={{ color: 'var(--accent)' }}>Dismiss</button>
+        <Collapse open={Boolean(notice)} gap={3}>
+          <p role="status" className="surface card--row t-callout" style={{ color: 'var(--text-secondary)' }}>
+            {notice} <button type="button" data-layout-exempt="inline" onClick={() => setNotice(null)} style={{ color: 'var(--accent)' }}>Dismiss</button>
           </p>
         </Collapse>
-        <Collapse open={Boolean(error)}>
-          <p role="alert" className="surface mt-4 px-3.5 py-3 t-callout" style={{ color: 'var(--text-secondary)' }}>
-            Could not load the itinerary. <button type="button" onClick={() => void reload()} style={{ color: 'var(--accent)' }}>Try again</button>
+        <Collapse open={Boolean(error)} gap={3}>
+          <p role="alert" className="surface card--row t-callout" style={{ color: 'var(--text-secondary)' }}>
+            Could not load the itinerary. <button type="button" data-layout-exempt="inline" onClick={() => void reload()} style={{ color: 'var(--accent)' }}>Try again</button>
           </p>
         </Collapse>
         <Swap id={loading ? 'loading' : !error && entries.length === 0 ? 'empty' : 'list'}>
         {loading ? (
-          <p role="status" className="mt-6 t-callout" style={{ color: 'var(--text-tertiary)' }}>Loading itinerary…</p>
+          <p role="status" className="t-callout" style={{ color: 'var(--text-tertiary)' }}>Loading itinerary…</p>
         ) : !error && events.length === 0 ? (
-          <div className="surface m-appear mt-4 px-4 py-5" data-testid="itinerary-empty">
+          <div className="surface card m-appear" data-testid="itinerary-empty" data-layout="card">
             <p className="t-title3 t-voice" style={{ color: 'var(--text-secondary)' }}>Nothing planned yet.</p>
             <p className="mt-1 t-callout" style={{ color: 'var(--text-tertiary)' }}>Add flights, stays and plans. Everyone in the Trip sees them.</p>
           </div>
         ) : (
-          <div className="relative mt-4 flex flex-col gap-5" data-testid="itinerary">
+          <div className="relative flex flex-col gap-6" data-testid="itinerary">
             {days.map((day) => (
               <section key={day.key} aria-label={day.label} className={day.leaving ? 'm-fold is-leaving' : 'm-fold'}
-                style={{ '--fold-gap': '20px' } as CSSProperties} aria-hidden={day.leaving || undefined}>
+                style={{ '--fold-gap': space(6) } as CSSProperties} aria-hidden={day.leaving || undefined}>
                 <div>
-                <p className="t-headline t-num mb-2" style={{ color: 'var(--text-primary)' }}>{day.label}</p>
-                <ol className="flex flex-col gap-3" style={{ '--fold-gap': '12px' } as CSSProperties}>
+                <p className="t-headline t-num mb-3" style={{ color: 'var(--text-primary)' }}>{day.label}</p>
+                <ol className="flex flex-col gap-3" style={{ '--fold-gap': space(3) } as CSSProperties}>
                   {day.events.map(({ event, leaving }) => (
                     <EventCard key={event.id} leaving={leaving && !day.leaving} index={order.get(event.id) ?? 0} event={event} status={statuses.get(event.id) ?? 'upcoming'}
                       tripTimeZone={tripZone} localTimeZone={localTimeZone}

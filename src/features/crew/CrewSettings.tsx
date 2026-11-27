@@ -1,4 +1,5 @@
 import { type CSSProperties, useState } from 'react'
+import { space } from '../../components/ui/space'
 import { Collapse } from '../../components/ui/Collapse'
 import { Details } from '../../components/ui/Details'
 import { foldProps, useExitList } from '../../components/ui/motion'
@@ -140,17 +141,17 @@ export function CrewSettings({ trip, roster, reloadRoster, onTripsChanged }: Tri
 
   return (
     <>
-      <section data-testid="crew-section" aria-labelledby="settings-people-heading" className="settings-section">
+      <section data-testid="crew-section" aria-labelledby="settings-people-heading" className="settings-section" data-layout="section">
         <div className="settings-section__head">
           <h2 id="settings-people-heading" className="t-title2" style={{ color: 'var(--text-primary)' }}>People</h2>
-          <button type="button" onClick={refreshCrew} className="t-callout min-h-11 shrink-0" style={{ color: 'var(--text-secondary)' }}>Refresh crew</button>
+          <button type="button" onClick={refreshCrew} className="head-action t-callout" style={{ color: 'var(--text-secondary)' }}>Refresh crew</button>
         </div>
         <Collapse open={Boolean(notice)}>
           <p role="status" className="t-callout" style={{ color: 'var(--text-secondary)' }}>{notice}</p>
         </Collapse>
-        <div className="surface settings-card">
+        <div className="surface settings-card" data-layout="card">
           {active.length === 0 && <p className="t-callout" style={{ color: 'var(--text-secondary)' }}>The crew list is not available right now. Try Refresh crew.</p>}
-          <ul className="m-list flex flex-col gap-2" aria-label="Trip members" style={{ '--fold-gap': '8px' } as CSSProperties}>
+          <ul className="m-list flex flex-col gap-3" aria-label="Trip members" style={{ '--fold-gap': space(3) } as CSSProperties}>
             {activeRows.entries.map(({ item: member, leaving }) => {
               const manageable = memberActionsFor(viewer, member).length > 0
               const isMe = member.groupMemberId === trip.groupMemberId
@@ -161,24 +162,24 @@ export function CrewSettings({ trip, roster, reloadRoster, onTripsChanged }: Tri
               return (
                 <li key={member.groupMemberId} style={{ color: 'var(--text-primary)' }} {...foldProps(leaving)}>
                   <div>
-                  <div className="flex items-center justify-between gap-3" style={{ minHeight: 48 }}>
+                  <div className="flex items-center justify-between gap-3">
                     <button type="button" aria-expanded={open} aria-controls={infoId} aria-label={`Details for ${label}`}
-                      onClick={() => setExpanded(open ? null : member.groupMemberId)} className="m-press-card flex min-h-12 min-w-0 flex-1 items-center gap-3 text-left">
-                      <span aria-hidden="true" className="flex shrink-0 items-center justify-center" style={{
-                        width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-soft)', border: '1px solid var(--border-strong)',
+                      onClick={() => setExpanded(open ? null : member.groupMemberId)} className="m-press-card flex min-h-tap min-w-0 flex-1 items-center gap-3 text-left">
+                      <span aria-hidden="true" className="flex size-avatar-sm shrink-0 items-center justify-center rounded-full" style={{
+                        background: 'var(--accent-soft)', border: '1px solid var(--border-strong)',
                         fontSize: emoji ? 17 : 13, fontWeight: 'var(--w-semibold)',
                       }}>{emoji || member.displayName.trim().charAt(0).toUpperCase()}</span>
                       <span className="min-w-0">
-                        <span className="flex items-center gap-1.5">
+                        <span className="flex items-center gap-1">
                           <span className="t-headline min-w-0 truncate">{label}</span>
-                          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+                          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
                             className="shrink-0" style={{ color: 'var(--text-tertiary)', transform: open ? 'rotate(180deg)' : undefined, transition: 'transform var(--dur-base) var(--ease-in-out)' }}><path d="m6 9 6 6 6-6" /></svg>
                         </span>
                         <span className="t-footnote block" style={{ color: 'var(--text-secondary)' }}>{member.role === 'owner' ? 'Owner' : 'Member'}</span>
                       </span>
                     </button>
                     {manageable && <button type="button" aria-label={`Manage ${member.displayName}`} onClick={() => { setNotice(''); setSheet({ kind: 'member', member }) }}
-                      className={`${buttonClass} min-h-11 shrink-0`} style={quietButtonStyle}>Manage</button>}
+                      className={`${buttonClass} shrink-0`} style={quietButtonStyle}>Manage</button>}
                   </div>
                   <Collapse open={open}>
                     <CrewInfo id={infoId} name={member.displayName} isMe={isMe} profile={profileOf(member.groupMemberId)}
@@ -189,7 +190,7 @@ export function CrewSettings({ trip, roster, reloadRoster, onTripsChanged }: Tri
               )
             })}
           </ul>
-          {former.length > 0 && <Details summaryStyle={{ color: 'var(--text-secondary)', cursor: 'pointer' }}
+          {former.length > 0 && <Details summaryStyle={{ color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', minHeight: 'var(--tap)' }}
             summary={`Former members (${former.length})`}>
             <ul aria-label="Former members" className="mt-2 flex flex-col gap-1">
               {former.map((member) => (
@@ -200,7 +201,7 @@ export function CrewSettings({ trip, roster, reloadRoster, onTripsChanged }: Tri
             </ul>
           </Details>}
         </div>
-        <div className="surface settings-card" aria-label="Your role">
+        <div className="surface settings-card" data-layout="card" aria-label="Your role">
           <p className="t-callout" style={{ color: 'var(--text-secondary)' }}>
             You are {isOwner ? 'an Owner' : 'a Member'} of this Trip.{isOwner ? '' : ' Owners manage the crew; ask one of them to change roles.'}
           </p>
@@ -210,7 +211,7 @@ export function CrewSettings({ trip, roster, reloadRoster, onTripsChanged }: Tri
         </div>
       </section>
 
-      <section data-testid="invite-section" aria-labelledby="settings-invite-heading" className="settings-section">
+      <section data-testid="invite-section" aria-labelledby="settings-invite-heading" className="settings-section" data-layout="section">
         <h2 id="settings-invite-heading" className="t-title2" style={{ color: 'var(--text-primary)' }}>Invite</h2>
         <JoinLinkCard groupId={groupId} tripName={trip.tripName} isOwner={isOwner} />
         {isOwner && <>
@@ -220,9 +221,9 @@ export function CrewSettings({ trip, roster, reloadRoster, onTripsChanged }: Tri
         </>}
       </section>
 
-      <section data-testid="danger-zone" aria-labelledby="settings-danger-heading" className="settings-section">
+      <section data-testid="danger-zone" aria-labelledby="settings-danger-heading" className="settings-section" data-layout="section">
         <h2 id="settings-danger-heading" className="t-title2" style={{ color: 'var(--text-primary)' }}>Danger zone</h2>
-        <div className="surface settings-card">
+        <div className="surface settings-card" data-layout="card">
           <p className="t-callout" style={{ color: 'var(--text-secondary)' }}>Leaving removes your access straight away. Your expenses and history stay in the Trip.</p>
           <div className="settings-actions">
             <button type="button" onClick={() => { setNotice(''); setSheet({ kind: 'leave' }) }} className={`${buttonClass} danger-btn`} style={{ ...quietButtonStyle, color: 'var(--neon-pink)' }}>Leave Trip</button>

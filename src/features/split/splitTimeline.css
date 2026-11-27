@@ -51,6 +51,6 @@
 @container split-totals (max-width: 31em) {
   .split-totals__name-row { display: table-row; }
   .split-totals__name-cell, .split-totals__name-col { display: none; }
-  .split-totals__table td { width: 33.33%; padding-top: 2px; }
-  .split-totals__table td:first-of-type { padding-left: 16px; }
+  .split-totals__table td { width: 33.33%; padding-top: var(--space-1); }
+  .split-totals__table td:first-of-type { padding-left: var(--space-4); }
 }

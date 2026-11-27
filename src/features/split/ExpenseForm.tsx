@@ -240,8 +240,8 @@ export function ExpenseForm({
               {showCurrency && <datalist id="split-currencies">{COMMON_CURRENCIES.map((code) => <option key={code} value={code} />)}</datalist>}
             </div>
 
-            <Collapse open={showCurrency && converts} gap={16}>
-              <div className="surface flex flex-col gap-2 px-3.5 py-3">
+            <Collapse open={showCurrency && converts} gap={4}>
+              <div className="surface card--nested card flex flex-col gap-2" data-layout="card">
                 <Field label={`Exchange rate: ${accountingCurrency} for 1 ${currency}`} error={show('rate')}
                   hint={rateHint(rateState, keepsSnapshot ? expense : null, timezone)}>
                   {(control) => <input {...control} className={inputClass} style={inputStyle} value={draft.rate} inputMode="decimal"
@@ -251,7 +251,7 @@ export function ExpenseForm({
                 </Field>
                 <div className="flex items-center justify-between gap-3">
                   <button type="button" onClick={() => void fetchRate()} disabled={rateState.kind === 'loading'}
-                    className="t-callout t-medium min-h-11 text-left" style={{ color: 'var(--accent)' }}>
+                    className="t-callout t-medium min-h-tap text-left" style={{ color: 'var(--accent)' }}>
                     {rateState.kind === 'loading' ? 'Fetching rate…' : 'Use live rate'}
                   </button>
                   {evaluation.accountingMinor !== null && (
@@ -281,7 +281,7 @@ export function ExpenseForm({
             <Choice legend="Paid by" name="payer-mode" value={draft.payerMode}
               options={[{ value: 'single', label: 'One person' }, { value: 'multiple', label: 'Several people' }]}
               onChange={(payerMode) => update({ payerMode })}>
-              <Collapse open={draft.payerMode === 'single'} gap={12}>
+              <Collapse open={draft.payerMode === 'single'} gap={4}>
                 <Field label="Who paid" error={show('payers')}>
                   {(control) => (
                     <select {...control} className={inputClass} style={inputStyle} value={draft.payerId}
@@ -291,7 +291,7 @@ export function ExpenseForm({
                   )}
                 </Field>
               </Collapse>
-              <Collapse open={draft.payerMode === 'multiple'} gap={12}>
+              <Collapse open={draft.payerMode === 'multiple'} gap={4}>
                 <div className="flex flex-col gap-3">
                   <AmountList label="Paid by" members={members} currency={currency} values={draft.payerAmounts}
                     onChange={(payerAmounts) => update({ payerAmounts })} />
@@ -303,7 +303,7 @@ export function ExpenseForm({
 
             <Choice legend="Split" name="split-mode" value={draft.splitMode} options={SPLIT_OPTIONS}
               onChange={(splitMode) => update(switchSplitMode(draft, splitMode))}>
-              <Collapse open={draft.splitMode === 'percent' || draft.splitMode === 'shares'} gap={12}>
+              <Collapse open={draft.splitMode === 'percent' || draft.splitMode === 'shares'} gap={4}>
                 <div className="flex flex-col gap-3">
                 <WeightFields mode={draft.splitMode === 'shares' ? 'shares' : 'percent'} members={members} evaluation={evaluation} currency={currency}
                   accountingCurrency={accountingCurrency} money={money} error={evaluation.errors.shares}
@@ -311,14 +311,14 @@ export function ExpenseForm({
                   onChange={(values) => update(draft.splitMode === 'percent' ? { sharePercents: values } : { shareWeights: values })} />
                 </div>
               </Collapse>
-              <Collapse open={draft.splitMode === 'equal'} gap={12}>
+              <Collapse open={draft.splitMode === 'equal'} gap={4}>
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between gap-3">
                     <span className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>Split between</span>
                     <span className="flex gap-3 t-callout">
-                      <button type="button" className="min-h-11" style={{ color: 'var(--accent)' }}
+                      <button type="button" className="min-h-tap" style={{ color: 'var(--accent)' }}
                         onClick={() => chooseIncluded(members.map((member) => member.id))}>Everyone</button>
-                      <button type="button" className="min-h-11" style={{ color: 'var(--text-secondary)' }}
+                      <button type="button" className="min-h-tap" style={{ color: 'var(--text-secondary)' }}
                         onClick={() => chooseIncluded([])}>No one</button>
                     </span>
                   </div>
@@ -328,7 +328,7 @@ export function ExpenseForm({
                       const reason = away.get(member.id)
                       return (
                         <li key={member.id}>
-                          <label className="m-toggle flex min-h-11 cursor-pointer items-center gap-3" data-away={reason && !checked ? 'true' : undefined}
+                          <label className="m-toggle flex min-h-tap cursor-pointer items-center gap-3" data-away={reason && !checked ? 'true' : undefined}
                             style={{ color: reason && !checked ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
                             <Checkbox checked={checked}
                               onChange={(event) => chooseIncluded(event.target.checked
@@ -341,7 +341,7 @@ export function ExpenseForm({
                       )
                     })}
                   </ul>
-                  <Collapse open={Boolean(show('shares'))} gap={12}>
+                  <Collapse open={Boolean(show('shares'))} gap={3}>
                     <p role="alert" className="t-footnote" style={{ color: 'var(--accent)' }}>{show('shares')}</p>
                   </Collapse>
                   {perHead && (
@@ -352,7 +352,7 @@ export function ExpenseForm({
                   )}
                 </div>
               </Collapse>
-              <Collapse open={draft.splitMode === 'exact'} gap={12}>
+              <Collapse open={draft.splitMode === 'exact'} gap={4}>
                 <div className="flex flex-col gap-3">
                   <AmountList label="Share for" members={members} currency={currency} values={draft.shareAmounts}
                     onChange={(shareAmounts) => update({ shareAmounts })} />
@@ -363,24 +363,24 @@ export function ExpenseForm({
             </Choice>
           </fieldset>
 
-          <Collapse open={Boolean(similar)} gap={16}>
-            {similar && <p role="status" data-testid="similar-expense" className="rounded-lg px-3 py-2 t-footnote"
+          <Collapse open={Boolean(similar)} gap={4}>
+            {similar && <p role="status" data-testid="similar-expense" className="card--nested card--row t-footnote"
               style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-strong)' }}>
               {similar.createdBy === me ? 'You' : memberName(similar.createdBy)} already added {money(similar.originalAmount, similar.originalCurrency)} for
               “{similar.description}” on {formatDay(similar.spentAt ?? similar.createdAt, timezone)}. Check it isn’t the same cost before saving.
             </p>}
           </Collapse>
-          <Collapse open={Boolean(serverError)} gap={16}>
-            <p role="alert" className="surface px-3.5 py-3 t-callout" style={{ color: 'var(--text-primary)' }}>{serverError}</p>
+          <Collapse open={Boolean(serverError)} gap={4}>
+            <p role="alert" className="surface card--nested card--row t-callout" style={{ color: 'var(--text-primary)' }}>{serverError}</p>
           </Collapse>
-          <Collapse open={attempted && !evaluation.request && !serverError} gap={16}>
+          <Collapse open={attempted && !evaluation.request && !serverError} gap={4}>
             <p role="alert" className="t-callout" style={{ color: 'var(--accent)' }}>Check the highlighted fields.</p>
           </Collapse>
           <div className="flex gap-2">
-            <AsyncButton type="submit" status={action.status} busyLabel="Saving…" doneLabel="Saved" className="min-h-11 flex-1">
+            <AsyncButton type="submit" status={action.status} busyLabel="Saving…" doneLabel="Saved" className="flex-1">
               {expense ? 'Save changes' : 'Save expense'}
             </AsyncButton>
-            <NeonBtn type="button" variant="ghost" disabled={saving} onClick={requestClose} className="min-h-11">Cancel</NeonBtn>
+            <NeonBtn type="button" variant="ghost" disabled={saving} onClick={requestClose} >Cancel</NeonBtn>
           </div>
         </form>
       )}
@@ -432,14 +432,14 @@ function Choice<T extends string>({ legend, name, value, options, onChange, chil
   children: ReactNode
 }) {
   return (
-    <fieldset className="surface flex flex-col gap-3 px-3.5 py-3">
+    <fieldset className="surface card--nested card flex flex-col gap-4" data-layout="card">
       <legend className="sr-only">{legend}</legend>
       <span aria-hidden="true" className="t-callout" style={{ color: 'var(--text-secondary)' }}>{legend}</span>
       <div className="grid grid-cols-2 gap-2">
         {options.map((option) => {
           const checked = value === option.value
           return (
-            <label key={option.value} className="m-toggle flex min-h-11 cursor-pointer items-center justify-center gap-1.5 rounded-full border px-2 py-1 text-center t-footnote"
+            <label key={option.value} className="m-toggle flex min-h-tap cursor-pointer items-center justify-center gap-1 rounded-full border px-2 text-center t-footnote"
               style={{
                 borderColor: checked ? 'var(--accent)' : 'var(--border)',
                 background: checked ? 'var(--accent-soft)' : 'transparent',
@@ -496,7 +496,7 @@ function TotalStrip({ check, what, matchText, money, error }: {
         : `${money(check.entered - check.required)} too much`}`
   if (!text) return null
   return (
-    <p role="status" className="m-toggle rounded-lg px-3 py-2 t-footnote"
+    <p role="status" className="m-toggle rounded-sm px-3 py-2 t-footnote"
       style={{
         color: matches ? 'var(--text-primary)' : 'var(--accent)',
         border: `1px solid ${matches ? 'var(--border-strong)' : 'rgba(255,139,77,0.4)'}`,

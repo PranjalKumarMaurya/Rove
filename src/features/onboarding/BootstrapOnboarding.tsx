@@ -178,12 +178,12 @@ export function BootstrapOnboarding({ onContinue, onBack, homeCurrency }: {
       eyebrow={<p className="t-eyebrow">New Trip</p>}
       title="Create your Trip"
       lede="Add the basics. You can invite friends once it’s created."
-      top={onBack ? <button type="button" className="round-btn" aria-label="Back to Trips" onClick={onBack}><IconBack size={20} /></button> : undefined}>
-      <form onSubmit={(event) => void submit(event)} aria-label="Create Trip" aria-busy={formIsInert} className="flex flex-col gap-5" noValidate>
-        <Collapse open={Boolean(message)} gap={20}>
+      top={onBack ? <button type="button" className="round-btn" aria-label="Back to Trips" onClick={onBack}><IconBack size="md" /></button> : undefined}>
+      <form onSubmit={(event) => void submit(event)} aria-label="Create Trip" aria-busy={formIsInert} className="flex flex-col gap-4" noValidate>
+        <Collapse open={Boolean(message)} gap={5}>
           <p role="alert" data-testid="bootstrap-status" className="notice notice--error">{message}</p>
         </Collapse>
-        <Collapse open={hasVisibleErrors} gap={20}>
+        <Collapse open={hasVisibleErrors} gap={5}>
           <p role="alert" className="notice notice--error">Check the highlighted fields.</p>
         </Collapse>
         <Field id="trip-name" label="Trip name" error={fieldError('tripName')}>
@@ -214,8 +214,8 @@ export function BootstrapOnboarding({ onContinue, onBack, homeCurrency }: {
             : `Everything is in ${domesticCurrency} · ${currencyName(domesticCurrency)}. Turn on for travel abroad.`}
           onChange={(international) => update(international && !currencyChosen.current
             ? { international, accountingCurrency: domesticCurrency } : { international })} />
-        <Collapse open={form.international} gap={20}>
-        <div className="flex flex-col gap-5">
+        <Collapse open={form.international} gap={5}>
+        <div className="flex flex-col gap-4">
         <TripCurrencyFields idPrefix="trip" currency={form.accountingCurrency} extras={form.extraCurrencies}
           onCurrency={onCurrency} onExtras={(extraCurrencies) => update({ extraCurrencies })} disabled={formIsInert}
           currencyError={fieldError('accountingCurrency')} displayError={fieldError('displayCurrencies')}
@@ -223,7 +223,7 @@ export function BootstrapOnboarding({ onContinue, onBack, homeCurrency }: {
         </div>
         </Collapse>
 
-        <AsyncButton type="submit" size="lg" disabled={formIsInert || requiresEditedRequest} className="mt-2 w-full"
+        <AsyncButton type="submit" size="lg" disabled={formIsInert || requiresEditedRequest} className="mt-4 w-full"
           status={action.status === 'error' && state === 'idle' ? 'idle' : action.status} busyLabel="Creating Trip…" doneLabel="Created">
           {state === 'retryable-failure' ? 'Retry creating Trip' : requiresEditedRequest ? 'Review details to continue' : 'Create Trip'}
         </AsyncButton>

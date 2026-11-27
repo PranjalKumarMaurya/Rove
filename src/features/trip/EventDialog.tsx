@@ -1,5 +1,6 @@
 import { lockBodyScroll } from '../../hooks/useBodyScrollLock'
-import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { IconClose } from '../../components/ui/icons'
 import { NeonBtn } from '../../components/ui/NeonBtn'
 import { AsyncButton, useAsyncStatus } from '../../components/ui/AsyncButton'
 import { Checkbox } from '../../components/ui/Checkbox'
@@ -33,20 +34,6 @@ function formFromEvent(event: TripEvent, timeZone: string): EventFormValues {
   }
 }
 
-const overlay: CSSProperties = {
-  // Starts below the status bar so the form's title never scrolls under it (iOS blurs content there).
-  position: 'fixed', top: 'var(--safe-top)', right: 0, bottom: 0, left: 0, zIndex: 50, background: 'rgba(15, 11, 8, 0.92)',
-  display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'none',
-  padding: '16px 16px calc(16px + env(safe-area-inset-bottom, 0px))',
-}
-const sheet: CSSProperties = {
-  width: '100%', maxWidth: 480, margin: 'auto', background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-  borderRadius: 20, padding: 22,
-}
-const textareaStyle: CSSProperties = {
-  background: 'rgba(245,241,235,0.035)', border: '1px solid var(--border)', color: 'var(--text-primary)',
-  borderRadius: 12, padding: '10px 14px', fontSize: 'var(--type-field)', width: '100%', minHeight: 72, outline: 'none',
-}
 
 export type SaveEvent = (payload: EventPayload, audience: string[], overwrite: boolean) => Promise<void>
 
@@ -116,26 +103,27 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
   const zone = `${timeZoneCity(tripTimeZone)} time`
 
   return (
-    <div style={overlay} className="m-backdrop" onClick={onClose} onKeyDown={(keyEvent) => { if (keyEvent.key === 'Escape') onClose() }}>
-      <div ref={card} role="dialog" aria-modal="true" aria-labelledby={titleId} style={sheet} onClick={(clickEvent) => clickEvent.stopPropagation()} className="m-dialog">
-        <div className="mb-4 flex items-center justify-between">
+    // .dialog-overlay starts below the status bar, so the title never scrolls under it (iOS blurs content there).
+    <div className="dialog-overlay m-backdrop" onClick={onClose} onKeyDown={(keyEvent) => { if (keyEvent.key === 'Escape') onClose() }}>
+      <div ref={card} role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(clickEvent) => clickEvent.stopPropagation()} className="dialog-card m-dialog">
+        <div className="dialog-head">
           <h2 id={titleId} className="t-title2 min-w-0" style={{ color: 'var(--text-primary)' }}>{event ? 'Edit event' : 'Add event'}</h2>
-          <button type="button" aria-label="Close" onClick={onClose} style={{ color: 'var(--text-tertiary)', fontSize: 18 }}>✕</button>
+          <button type="button" aria-label="Close" onClick={onClose} className="close-x"><IconClose /></button>
         </div>
-        <form onSubmit={submit} aria-label={event ? 'Edit event' : 'Add event'} className="flex flex-col gap-3.5" noValidate>
-          <Collapse open={Object.keys(errors).length > 0} gap={14}>
+        <form onSubmit={submit} aria-label={event ? 'Edit event' : 'Add event'} className="flex flex-col gap-4" noValidate>
+          <Collapse open={Object.keys(errors).length > 0} gap={4}>
             <p role="alert" className="t-callout" style={{ color: 'var(--accent)' }}>Check the highlighted fields.</p>
           </Collapse>
           <Field label="Type" error={errors.eventType}>
             <select ref={firstField} aria-label="Type" value={values.eventType} onChange={(change) => set('eventType')(change.target.value)}
-              className="rounded-xl px-3.5 py-2.5 t-callout" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
+              className="field-select w-full">
               {EVENT_TYPES.map((entry) => <option key={entry.type} value={entry.type}>{entry.icon} {entry.label}</option>)}
             </select>
           </Field>
           <Field label="Title" error={errors.title}>
             <NeonInput aria-label="Title" value={values.title} maxLength={140} onChange={(change) => set('title')(change.target.value)} placeholder="Surf lesson, hotel check-in…" />
           </Field>
-          <div className="flex flex-col gap-3.5">
+          <div className="flex flex-col gap-4">
             <Field label="Starts" hint={zone} error={errors.startsAt}>
               <NeonInput aria-label="Starts" type="datetime-local" value={values.startsAt} onChange={(change) => set('startsAt')(change.target.value)} />
             </Field>
@@ -151,7 +139,7 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
           </Field>
           {isFlight && (
             <fieldset className="grid grid-cols-2 gap-3">
-              <legend className="mb-1.5 t-callout" style={{ color: 'var(--text-secondary)' }}>Flight details</legend>
+              <legend className="mb-2 t-callout" style={{ color: 'var(--text-secondary)' }}>Flight details</legend>
               <Field label="From airport" error={errors.depCode}>
                 <NeonInput aria-label="Departure airport code" value={values.depCode} maxLength={5} onChange={(change) => set('depCode')(change.target.value)} placeholder="BOM" />
               </Field>
@@ -176,15 +164,15 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
             <NeonInput aria-label="Map link" type="url" inputMode="url" value={values.mapUrl} onChange={(change) => set('mapUrl')(change.target.value)} placeholder="https://maps.app.goo.gl/…" />
           </Field>
           <Field label="Notes (optional)">
-            <textarea aria-label="Notes" value={values.notes} onChange={(change) => set('notes')(change.target.value)} style={textareaStyle} />
+            <textarea aria-label="Notes" value={values.notes} onChange={(change) => set('notes')(change.target.value)} className="field-textarea" />
           </Field>
           {activeMembers.length > 1 && (
             <fieldset>
               <legend className="t-callout" style={{ color: 'var(--text-secondary)' }}>Who&rsquo;s on this</legend>
-              <p className="t-footnote mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Leave all unticked for everyone. If you tick people, only they and whoever added it can see it.</p>
+              <p className="t-footnote mt-1" style={{ color: 'var(--text-tertiary)' }}>Leave all unticked for everyone. If you tick people, only they and whoever added it can see it.</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {activeMembers.map((member) => (
-                  <label key={member.groupMemberId} className="pill cursor-pointer" data-on={audience.includes(member.groupMemberId)}
+                  <label key={member.groupMemberId} className="pill pill--tap cursor-pointer" data-on={audience.includes(member.groupMemberId)}
                     style={{ color: audience.includes(member.groupMemberId) ? 'var(--accent)' : 'var(--text-secondary)' }}>
                     <Checkbox checked={audience.includes(member.groupMemberId)}
                       onChange={(change) => setAudience((current) => change.target.checked
@@ -197,8 +185,8 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
             </fieldset>
           )}
 
-          <Collapse open={problem === 'conflict'} gap={14}>
-            <div role="alert" className="surface px-3.5 py-3 t-callout" style={{ color: 'var(--text-secondary)' }}>
+          <Collapse open={problem === 'conflict'} gap={4}>
+            <div role="alert" className="surface card--nested card--row t-callout" style={{ color: 'var(--text-secondary)' }}>
               Someone else changed this event while you were editing. Your changes are still here.
               <div className="mt-2 flex gap-2">
                 <NeonBtn type="button" variant="outline" disabled={saving} onClick={() => void save(true)}>Save mine anyway</NeonBtn>
@@ -206,14 +194,14 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
               </div>
             </div>
           </Collapse>
-          <Collapse open={problem === 'removed'} gap={14}>
+          <Collapse open={problem === 'removed'} gap={4}>
             <p role="alert" className="t-callout" style={{ color: 'var(--accent)' }}>Someone else deleted this event. Nothing was saved.</p>
           </Collapse>
-          <Collapse open={problem === 'failed'} gap={14}>
+          <Collapse open={problem === 'failed'} gap={4}>
             <p role="alert" className="t-callout" style={{ color: 'var(--accent)' }}>Could not save. Check your connection and try again.</p>
           </Collapse>
 
-          <div className="mt-1 flex gap-2">
+          <div className="mt-4 flex gap-2">
             <AsyncButton type="submit" status={action.status} disabled={problem === 'removed'} busyLabel="Saving…" doneLabel={event ? 'Saved' : 'Added'}
               className="flex-1">{event ? 'Save changes' : 'Add event'}</AsyncButton>
             <NeonBtn type="button" variant="ghost" onClick={onClose}>Cancel</NeonBtn>
@@ -226,7 +214,7 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
 
 function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: ReactNode }) {
   return (
-    <label className="m-field flex flex-col gap-1.5 t-callout" style={{ color: 'var(--text-secondary)' }}>
+    <label className="m-field flex flex-col gap-2 t-callout" style={{ color: 'var(--text-secondary)' }}>
       <span>{label}</span>
       {children}
       {hint && !error && <span className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>{hint}</span>}

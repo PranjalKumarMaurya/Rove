@@ -1,4 +1,5 @@
 import { type CSSProperties, useCallback, useEffect, useState } from 'react'
+import { space } from '../../components/ui/space'
 import { Details } from '../../components/ui/Details'
 import { foldProps, useExitList } from '../../components/ui/motion'
 import { ActionSheet, buttonClass, quietButtonStyle } from './ActionSheet'
@@ -36,7 +37,7 @@ export function InvitationList({ groupId, reloadKey }: { groupId: string; reload
   const pendingRows = useExitList(pending, (item) => item.invitationId)
 
   return (
-    <section data-testid="invitation-list" aria-labelledby="invitation-list-heading" className="surface settings-card">
+    <section data-testid="invitation-list" aria-labelledby="invitation-list-heading" className="surface settings-card" data-layout="card">
       <h3 id="invitation-list-heading" className="t-headline" style={{ color: 'var(--text-primary)' }}>Email invitations</h3>
       {state.kind === 'loading' && <p className="t-callout" style={{ color: 'var(--text-secondary)' }}>Loading invitations…</p>}
       {state.kind === 'error' && <div>
@@ -49,7 +50,7 @@ export function InvitationList({ groupId, reloadKey }: { groupId: string; reload
         </p>
         {pendingRows.entries.length === 0
           ? <p className="m-appear t-callout" style={{ color: 'var(--text-secondary)' }}>No pending invitations.</p>
-          : <ul aria-label="Pending invitations" className="flex flex-col gap-3" style={{ '--fold-gap': '12px' } as CSSProperties}>
+          : <ul aria-label="Pending invitations" className="flex flex-col gap-3" style={{ '--fold-gap': space(3) } as CSSProperties}>
             {pendingRows.entries.map(({ item, leaving }) => (
               <li key={item.invitationId} {...foldProps(leaving)}><div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">

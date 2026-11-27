@@ -1,4 +1,5 @@
 import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { type Space, space } from './space'
 
 type Phase = 'closed' | 'entering' | 'opening' | 'open' | 'closing'
 
@@ -11,13 +12,13 @@ const SETTLE_MS = 240
  * flows instead of jumping. Closed, nothing is rendered: no aria, no test ids. While
  * closing, the last content stays (hidden from assistive tech) until it has folded.
  *
- * `gap`: the flex/grid gap of the parent in px, folded away with the content so the
+ * `gap`: the flex/grid gap of the parent as a spacing step (gap-4 → 4), folded away with the content so the
  * siblings settle exactly where they will end up. Margins on the child go inside.
  */
 export function Collapse({ open, children, gap = 0, appear = false, keepMounted = false, id, className = '', testId }: {
   open: boolean
   children?: ReactNode
-  gap?: number
+  gap?: Space
   /** Animate open on first mount too (default: start open without animating). */
   appear?: boolean
   /** Keep the closed content in the DOM, `hidden` (e.g. the target of an aria-controls). */
@@ -56,7 +57,7 @@ export function Collapse({ open, children, gap = 0, appear = false, keepMounted 
   return (
     <div ref={ref} id={id} data-testid={testId} hidden={closed || undefined}
       className={`m-collapse${expanded ? ' is-open' : ''}${phase === 'open' ? ' is-settled' : ''} ${className}`}
-      style={gap ? { '--collapse-gap': `${gap}px` } as CSSProperties : undefined}
+      style={gap ? { '--collapse-gap': space(gap) } as CSSProperties : undefined}
       aria-hidden={hidden || undefined} {...(hidden ? { inert: '' } : null)}>
       <div className="m-collapse__inner">{open || keepMounted ? children : last.current}</div>
     </div>

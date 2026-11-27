@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type CSSProperties } from 'react'
+import { useId, useRef, useState } from 'react'
 import { AsyncLabel, useErrorNudge } from '../../components/ui/AsyncButton'
 import { Collapse } from '../../components/ui/Collapse'
 import { enterIndex, foldProps } from '../../components/ui/motion'
@@ -8,11 +8,6 @@ import { clocksDiffer, formatSpan } from './tripTime'
 import { terminalLabel } from './NextFlight'
 
 const STATUS_LABEL: Record<EventStatus, string> = { past: 'Past', live: 'Live now', next: 'Next', upcoming: 'Upcoming' }
-
-const smallButton: CSSProperties = {
-  fontSize: 'var(--type-footnote)', lineHeight: 'var(--lh-footnote)', fontWeight: 'var(--w-medium)',
-  color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px',
-}
 
 export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZone, audienceNames, onEdit, onDelete, leaving = false }: {
   /** Deleted here: folding away (useExitList). */
@@ -63,13 +58,13 @@ export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZon
   return (
     <li data-testid="trip-event" data-status={status} aria-label={event.title} style={enterIndex(index)} {...foldProps(leaving, 'm-enter')}>
       <div className="flex items-start gap-3">
-      <span aria-hidden="true" className="relative flex shrink-0 items-center justify-center" style={{
-        width: 38, height: 38, borderRadius: '50%', background: 'var(--bg-base)', fontSize: 16,
+      <span aria-hidden="true" className="relative flex size-avatar-md shrink-0 items-center justify-center rounded-full" style={{
+        background: 'var(--bg-base)', fontSize: 16,
         border: `1px solid ${highlighted ? 'var(--accent)' : 'var(--border-strong)'}`,
       }}>
         {meta.icon}
       </span>
-      <article className="surface min-w-0 flex-1 px-4 py-3.5" style={{
+      <article className="surface card min-w-0 flex-1" data-layout="card" style={{
         borderColor: status === 'live' ? 'var(--accent)' : status === 'next' ? 'rgba(255,139,77,0.35)' : undefined,
         opacity: status === 'past' ? 0.55 : 1,
       }}>
@@ -84,7 +79,7 @@ export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZon
           </span>
         </div>
 
-        <p className="t-callout t-num mt-1.5" data-testid="event-trip-time" style={{ color: 'var(--text-secondary)' }}>
+        <p className="t-callout t-num mt-1" data-testid="event-trip-time" style={{ color: 'var(--text-secondary)' }}>
           {formatSpan(event.starts_at, event.ends_at, tripTimeZone)}
           <span style={{ color: 'var(--text-tertiary)' }}> trip time</span>
         </p>
@@ -97,7 +92,7 @@ export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZon
         {(event.location || event.location_to) && (
           <p className="mt-2 t-callout" style={{ color: 'var(--text-secondary)' }}>
             {event.location}
-            {event.location_to && <><span aria-hidden="true" style={{ color: 'var(--text-quaternary)', margin: '0 6px' }}>→</span><span className="sr-only"> to </span>{event.location_to}</>}
+            {event.location_to && <><span aria-hidden="true" className="mx-1" style={{ color: 'var(--text-quaternary)' }}>→</span><span className="sr-only"> to </span>{event.location_to}</>}
           </p>
         )}
         {isFlight && (event.dep_code || event.arr_code || flightLine) && (
@@ -114,26 +109,26 @@ export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZon
         </p>
 
         <Collapse open={expanded && Boolean(event.notes)}>
-          <p id={notesId} className="t-callout mt-2.5 whitespace-pre-wrap pt-2.5" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-secondary)', overflowWrap: 'anywhere' }}>
+          <p id={notesId} className="t-callout mt-4 whitespace-pre-wrap pt-4" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-secondary)', overflowWrap: 'anywhere' }}>
             {event.notes}
           </p>
         </Collapse>
 
         <Swap id={confirming ? 'confirm' : 'actions'}>
         {confirming ? (
-          <div role="group" aria-label={`Confirm deleting ${event.title}`} className="mt-3 flex flex-wrap items-center gap-2">
+          <div role="group" aria-label={`Confirm deleting ${event.title}`} className="mt-4 flex flex-wrap items-center gap-2">
             <span className="t-callout" style={{ color: 'var(--text-primary)' }}>Delete this for everyone?</span>
-            <button ref={deleteButton} type="button" disabled={deleting} aria-busy={deleting || undefined} onClick={() => void confirmDelete()} className="m-press" style={{ ...smallButton, color: '#1A0A03', background: 'var(--accent)', border: '1px solid var(--accent)' }}>
+            <button ref={deleteButton} type="button" disabled={deleting} aria-busy={deleting || undefined} onClick={() => void confirmDelete()} className="btn-quiet m-press" style={{ color: '#1A0A03', background: 'var(--accent)', border: '1px solid var(--accent)' }}>
               <AsyncLabel status={deleteStatus} busyLabel="Deleting…">Yes, delete</AsyncLabel>
             </button>
-            <button type="button" disabled={deleting} onClick={() => setConfirming(false)} className="m-press" style={smallButton}>Keep it</button>
+            <button type="button" disabled={deleting} onClick={() => setConfirming(false)} className="btn-quiet m-press">Keep it</button>
             {deleteError && <p role="alert" className="m-field-error w-full t-footnote" style={{ color: 'var(--accent)' }}>Could not delete. Try again.</p>}
           </div>
         ) : (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {mapUrl && <a href={mapUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open map for ${event.title}`} className="m-press" style={smallButton}>↗ Map</a>}
-            <button type="button" aria-label={`Edit ${event.title}`} onClick={onEdit} className="m-press" style={smallButton}>Edit</button>
-            <button type="button" aria-label={`Delete ${event.title}`} onClick={() => setConfirming(true)} className="m-press" style={smallButton}>Delete</button>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {mapUrl && <a href={mapUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open map for ${event.title}`} className="btn-quiet m-press">↗ Map</a>}
+            <button type="button" aria-label={`Edit ${event.title}`} onClick={onEdit} className="btn-quiet m-press">Edit</button>
+            <button type="button" aria-label={`Delete ${event.title}`} onClick={() => setConfirming(true)} className="btn-quiet m-press">Delete</button>
           </div>
         )}
         </Swap>

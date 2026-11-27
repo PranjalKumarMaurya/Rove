@@ -102,32 +102,32 @@ export function InviteMember({ groupId, tripName, onIssued }: {
   }
 
   return (
-    <section data-testid="invite-member" aria-label="Invite one person by email" className="surface settings-card">
+    <section data-testid="invite-member" aria-label="Invite one person by email" className="surface settings-card" data-layout="card">
       {state.kind === 'issued' ? <>
         <p className="t-callout" style={{ color: 'var(--text-secondary)' }}>For {state.recipient}. Only someone who verifies this email can join. The link works once and expires after 7 days.</p>
         <label className="block t-footnote" style={{ color: 'var(--text-secondary)' }}>
           Invitation link
           <NeonInput readOnly value={state.url} onFocus={(event) => event.target.select()} className="mt-2" />
         </label>
-        <NeonBtn type="button" onClick={() => void copy()} className="min-h-11 w-full">Copy link</NeonBtn>
+        <NeonBtn type="button" onClick={() => void copy()} className="w-full">Copy link</NeonBtn>
         <div className="flex gap-3">
-          {nativeShare && <NeonBtn type="button" variant="outline" onClick={() => void share()} className="min-h-11 shrink-0 px-5">Share…</NeonBtn>}
+          {nativeShare && <NeonBtn type="button" variant="outline" onClick={() => void share()} className="shrink-0">Share…</NeonBtn>}
           {shareDetails && <a href={shareDetails.whatsAppUrl} target="_blank" rel="noopener noreferrer"
-            className="font-ui inline-flex min-h-11 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full px-4 t-callout transition-all duration-200 hover:brightness-110"
+            className="font-ui inline-flex min-h-button min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full px-4 t-callout transition-all duration-200 hover:brightness-110"
             style={{ border: '1px solid rgba(37,211,102,0.45)', color: '#5FE08D', fontWeight: 'var(--w-medium)', letterSpacing: 0.2 }}>Send on WhatsApp</a>}
         </div>
         {copyMessage && <p role="status" className="t-footnote" style={{ color: 'var(--text-secondary)' }}>{copyMessage}</p>}
-        <NeonBtn type="button" variant="ghost" onClick={inviteAnother} className="min-h-11 w-full">Invite someone else</NeonBtn>
+        <NeonBtn type="button" variant="ghost" onClick={inviteAnother} className="w-full">Invite someone else</NeonBtn>
       </> : state.kind === 'already-issued' ? <>
         <p role="status" className="t-callout" style={{ color: 'var(--text-secondary)' }}>An invitation was issued, but its one-time link can no longer be shown. Revoke it and create a new one if you need a link to share.</p>
-        <NeonBtn type="button" variant="ghost" onClick={inviteAnother} className="min-h-11 w-full">Invite someone else</NeonBtn>
+        <NeonBtn type="button" variant="ghost" onClick={inviteAnother} className="w-full">Invite someone else</NeonBtn>
       </> : <form onSubmit={(event) => void issue(event)} className="flex flex-col gap-3">
         <label className="t-footnote" style={{ color: 'var(--text-secondary)' }}>Friend’s email
           <NeonInput required type="email" autoComplete="off" placeholder="friend@example.com" value={email} onChange={(event) => updateEmail(event.target.value)} className="mt-2" />
         </label>
         <p className="t-footnote" style={{ color: 'var(--text-secondary)' }}>You will send the link yourself. Only this verified email can use it.</p>
         {state.kind === 'error' && <p role="alert" className="t-callout" style={{ color: 'var(--accent)' }}>{state.message}</p>}
-        <NeonBtn type="submit" className="min-h-11 w-full" disabled={state.kind === 'issuing' || (state.kind === 'error' && !state.retryable)}>{state.kind === 'issuing' ? 'Creating link…' : state.kind === 'error' && state.retryable ? 'Retry creating link' : 'Create link'}</NeonBtn>
+        <NeonBtn type="submit" className="w-full" disabled={state.kind === 'issuing' || (state.kind === 'error' && !state.retryable)}>{state.kind === 'issuing' ? 'Creating link…' : state.kind === 'error' && state.retryable ? 'Retry creating link' : 'Create link'}</NeonBtn>
       </form>}
     </section>
   )

@@ -2,12 +2,13 @@
    iMessage's patterns in Rove's dark theme: the accent is the "mine" colour.
    A column the height of the visible screen (set by useChatViewport): the
    message list scrolls, the composer stays at the bottom. Type comes from the
-   .t-* roles; spacing, radii and sizes from the design-system tokens (with
-   their values as fallbacks while the tokens land in global.css). */
+   .t-* roles; spacing, radii and sizes from the design-system tokens
+   (docs/DESIGN-SYSTEM.md). Chat's own drawing values (bubble radii, the 2px
+   run gap, the tails) are the tokens on .chat below. */
 
 .chat {
   /* Room left for the bottom bar under the composer. The navigation can override it. */
-  --chat-bottom-clear: calc(var(--tab-bar-height, 56px) + var(--tab-bar-bottom, 6px) + var(--space-2, 8px));
+  --chat-bottom-clear: calc(var(--tab-bar-height) + var(--tab-bar-bottom) + var(--space-2));
   --chat-bg: var(--bg-base);
   --chat-mine: var(--accent);
   --chat-mine-text: #1A0A03;
@@ -16,7 +17,12 @@
   --chat-danger: #FF6B5E;
   --chat-radius: 18px;
   --chat-radius-tight: 6px;
-  --chat-avatar: var(--avatar-sm, 28px);
+  /* Bubbles in one run sit this close, so a run reads as one voice (iMessage). */
+  --chat-run-gap: 2px;
+  /* Bubble padding; the side padding is also how far a run's name is indented. */
+  --chat-bubble-py: var(--space-2);
+  --chat-bubble-px: var(--space-3);
+  --chat-avatar: var(--avatar-sm);
   --chat-send-scale: 0.96;
   position: relative;
   display: flex;
@@ -35,8 +41,8 @@
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  /* Inline room for the bubble tails. */
-  padding: var(--space-3, 12px) var(--space-2, 8px);
+  /* Room on the right for the tails of my bubbles; on the left the avatar column sits on the gutter. */
+  padding: var(--space-3) var(--space-2) var(--space-3) 0;
   display: flex;
   flex-direction: column;
   /* Messages fade out under the header instead of being cut off. */
@@ -45,41 +51,41 @@
 }
 .chat__scroll::-webkit-scrollbar { display: none; }
 /* Few messages sit at the bottom, next to the composer, as in every messenger. */
-.chat__log { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-2, 8px); }
+.chat__log { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-2); }
 
-.chat__earlier { display: flex; justify-content: center; padding-bottom: var(--space-3, 12px); }
+.chat__earlier { display: flex; justify-content: center; padding-bottom: var(--space-3); }
 .chat__earlier-btn {
-  min-height: var(--tap, 44px);
-  padding: 0 var(--space-4, 16px);
-  border-radius: 999px;
+  min-height: var(--tap);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border-strong);
   background: transparent;
   color: var(--text-secondary);
 }
 .chat__earlier-btn:disabled { opacity: 0.6; }
-.chat__note { margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-3, 12px); color: var(--text-secondary); text-align: center; }
+.chat__note { margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-3); color: var(--text-secondary); text-align: center; }
 .chat__empty { margin: auto 0; text-align: center; color: var(--text-secondary); animation: m-fade 180ms var(--ease-out) backwards; }
 
 /* ─── Timestamps: "Today 09:41", centred, only after a quiet spell ─── */
-.chat__stamp { text-align: center; color: var(--text-tertiary); margin: var(--space-2, 8px) 0 0; }
+.chat__stamp { text-align: center; color: var(--text-tertiary); margin: var(--space-2) 0 0; }
 .chat__stamp > .t-semibold { color: var(--text-secondary); }
 
 /* ─── Runs ─── */
-.chat-run { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
+.chat-run { display: flex; flex-direction: column; align-items: stretch; gap: var(--chat-run-gap); }
 .chat-run__name {
   color: var(--text-tertiary);
   /* Over the first bubble's text: past the avatar column and the bubble's padding. */
-  padding: 0 0 1px calc(var(--chat-avatar) + var(--space-2, 8px) + 12px);
+  padding: 0 0 var(--chat-run-gap) calc(var(--chat-avatar) + var(--space-2) + var(--chat-bubble-px));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow-wrap: normal;
 }
-.chat-run__line { display: flex; align-items: flex-end; gap: var(--space-2, 8px); }
+.chat-run__line { display: flex; align-items: flex-end; gap: var(--space-2); }
 .chat-run--mine .chat-run__line { justify-content: flex-end; }
 .chat-run__avatar { width: var(--chat-avatar); height: var(--chat-avatar); }
 .chat-run__avatar-space { flex-shrink: 0; width: var(--chat-avatar); }
-.chat-run__status { align-self: flex-end; color: var(--text-tertiary); padding: 1px 4px 0 0; animation: m-fade 180ms var(--ease-out) backwards; }
+.chat-run__status { align-self: flex-end; color: var(--text-tertiary); padding: 0 var(--space-1) 0 0; animation: m-fade 180ms var(--ease-out) backwards; }
 
 .chat-row { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: 75%; }
 .chat-run--mine .chat-row { align-items: flex-end; }
@@ -89,7 +95,7 @@
   position: relative;
   isolation: isolate;
   max-width: 100%;
-  padding: 7px 12px;
+  padding: var(--chat-bubble-py) var(--chat-bubble-px);
   border-radius: var(--chat-radius);
   background: var(--chat-other);
   color: var(--text-primary);
@@ -124,9 +130,9 @@
 .chat-row__retry {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1, 4px);
-  min-height: 32px;
-  padding: 2px 4px 0;
+  gap: var(--space-1);
+  min-height: var(--tap);
+  padding: 0 var(--space-1);
   color: var(--chat-danger);
   background: none;
   border: 0;
@@ -145,15 +151,15 @@
 .chat__pill {
   position: absolute;
   left: 50%;
-  bottom: var(--space-3, 12px);
+  bottom: var(--space-3);
   transform: translateX(-50%);
   z-index: 2;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 40px;
-  padding: 0 var(--space-4, 16px);
-  border-radius: 999px;
+  gap: var(--space-1);
+  min-height: var(--tap);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
   border: 1px solid rgba(255, 139, 77, 0.45);
   background: #2A1A10;
   color: var(--text-primary);
@@ -164,8 +170,6 @@
   pointer-events: none;
   transition: opacity var(--dur-fast) var(--ease-out), visibility 0s linear var(--dur-fast);
 }
-/* A bigger invisible hit area than the pill itself. */
-.chat__pill::before { content: ''; position: absolute; inset: -4px -6px; }
 .chat__pill[data-show="true"] {
   opacity: 1;
   visibility: visible;
@@ -174,14 +178,15 @@
 }
 
 /* ─── Composer: a pill field with the send button inside it ─── */
-.chat__composer { display: flex; flex-direction: column; padding: var(--space-2, 8px) 0; background: var(--chat-bg); }
+.chat__composer { display: flex; flex-direction: column; padding: var(--space-2) 0; background: var(--chat-bg); }
 .chat__pill-field {
   position: relative;
   display: flex;
   align-items: flex-end;
-  min-height: 40px;
+  /* The field and send button inside are --tap tall; plus the 1px border. */
+  min-height: calc(var(--tap) + 2px);
   border: 1px solid var(--border-strong);
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   background: transparent;
   transition: border-color var(--dur-fast) var(--ease-out);
 }
@@ -193,10 +198,12 @@
   resize: none;
   /* Never below 16px, so iPhone Safari does not zoom in on focus; 1 to 5 lines. */
   font-size: var(--type-field);
-  line-height: max(24px, var(--lh-body));
-  min-height: 38px;
-  max-height: calc(5 * max(24px, var(--lh-body)) + 14px);
-  padding: 7px 4px 7px 14px;
+  --chat-line: max(24px, var(--lh-body));
+  line-height: var(--chat-line);
+  min-height: var(--tap);
+  max-height: calc(4 * var(--chat-line) + var(--tap));
+  /* One line sits centred in --tap. */
+  padding: calc((var(--tap) - var(--chat-line)) / 2) var(--space-1) calc((var(--tap) - var(--chat-line)) / 2) var(--space-4);
   border: 0;
   background: transparent;
   color: var(--text-primary);
@@ -205,17 +212,16 @@
 }
 .chat__field[aria-invalid="true"] { color: var(--text-primary); }
 .chat__pill-field:has(.chat__field[aria-invalid="true"]) { border-color: var(--chat-danger); }
-.chat__count { align-self: flex-end; padding: var(--space-1, 4px) var(--space-2, 8px) 0; color: var(--text-tertiary); }
+.chat__count { align-self: flex-end; padding: var(--space-1) var(--space-2) 0; color: var(--text-tertiary); }
 .chat__count.is-over { color: var(--chat-danger); }
 
-/* 44px wide target; the visible dot is 30px, sitting in the pill's bottom-right corner. */
+/* A --tap target; the visible dot sits in the pill's bottom-right corner. */
 .chat__send {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  width: var(--tap, 44px);
-  height: 38px;
-  margin-left: -4px;
+  width: var(--tap);
+  height: var(--tap);
   padding: 0;
   border: 0;
   background: none;
@@ -223,9 +229,9 @@
 .chat__send-dot {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-pill);
   background: var(--chat-mine);
   color: var(--chat-mine-text);
   transition: transform var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);

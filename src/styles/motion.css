@@ -116,12 +116,12 @@ details[open] > :not(summary, .m-collapse) { animation: m-enter-xs 200ms var(--e
 /* ─── Todo checkbox ──────────────────────────────────────────
    A real checkbox (keyboard, screen readers and tests see the native control),
    restyled; the tick strokes itself in when it becomes checked. */
-.todo-check { position: relative; display: inline-flex; flex-shrink: 0; width: 18px; height: 18px; }
+.todo-check { position: relative; display: inline-flex; flex-shrink: 0; width: var(--check-size); height: var(--check-size); }
 .todo-check__input {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: var(--check-size);
+  height: var(--check-size);
   margin: 0;
   border-radius: 5px;
   border: 1.5px solid var(--border-strong);
@@ -167,7 +167,7 @@ details[open] > :not(summary, .m-collapse) { animation: m-enter-xs 200ms var(--e
   left: 50%;
   width: 22px;
   height: 2px;
-  margin-left: -11px;
+  margin-left: -11px; /* layout: centres the 22px line on its tab */
   border-radius: 0 0 2px 2px;
   background: var(--accent);
 }
@@ -179,7 +179,7 @@ details[open] > :not(summary, .m-collapse) { animation: m-enter-xs 200ms var(--e
    idle width (min-width set in the component). */
 .abtn { position: relative; }
 .abtn__stack { position: relative; display: inline-flex; align-items: center; justify-content: center; max-width: 100%; vertical-align: top; }
-.abtn__label { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.abtn__label { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
 .abtn__label--in { animation: abtn-in 180ms var(--ease-out) backwards; }
 .abtn__label--out {
   position: absolute;

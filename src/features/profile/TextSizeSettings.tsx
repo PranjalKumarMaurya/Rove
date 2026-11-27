@@ -18,9 +18,9 @@ export function TextSizeSettings() {
   const fill = `${(settings.step / last) * 100}%`
 
   return (
-    <section aria-labelledby="profile-text-size" className="flex flex-col gap-3" data-testid="profile-text-size">
+    <section aria-labelledby="profile-text-size" className="section" data-testid="profile-text-size" data-layout="section">
       <h2 id="profile-text-size" className="t-eyebrow">Text size</h2>
-      <div className="surface px-4 py-4">
+      <div className="surface card" data-layout="card">
         {/* The preview: what a day header and an expense row look like at this size. */}
         <div className="text-size-preview" aria-hidden="true" data-testid="text-size-preview">
           <p className="t-headline t-num" style={{ color: 'var(--text-primary)' }}>Day 2 · Mon 16 Nov</p>
@@ -28,7 +28,7 @@ export function TextSizeSettings() {
             <span className="t-callout min-w-0 truncate" style={{ color: 'var(--text-secondary)' }}>Dinner at Ganga View</span>
             <span className="t-headline t-num shrink-0 whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>₹1,350</span>
           </div>
-          <p className="t-footnote mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Paid by you · 4 people</p>
+          <p className="t-footnote mt-1" style={{ color: 'var(--text-tertiary)' }}>Paid by you · 4 people</p>
         </div>
 
         <label htmlFor={sliderId} className="sr-only">Text size</label>

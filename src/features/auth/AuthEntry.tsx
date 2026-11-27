@@ -129,7 +129,7 @@ export function AuthEntry({ mode: initialMode, onRetry, contextMessage, onBack }
 
   return (
     <ScreenFrame testId="auth-entry" title={title} lede={lede}
-      top={onBack ? <button type="button" className="text-link" onClick={onBack}><IconBack size={18} />Back to invitation</button> : undefined}>
+      top={onBack ? <button type="button" className="text-link" onClick={onBack}><IconBack size="md" />Back to invitation</button> : undefined}>
       {contextMessage && <p role="status" className="notice mb-6">{contextMessage}</p>}
       <form onSubmit={(event) => void submit(event)} className="flex flex-col gap-4" aria-label={title}>
         {isSignup && <Field id="auth-display-name" label="Display name">
@@ -145,7 +145,7 @@ export function AuthEntry({ mode: initialMode, onRetry, contextMessage, onBack }
           <NeonInput required type="password" minLength={8} autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} style={inputStyle} />
         </Field>}
         {message && <p role="status" className={`notice${message.tone === 'error' ? ' notice--error' : ''}`}>{message.text}</p>}
-        <NeonBtn disabled={busy} type="submit" size="lg" className="mt-2 w-full">{busy ? 'Please wait…' : submitLabel}</NeonBtn>
+        <NeonBtn disabled={busy} type="submit" size="lg" className="mt-4 w-full">{busy ? 'Please wait…' : submitLabel}</NeonBtn>
       </form>
 
       {mode === 'sign-in' && <>
@@ -155,9 +155,9 @@ export function AuthEntry({ mode: initialMode, onRetry, contextMessage, onBack }
         <div className="mt-6 flex items-center gap-3" aria-hidden="true">
           <span className="divider flex-1" /><span className="t-eyebrow">New here?</span><span className="divider flex-1" />
         </div>
-        <NeonBtn type="button" variant="outline" size="lg" className="mt-5 w-full" onClick={() => switchMode('sign-up')}>Create an account</NeonBtn>
+        <NeonBtn type="button" variant="outline" size="lg" className="mt-6 w-full" onClick={() => switchMode('sign-up')}>Create an account</NeonBtn>
       </>}
-      {isSignup && <p className="mt-4 flex flex-wrap items-center justify-center gap-x-1.5 t-callout" style={{ color: 'var(--text-tertiary)' }}>
+      {isSignup && <p className="mt-4 flex flex-wrap items-center justify-center gap-x-1 t-callout" style={{ color: 'var(--text-tertiary)' }}>
         Already have an account?<button type="button" className="text-link" onClick={() => switchMode('sign-in')}>Sign in</button>
       </p>}
       {isRecovery && <div className="mt-2 flex justify-center">

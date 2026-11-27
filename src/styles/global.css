@@ -64,6 +64,15 @@
   --button-h: 44px;
   --button-h-lg: 48px;
   --button-h-sm: 36px;
+  /* The to-do checkbox (Checkbox.tsx); its label sits --space-3 to the right. */
+  --check-size: 18px;
+  /* Inline padding inside fields; a select's right side also holds its chevron. */
+  --field-px: var(--space-3);
+  /* The room a bottom bar takes from the bottom of the screen: the bar, its
+     home-indicator offset and its 1px top border. Content above a bar ends
+     --space-6 above this (--screen-end). */
+  --bar-clear: calc(var(--tab-bar-height) + var(--tab-bar-bottom) + 1px);
+  --screen-end: calc(var(--bar-clear) + var(--space-6));
 
   /* The soft edge under the top shield while the page is scrolled (§4). */
   --top-fade: 16px;
@@ -173,11 +182,30 @@ input, textarea, select { font-family: inherit; }
 .surface {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 .surface:hover { background: var(--bg-card-hover); border-color: var(--border-strong); }
-.surface-flat { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.surface-flat { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+
+/* ─── Layout primitives (docs/DESIGN-SYSTEM.md §6) ──────────
+   .card: a .surface with the card padding (--space-4) on every side.
+   .card--row: a dense list card (expense, payment, document rows): --space-3
+   above and below, --space-4 at the sides.
+   .card--nested: a card inside a card takes the next radius down.
+   .section: a titled block on a screen; heading to content --space-3.
+   .section-head: a heading with an action on its right, on one baseline. */
+.card { padding: var(--space-4); }
+.card--row { padding: var(--space-3) var(--space-4); }
+.card--nested { border-radius: var(--radius-md); }
+.section, .settings-section { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.section-head, .settings-section__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); min-width: 0; }
+.section-head > :first-child { min-width: 0; }
+.section-head > :not(:first-child) { flex-shrink: 0; }
+/* A text-only action in a section head ("Clear completed", "Refresh crew"): a --tap hit
+   area that overhangs above and below, so the head is only as tall as its text and the
+   content still starts --space-3 under the heading. */
+.head-action { display: inline-flex; align-items: center; min-height: var(--tap); margin-block: calc((var(--tap) - 1lh) / -2); }
 
 .divider { height: 1px; background: var(--border); }
 
@@ -188,8 +216,7 @@ input, textarea, select { font-family: inherit; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 10px 0 12px;
+  gap: var(--space-1);
   background: none;
   border: none;
   cursor: pointer;
@@ -205,9 +232,9 @@ input, textarea, select { font-family: inherit; }
 .pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
   max-width: 100%;
   font-size: var(--type-caption);
   line-height: var(--lh-caption);
@@ -219,6 +246,8 @@ input, textarea, select { font-family: inherit; }
   transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 .pill[data-on="true"] { border-color: rgba(255, 139, 77, 0.5); background: var(--accent-soft); }
+/* A pill you tap (a person to include): --tap tall with --space-3 at the sides. */
+.pill--tap { min-height: var(--tap); padding: 0 var(--space-3); font-size: var(--type-footnote); line-height: var(--lh-footnote); }
 
 /* ─── Hero gradient overlay ───────────────────────────── */
 .hero-fade {
@@ -266,7 +295,7 @@ input[type="date"], input[type="datetime-local"], input[type="time"], input[type
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
-  min-height: 44px;
+  min-height: var(--field-h);
 }
 input[type="date"]::-webkit-date-and-time-value,
 input[type="datetime-local"]::-webkit-date-and-time-value,
@@ -292,13 +321,13 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   width: 100%;
   max-width: 480px;
   min-height: 100dvh;
-  padding: calc(16px + var(--safe-top)) 20px calc(32px + env(safe-area-inset-bottom, 0px));
+  padding: calc(var(--space-4) + var(--safe-top)) var(--space-5) calc(var(--space-8) + env(safe-area-inset-bottom, 0px));
 }
 
 .brand-mark {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   /* The wordmark: Inter, widely tracked capitals. */
   font-family: var(--font-ui);
   font-size: var(--type-caption);
@@ -319,9 +348,9 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
 .text-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 0 2px;
+  gap: var(--space-1);
+  min-height: var(--tap);
+  padding: 0;
   font-size: var(--type-callout);
   line-height: var(--lh-callout);
   color: var(--text-secondary);
@@ -340,7 +369,7 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--bg-card);
-  padding: 12px 14px;
+  padding: var(--space-3) var(--space-4);
   font-size: var(--type-callout);
   line-height: var(--lh-callout);
   color: var(--text-secondary);
@@ -352,6 +381,9 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   color: var(--text-primary);
 }
 
+/* A text field (NeonInput): --field-h tall, --field-px inside, --radius-md. */
+.field-input { min-height: var(--field-h); padding: 0 var(--field-px); border-radius: var(--radius-md); }
+
 /* Form fields: type comes from the roles (Field.tsx: t-footnote); these set colour only. */
 .field-label { color: var(--text-secondary); }
 .field-hint { color: var(--text-tertiary); }
@@ -362,14 +394,14 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
 .field-select {
   appearance: none;
   -webkit-appearance: none;
-  min-height: 44px;
-  padding: 10px 40px 10px 14px;
-  border-radius: var(--radius-sm);
+  min-height: var(--field-h);
+  padding: var(--space-2) var(--space-10) var(--space-2) var(--field-px);
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background-color: rgba(245, 241, 235, 0.035);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23F5F1EB' stroke-opacity='0.6' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 14px center;
+  background-position: right var(--space-4) center;
   color: var(--text-primary);
   font-family: var(--font-ui);
   font-size: var(--type-field);
@@ -384,26 +416,27 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  min-height: 36px;
+  gap: var(--space-1);
+  min-height: var(--button-h-sm);
   max-width: 100%;
-  padding: 0 4px 0 12px;
-  border-radius: 999px;
+  padding: 0 var(--space-1) 0 var(--space-3);
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border-strong);
   background: rgba(245, 241, 235, 0.04);
   font-size: var(--type-footnote);
   line-height: var(--lh-footnote);
   color: var(--text-primary);
 }
-.chip--locked { padding-right: 12px; border-color: rgba(255, 139, 77, 0.45); background: var(--accent-soft); }
-/* 44px hit area inside a 36px chip. */
+.chip--locked { padding-right: var(--space-3); border-color: rgba(255, 139, 77, 0.45); background: var(--accent-soft); }
+/* A --tap hit area inside a --button-h-sm chip: it overhangs the chip by
+   (--tap - --button-h-sm) / 2 above and below (§1, hit-area exception). */
 .chip__remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  margin: -4px -4px -4px -6px;
+  width: var(--tap);
+  height: var(--tap);
+  margin: calc(var(--space-1) * -1) calc(var(--space-1) * -1) calc(var(--space-1) * -1) calc(var(--space-2) * -1);
   border-radius: 999px;
   color: var(--text-secondary);
   background: none;
@@ -411,6 +444,93 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   cursor: pointer;
 }
 .chip__remove:hover { color: var(--text-primary); background: rgba(245, 241, 235, 0.06); }
+
+/* A tappable chip (a filter, "Jump to today", a type choice): pill, --tap tall,
+   --space-3 at the sides, a quiet accent border. */
+.chip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255, 139, 77, 0.38);
+  color: var(--accent);
+}
+/* A quiet secondary action inside a card or row (Edit, Delete, Map, Copy): --tap tall,
+   --radius-md, a hairline border, footnote text. */
+.btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--type-footnote);
+  line-height: var(--lh-footnote);
+  font-weight: var(--w-medium);
+  text-decoration: none;
+}
+
+/* Segmented control: a pill track whose segments fill it; the chosen one is --accent-soft. */
+.segmented { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-pill); }
+.segmented__item {
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  color: var(--text-tertiary);
+}
+.segmented__item[aria-pressed="true"] { background: var(--accent-soft); color: var(--text-primary); }
+
+/* Centred dialogs (SplitDialog, EventDialog, ActionSheet, Modal): the backdrop starts
+   below the top shield; the card sits on the screen gutter, --space-6 from the top and
+   bottom, with the gutter inside too, and --radius-xl. It scrolls as a whole when taller
+   than the screen. */
+.dialog-overlay {
+  position: fixed;
+  top: var(--safe-top);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: none;
+  padding: var(--space-6) var(--space-5) calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  background: rgba(15, 11, 8, 0.92);
+}
+.dialog-card {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 480px;
+  margin: auto;
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--bg-elevated);
+}
+/* A centred native <dialog> (ActionSheet): on the gutter, the gutter inside, --radius-xl. */
+.action-dialog {
+  margin: auto;
+  width: calc(100% - 2 * var(--space-5));
+  max-width: calc(480px - 2 * var(--space-5));
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+/* Title and close cross on one line; --space-4 to the content. The cross's --tap hit area
+   overhangs the title's line, so the head is as tall as the title. */
+.dialog-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+.dialog-head > .close-x { margin-block: calc((var(--tap) - var(--lh-title2)) / -2); }
 
 .spinner {
   width: 22px;
@@ -425,8 +545,8 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
 .app-topbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: calc(12px + var(--safe-top)) 20px 12px;
+  gap: var(--space-3);
+  padding: calc(var(--space-3) + var(--safe-top)) var(--space-5) var(--space-3);
   /* Flat on the page at the top; the line and a faint lift fade in once scrolled (motion.css). */
   border-bottom: 1px solid transparent;
 }
@@ -435,11 +555,11 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-height: 44px;
-  min-width: 44px;
-  padding: 0 14px;
-  border-radius: 999px;
+  gap: var(--space-1);
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border-strong);
   background: rgba(245, 241, 235, 0.04);
   color: var(--text-primary);
@@ -450,12 +570,12 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
   transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 .topbar-btn:hover { background: rgba(245, 241, 235, 0.08); }
-.topbar-btn--icon { padding: 0; width: 44px; }
+.topbar-btn--icon { padding: 0; width: var(--tap); }
 .topbar-btn__count {
   min-width: 18px;
   min-height: 18px;
-  padding: 1px 5px;
-  border-radius: 999px;
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-pill);
   background: var(--accent-soft);
   color: var(--accent);
   font-size: var(--type-caption);
@@ -464,7 +584,9 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
   text-align: center;
 }
 
-.app-content { padding: 20px 20px calc(var(--tab-bar-height) + 32px + var(--tab-bar-bottom)); }
+/* The header ends with --space-3 of its own: with --space-3 here, content starts --space-6
+   below it, and ends --space-6 above the tab bar. */
+.app-content { padding: var(--space-3) var(--space-5) var(--screen-end); }
 /* Chat (src/features/chat/chat.css): the composer sits just above the tab bar, which is
    the bar's height, its bottom offset and its 1px top border, plus an 8px breath. */
 .trip-panel--chat .chat { --chat-bottom-clear: calc(var(--tab-bar-height) + var(--tab-bar-bottom) + 1px + var(--space-2)); }
@@ -481,11 +603,11 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
   background: var(--bg-base);
   border-top: 1px solid var(--border);
 }
-.tab-bar__inner { display: flex; padding: 0 4px; }
+.tab-bar__inner { display: flex; padding: 0 var(--space-1); }
 .nav-tab {
   min-width: 0;
   min-height: var(--tab-bar-height);
-  padding: 6px 0;
+  padding: var(--space-1) 0;
   font-family: var(--font-ui);
   /* Icons keep their size; the label grows with Text size up to a cap and never wraps. */
   font-size: var(--type-nav);
@@ -509,7 +631,7 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
   padding: 0;
   border: 1px solid var(--border);
   border-bottom: none;
-  border-radius: 22px 22px 0 0;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   background: var(--bg-elevated);
   color: var(--text-primary);
   overflow-y: auto;
@@ -528,24 +650,25 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
 .sheet[open]::backdrop { animation: m-fade var(--dur-base) var(--ease-out) backwards; }
 /* The handle and title row: drag down to close. The browser must not scroll or
    pull the page on this area, so the finger moves the sheet instead. */
-.sheet__drag { touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; padding-top: 2px; }
+.sheet__drag { touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
 .sheet__drag:active { cursor: grabbing; }
-.sheet__grabber { width: 36px; height: 4px; margin: 8px auto 0; border-radius: 2px; background: var(--border-strong); }
+.sheet__grabber { width: 36px; height: 4px; margin: var(--space-2) auto 0; border-radius: 2px; background: var(--border-strong); }
 /* Focused on open for screen readers; it is not a control, so no ring. */
 .sheet__title:focus { outline: none; }
-.sheet__head { display: flex; align-items: center; gap: 12px; padding: 8px 12px 4px 20px; }
-.sheet__body { padding: 8px 20px calc(24px + env(safe-area-inset-bottom, 0px)); }
+.sheet__head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-5) var(--space-1); }
+.sheet__body { padding: var(--space-2) var(--space-5) calc(var(--space-6) + env(safe-area-inset-bottom, 0px)); }
 
-/* Minimal close cross for sheets and dialogs: just the icon, 44px target, a ring
-   only for keyboard focus (the global :focus-visible rule). */
+/* Minimal close cross for sheets and dialogs: just the icon, a --tap target, a ring
+   only for keyboard focus (the global :focus-visible rule). It pulls out by
+   (--tap - --icon-md) / 2 so the icon, not its hit area, sits on the gutter (§1). */
 .close-x {
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  margin-right: -10px;
+  width: var(--tap);
+  height: var(--tap);
+  margin-right: calc((var(--tap) - var(--icon-md)) / -2);
   padding: 0;
   border: none;
   border-radius: 999px;
@@ -561,10 +684,10 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
 .list-option {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   width: 100%;
-  min-height: 56px;
-  padding: 10px 14px;
+  min-height: var(--tap);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--bg-card);
@@ -611,10 +734,10 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: var(--tap);
+  height: var(--tap);
   padding: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border-strong);
   background: rgba(245, 241, 235, 0.04);
   color: var(--text-primary);
@@ -625,17 +748,16 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
 .round-btn--accent { border-color: var(--accent); background: var(--accent); color: #1A0A03; }
 .round-btn--accent:hover { background: var(--accent); filter: brightness(1.08); }
 .round-btn--avatar { border: none; background: none; }
-.round-btn--avatar .user-avatar { width: 44px; height: 44px; }
+.round-btn--avatar .user-avatar { width: var(--tap); height: var(--tap); }
 
-.app-topbar--stacked { flex-direction: column; align-items: stretch; gap: 8px; }
+.app-topbar--stacked { flex-direction: column; align-items: stretch; gap: var(--space-2); }
 
 .trip-card {
   display: flex;
   width: 100%;
   align-items: center;
-  gap: 12px;
-  min-height: 72px;
-  padding: 14px 14px 14px 16px;
+  gap: var(--space-3);
+  padding: var(--space-4);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: var(--bg-card);
@@ -653,9 +775,9 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
   display: flex;
   width: 100%;
   align-items: center;
-  gap: 12px;
-  min-height: 56px;
-  padding: 10px 14px;
+  gap: var(--space-3);
+  min-height: var(--tap);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--bg-card);
@@ -691,9 +813,9 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
   display: flex;
   width: 100%;
   align-items: center;
-  gap: 12px;
-  min-height: 52px;
-  padding: 8px 14px;
+  gap: var(--space-3);
+  min-height: var(--tap);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--bg-card);
@@ -708,12 +830,12 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
 .row-btn:hover { background: var(--bg-card-hover); border-color: var(--border-strong); }
 .row-btn--danger { color: var(--accent); border-color: rgba(255, 139, 77, 0.35); }
 
-.emoji-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.emoji-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-2); }
 .emoji-option {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
+  min-height: var(--tap);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--bg-card);
@@ -724,9 +846,9 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
 
 .field-textarea {
   width: 100%;
-  min-height: 88px;
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
+  min-height: calc(var(--field-h) * 2);
+  padding: var(--space-3) var(--field-px);
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: rgba(245, 241, 235, 0.035);
   color: var(--text-primary);
@@ -740,12 +862,12 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
 .field-textarea:focus { border-color: var(--accent); background: rgba(245, 241, 235, 0.06); }
 .field-textarea[aria-invalid="true"] { border-color: rgba(255, 139, 77, 0.6); }
 
-.details-list { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr); gap: 10px 12px; font-size: var(--type-callout); line-height: var(--lh-callout); }
+.details-list { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr); gap: var(--space-2) var(--space-3); font-size: var(--type-callout); line-height: var(--lh-callout); }
 .details-list dt { color: var(--text-tertiary); }
 .details-list dd { color: var(--text-primary); overflow-wrap: anywhere; }
 
 /* Back control in a top row: a pill button with a chevron. */
-.topbar-btn--back { max-width: 70%; padding: 0 16px 0 10px; }
+.topbar-btn--back { max-width: 70%; padding: 0 var(--space-4) 0 var(--space-2); }
 
 /* One frame on a fresh layer makes iPhone re-place bottom-pinned bars (src/lib/pinBottomBars.ts). */
 html[data-repin="true"] .tab-bar,
@@ -787,14 +909,14 @@ img, svg { -webkit-user-drag: none; }
   line-height: 1;
   color: var(--text-secondary);
 }
-.text-size-range-wrap { position: relative; flex: 1; min-width: 0; height: 44px; }
+.text-size-range-wrap { --thumb-size: 26px; position: relative; flex: 1; min-width: 0; height: var(--tap); }
 .text-size-range {
-  --thumb: 26px;
+  --thumb: var(--thumb-size);
   position: relative;
   z-index: 1;
   display: block;
   width: 100%;
-  height: 44px;
+  height: var(--tap);
   margin: 0;
   background: transparent;
   -webkit-appearance: none;
@@ -815,7 +937,7 @@ img, svg { -webkit-user-drag: none; }
   appearance: none;
   width: var(--thumb);
   height: var(--thumb);
-  margin-top: calc((4px - var(--thumb)) / 2);
+  margin-top: calc((4px - var(--thumb)) / 2); /* layout: centres the thumb on the track */
   border-radius: 999px;
   border: none;
   background: var(--text-primary);
@@ -837,8 +959,8 @@ img, svg { -webkit-user-drag: none; }
 .text-size-ticks {
   position: absolute;
   top: 50%;
-  left: 13px;
-  right: 13px;
+  left: calc(var(--thumb-size) / 2);
+  right: calc(var(--thumb-size) / 2);
   display: flex;
   justify-content: space-between;
   transform: translateY(-50%);
@@ -866,13 +988,13 @@ img, svg { -webkit-user-drag: none; }
   /* The header (.app-topbar) ends with 12px of its own: 12 + 12 = the 24px before content. */
   padding: var(--space-3) var(--space-5) calc(var(--space-10) + env(safe-area-inset-bottom, 0px));
 }
-/* A titled section: t-title2 heading (optional action on its baseline), 12px to the content. */
-.settings-section { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
-.settings-section__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
-.settings-card { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); min-width: 0; border-radius: var(--radius-lg); }
+/* A titled section: .settings-section and .settings-section__head are .section and .section-head (above). */
+.settings-card { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4); min-width: 0; }
+/* A to-do's "added by" line, under its title (past the checkbox and its gap). */
+.todo-attribution { padding-left: calc(var(--check-size) + var(--space-3)); }
 .settings-card:hover { background: var(--bg-card); border-color: var(--border); }
 .settings-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.settings-actions > button { min-height: var(--tap); }
+.settings-actions > button { min-height: var(--button-h); }
 /* A share link on one line, truncated at the end: the start (the app's address) is what people recognise. */
 .settings-link {
   min-width: 0;
@@ -896,7 +1018,7 @@ img, svg { -webkit-user-drag: none; }
   right: -3px;
   min-width: 18px;
   height: 18px;
-  padding: 0 5px;
+  padding: 0 var(--space-1);
   border-radius: var(--radius-pill);
   background: var(--accent);
   color: #1A0A03;

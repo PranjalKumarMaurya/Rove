@@ -56,7 +56,7 @@ export function ProfileScreen({ userId, email, profile, profileStatus, onProfile
   const [page, setPage] = useState<Page>('main')
   const [sheet, setSheet] = useState<SheetKind>(null)
   // Icon only, like the Trip top bar; the destination shows as a hover hint.
-  const top = onBack ? <button type="button" className="round-btn" aria-label="Back" title={`Back to ${backLabel}`} onClick={onBack}><IconBack size={20} /></button> : undefined
+  const top = onBack ? <button type="button" className="round-btn" aria-label="Back" title={`Back to ${backLabel}`} onClick={onBack}><IconBack size="md" /></button> : undefined
   const navClass = bottomNav ? 'home-nav-space' : undefined
 
   if (page !== 'main') return <LegalPage kind={page} onBack={() => setPage('main')} />
@@ -79,34 +79,34 @@ export function ProfileScreen({ userId, email, profile, profileStatus, onProfile
     <>
     <ScreenFrame testId="profile-screen" centered={false} eyebrow={<p className="t-eyebrow">Profile</p>}
       title={profile.displayName} lede={email} top={top} className={navClass}>
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <AvatarEditor userId={userId} profile={profile} onChanged={onProfileChanged} />
         <DetailsForm profile={profile} onChanged={onProfileChanged} />
         <TextSizeSettings />
         <AiUsage />
 
-        <section aria-labelledby="profile-sign-in" className="flex flex-col gap-3">
+        <section aria-labelledby="profile-sign-in" className="section" data-layout="section">
           <h2 id="profile-sign-in" className="t-eyebrow">Sign-in</h2>
-          <div className="surface px-4 py-3">
+          <div className="surface card" data-layout="card">
             <p className="field-label t-footnote t-medium">Email</p>
-            <p className="t-callout mt-0.5 truncate" style={{ color: 'var(--text-primary)' }} data-testid="profile-email">{email}</p>
+            <p className="t-callout mt-1 truncate" style={{ color: 'var(--text-primary)' }} data-testid="profile-email">{email}</p>
           </div>
           <NeonBtn type="button" variant="outline" size="lg" className="w-full" onClick={() => setSheet('email')}>Change email</NeonBtn>
           <NeonBtn type="button" variant="outline" size="lg" className="w-full" onClick={() => setSheet('password')}>Change password</NeonBtn>
         </section>
 
-        <section aria-labelledby="profile-help" className="flex flex-col gap-2">
-          <h2 id="profile-help" className="t-eyebrow mb-1">Help & legal</h2>
+        <section aria-labelledby="profile-help" className="section" data-layout="section">
+          <h2 id="profile-help" className="t-eyebrow">Help & legal</h2>
           {SUPPORT_EMAIL && <a className="row-btn" href={supportMailto(SUPPORT_EMAIL)}>
-            <span className="flex-1">Help & feedback</span><IconChevronRight size={18} />
+            <span className="flex-1">Help & feedback</span><IconChevronRight size="md" />
           </a>}
-          <button type="button" className="row-btn" onClick={() => setPage('privacy')}><span className="flex-1">Privacy policy</span><IconChevronRight size={18} /></button>
-          <button type="button" className="row-btn" onClick={() => setPage('terms')}><span className="flex-1">Terms of use</span><IconChevronRight size={18} /></button>
+          <button type="button" className="row-btn" onClick={() => setPage('privacy')}><span className="flex-1">Privacy policy</span><IconChevronRight size="md" /></button>
+          <button type="button" className="row-btn" onClick={() => setPage('terms')}><span className="flex-1">Terms of use</span><IconChevronRight size="md" /></button>
         </section>
 
-        <section aria-label="Account" className="flex flex-col gap-3">
+        <section aria-label="Account" className="section" data-layout="section">
           {signOutError && <p role="alert" className="notice notice--error">{signOutError}</p>}
-          <NeonBtn type="button" variant="outline" size="lg" className="w-full" onClick={onSignOut}><IconSignOut size={18} />Sign out</NeonBtn>
+          <NeonBtn type="button" variant="outline" size="lg" className="w-full" onClick={onSignOut}><IconSignOut size="md" />Sign out</NeonBtn>
           <button type="button" className="row-btn row-btn--danger justify-center" onClick={() => setSheet('delete')}>Delete account</button>
           <p className="t-footnote text-center" style={{ color: 'var(--text-tertiary)' }} data-testid="app-version">Version {APP_VERSION}</p>
         </section>
@@ -190,7 +190,7 @@ function AvatarEditor({ userId, profile, onChanged }: { userId: string; profile:
   }
 
   return (
-    <section aria-labelledby="profile-avatar" className="surface px-4 py-5" data-testid="avatar-editor">
+    <section aria-labelledby="profile-avatar" className="surface card" data-testid="avatar-editor" data-layout="section card">
       <h2 id="profile-avatar" className="t-eyebrow">Avatar</h2>
       <div className="mt-4 flex items-center gap-4">
         <UserAvatar size={76} name={profile.displayName} emoji={profile.avatarEmoji} imageUrl={photo} />
@@ -199,12 +199,12 @@ function AvatarEditor({ userId, profile, onChanged }: { userId: string; profile:
             tabIndex={-1} onChange={(event) => void choosePhoto(event)} />
           <AsyncButton type="button" variant="outline" size="lg" disabled={busy !== null} status={busy === 'photo' ? 'busy' : 'idle'}
             busyLabel="Saving…" onClick={() => fileRef.current?.click()}>
-            <IconCamera size={18} />{profile.avatarPath ? 'Change photo' : 'Add photo'}
+            <IconCamera size="md" />{profile.avatarPath ? 'Change photo' : 'Add photo'}
           </AsyncButton>
           {profile.avatarPath && <NeonBtn type="button" variant="ghost" size="lg" disabled={busy !== null} onClick={() => void removePhoto()}>Remove photo</NeonBtn>}
         </div>
       </div>
-      <p className="mt-5 field-label t-footnote t-medium">Or pick an emoji</p>
+      <p className="mt-4 field-label t-footnote t-medium">Or pick an emoji</p>
       <div className="emoji-grid mt-2" role="group" aria-label="Avatar emoji">
         {AVATAR_EMOJI.map((emoji) => {
           const chosen = !profile.avatarPath && profile.avatarEmoji === emoji
@@ -270,7 +270,7 @@ function DetailsForm({ profile, onChanged }: { profile: MyProfile; onChanged: (c
   }
 
   return (
-    <form aria-label="Your details" noValidate onSubmit={(event) => void save(event)} className="flex flex-col gap-5" aria-busy={state === 'saving'}>
+    <form aria-label="Your details" noValidate onSubmit={(event) => void save(event)} className="flex flex-col gap-4" aria-busy={state === 'saving'} data-layout="section">
       <h2 className="t-eyebrow">Your details</h2>
       <Field id="profile-name" label="Display name" hint="How you appear to everyone in your Trips." error={show('displayName')}>
         <NeonInput value={form.displayName} onChange={set('displayName')} autoComplete="name" maxLength={80} style={inputStyle} />
@@ -285,11 +285,11 @@ function DetailsForm({ profile, onChanged }: { profile: MyProfile; onChanged: (c
         <NeonInput value={form.upiId} onChange={set('upiId')} placeholder="name@okbank" autoComplete="off" autoCapitalize="off" spellCheck={false} style={inputStyle} />
       </Field>
 
-      <fieldset className="surface flex flex-col gap-4 px-4 py-4">
+      <fieldset className="surface card flex flex-col gap-4" data-layout="card">
         <legend className="sr-only">Crew info</legend>
         <div>
           <p aria-hidden="true" className="t-callout t-medium" style={{ color: 'var(--text-primary)' }}>Crew info</p>
-          <p className="field-hint t-footnote mt-0.5">Visible only to people in your Trips</p>
+          <p className="field-hint t-footnote mt-1">Visible only to people in your Trips</p>
         </div>
         <Field id="profile-phone" label="Phone" optional error={show('phone')}>
           <NeonInput type="tel" value={form.phone} onChange={set('phone')} autoComplete="tel" placeholder="e.g. +91 98765 43210" style={inputStyle} />
@@ -302,13 +302,13 @@ function DetailsForm({ profile, onChanged }: { profile: MyProfile; onChanged: (c
         </Field>
       </fieldset>
 
-      <Collapse open={attempted && Object.keys(errors).length > 0} gap={20}>
+      <Collapse open={attempted && Object.keys(errors).length > 0} gap={5}>
         <p role="alert" className="notice notice--error">Check the highlighted fields.</p>
       </Collapse>
-      <Collapse open={state === 'failed'} gap={20}>
+      <Collapse open={state === 'failed'} gap={5}>
         <p role="alert" className="notice notice--error">We couldn’t save your details. Check your connection and try again.</p>
       </Collapse>
-      <Collapse open={state === 'saved' && !dirty} gap={20}>
+      <Collapse open={state === 'saved' && !dirty} gap={5}>
         <p role="status" className="notice">Saved.</p>
       </Collapse>
       <AsyncButton type="submit" size="lg" className="w-full" status={action.status} busyLabel="Saving…" doneLabel="Saved"
@@ -423,7 +423,7 @@ function ChangePasswordSheet({ email, onClose }: { email: string; onClose: () =>
           <Field id="confirm-new-password" label="Confirm new password">
             <NeonInput type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" style={inputStyle} />
           </Field>
-          <Collapse open={error?.field === 'form'} gap={16}>
+          <Collapse open={error?.field === 'form'} gap={4}>
             <p role="alert" className="notice notice--error">{error?.text}</p>
           </Collapse>
           <AsyncButton type="submit" size="lg" className="w-full" status={action.status} busyLabel="Checking…" doneLabel="Changed">Change password</AsyncButton>
@@ -480,7 +480,7 @@ function DeleteAccountSheet({ userId, onClose, onDeleted }: { userId: string; on
             You’re the only Owner of {blockers.length === 1 ? 'this Trip' : 'these Trips'}. Make someone else an Owner in the Trip’s Settings, under People, or archive the Trip, before you delete your account.
           </p>
           <ul className="flex flex-col gap-2" aria-label="Trips that need another Owner">
-            {blockers.map((trip) => <li key={trip.groupId} className="t-callout surface px-4 py-3">{trip.tripName}</li>)}
+            {blockers.map((trip) => <li key={trip.groupId} className="t-callout surface card--nested card--row">{trip.tripName}</li>)}
           </ul>
           <NeonBtn type="button" size="lg" className="w-full" onClick={onClose}>OK</NeonBtn>
         </div>
@@ -492,7 +492,7 @@ function DeleteAccountSheet({ userId, onClose, onDeleted }: { userId: string; on
           <Field id="delete-confirm" label="Type DELETE to confirm">
             <NeonInput value={typed} onChange={(event) => setTyped(event.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} style={inputStyle} />
           </Field>
-          <Collapse open={Boolean(error)} gap={16}>
+          <Collapse open={Boolean(error)} gap={4}>
             <p role="alert" className="notice notice--error">{error}</p>
           </Collapse>
           <AsyncButton type="submit" size="lg" className="w-full" color="var(--neon-pink)" disabled={typed !== 'DELETE'}
@@ -523,16 +523,16 @@ function AiUsage() {
   const tokens = state.kind === 'ready' ? state.totals.totalTokens.toLocaleString('en-US') : '—'
   const cost = state.kind === 'ready' ? formatUsd(state.totals.costMicroUsd) : '—'
   return (
-    <section aria-labelledby="profile-ai-usage" className="flex flex-col gap-3" data-testid="profile-ai-usage">
+    <section aria-labelledby="profile-ai-usage" className="section" data-testid="profile-ai-usage" data-layout="section">
       <h2 id="profile-ai-usage" className="t-eyebrow">AI usage</h2>
-      <div className="surface grid grid-cols-2 px-4 py-3" aria-busy={state.kind === 'loading'}>
+      <div className="surface card grid grid-cols-2" data-layout="card" aria-busy={state.kind === 'loading'}>
         <div className="min-w-0">
           <p className="field-label t-footnote t-medium">Tokens used</p>
-          <p className="t-headline t-num mt-0.5 truncate" style={{ color: 'var(--text-primary)' }} data-testid="ai-usage-tokens">{tokens}</p>
+          <p className="t-headline t-num mt-1 truncate" style={{ color: 'var(--text-primary)' }} data-testid="ai-usage-tokens">{tokens}</p>
         </div>
         <div className="min-w-0 border-l pl-4" style={{ borderColor: 'var(--border)' }}>
           <p className="field-label t-footnote t-medium">Cost</p>
-          <p className="t-headline t-num mt-0.5 truncate" style={{ color: 'var(--text-primary)' }} data-testid="ai-usage-cost">{cost}</p>
+          <p className="t-headline t-num mt-1 truncate" style={{ color: 'var(--text-primary)' }} data-testid="ai-usage-cost">{cost}</p>
         </div>
       </div>
       <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>

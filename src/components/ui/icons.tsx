@@ -1,16 +1,20 @@
 import { type ReactNode } from 'react'
 
-/** 24px stroke icons drawn in `currentColor`; decorative (hidden from assistive tech). */
-function Icon({ size = 22, children }: { size?: number; children: ReactNode }) {
+/** The icon sizes (docs/DESIGN-SYSTEM.md §2): sm inline with text, md in buttons, lg in navigation. */
+export type IconSize = 'sm' | 'md' | 'lg'
+
+/** Stroke icons drawn in `currentColor` at a token size; decorative (hidden from assistive tech). */
+function Icon({ size = 'md', children }: { size?: IconSize; children: ReactNode }) {
+  const box = `var(--icon-${size})`
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}
+    <svg width={24} height={24} style={{ width: box, height: box, flexShrink: 0 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
       {children}
     </svg>
   )
 }
 
-type IconProps = { size?: number }
+type IconProps = { size?: IconSize }
 
 export const IconMap = ({ size }: IconProps) => <Icon size={size}><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4z" /><path d="M9 4v14M15 6v14" /></Icon>
 export const IconTodos = ({ size }: IconProps) => <Icon size={size}><rect x="4" y="4" width="16" height="16" rx="4" /><path d="m8.5 12.2 2.4 2.4 4.6-5" /></Icon>

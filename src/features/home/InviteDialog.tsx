@@ -120,25 +120,26 @@ function InviteDialogCard({ shown, open, onClose, onInvite, triggerRef }: {
       <div className="invite-dialog__backdrop" aria-hidden="true" onClick={onClose} />
       <div ref={cardRef} className="invite-dialog__card" role="dialog" aria-modal="true" aria-label="Join a Trip">
         <button type="button" className="invite-dialog__close" aria-label="Close" onClick={onClose}>
-          <IconClose size={22} />
+          <IconClose size="md" />
         </button>
         <form noValidate onSubmit={submit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5 pr-8">
+          {/* pr-8 keeps the title clear of the close cross (--tap at --space-2 from the corner). */}
+          <div className="flex flex-col gap-2 pr-8">
             <label htmlFor="invite-link" className="invite-dialog__title">Have an invite link?</label>
             <p id={messageId} className="field-hint t-footnote">Paste the invite link or Trip link a friend sent you to join their Trip.</p>
           </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <div className="relative">
               <NeonInput id="invite-link" value={value}
                 onChange={(event) => { setValue(event.target.value); setError(undefined); if (action.status === 'error') action.reset() }}
                 aria-describedby={error ? `${messageId} invite-link-error` : messageId} aria-invalid={error ? true : undefined}
                 placeholder="Paste invite link" autoComplete="off" autoCapitalize="off" spellCheck={false} inputMode="url"
-                enterKeyHint="go" style={{ minHeight: 48, paddingRight: canPaste ? 'calc(28px + 3.4em)' : undefined }} />
+                enterKeyHint="go" style={{ paddingRight: canPaste ? 'calc(var(--space-8) + 3.4em)' : undefined }} />
               {canPaste && (
-                <button type="button" className="invite-dialog__paste" onClick={() => { void paste() }}>Paste</button>
+                <button type="button" className="invite-dialog__paste" data-layout-exempt="in-field" onClick={() => { void paste() }}>Paste</button>
               )}
             </div>
-            <Collapse open={Boolean(error)} gap={6}>
+            <Collapse open={Boolean(error)} gap={2}>
               <p id="invite-link-error" className="field-error t-footnote">{error}</p>
             </Collapse>
           </div>

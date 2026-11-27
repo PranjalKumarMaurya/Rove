@@ -1,5 +1,4 @@
-import { IconBack } from '../../components/ui/icons'
-import { ScreenFrame } from '../../components/ui/ScreenFrame'
+import { ScreenHeader } from '../../components/ui/ScreenHeader'
 
 /**
  * In-app Privacy policy and Terms. The wording below is a PLACEHOLDER for the
@@ -29,19 +28,20 @@ const pages = {
 export function LegalPage({ kind, onBack }: { kind: keyof typeof pages; onBack: () => void }) {
   const page = pages[kind]
   return (
-    <ScreenFrame testId={`legal-${kind}`} centered={false} eyebrow={<p className="t-eyebrow">Profile</p>} title={page.title}
-      top={<button type="button" className="topbar-btn topbar-btn--back" onClick={onBack}><IconBack size={18} />Profile</button>}>
-      <p role="note" className="notice notice--error mb-6" data-testid="legal-placeholder">
-        Placeholder text — the owner will replace this page with the final {page.title.toLowerCase()} before launch.
-      </p>
-      <div className="flex flex-col gap-6">
+    // A screen pushed above Profile: the same header and gutter as a Trip's To-dos and Settings.
+    <main data-testid={`legal-${kind}`} className="pushed-screen">
+      <ScreenHeader title={page.title} subtitle="Profile" onBack={onBack} backLabel="Back to Profile" />
+      <div className="pushed-content">
+        <p role="note" className="notice notice--error" data-testid="legal-placeholder" data-layout="section">
+          Placeholder text — the owner will replace this page with the final {page.title.toLowerCase()} before launch.
+        </p>
         {page.sections.map(([heading, body]) => (
-          <section key={heading}>
+          <section key={heading} className="section" data-layout="section">
             <h2 className="t-title3" style={{ color: 'var(--text-primary)' }}>{heading}</h2>
-            <p className="t-body mt-2" style={{ color: 'var(--text-secondary)' }}>{body}</p>
+            <p className="t-body" style={{ color: 'var(--text-secondary)' }}>{body}</p>
           </section>
         ))}
       </div>
-    </ScreenFrame>
+    </main>
   )
 }

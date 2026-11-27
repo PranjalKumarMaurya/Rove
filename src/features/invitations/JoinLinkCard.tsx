@@ -98,7 +98,7 @@ export function JoinLinkCard({ groupId, tripName, isOwner }: { groupId: string; 
   }
 
   return (
-    <section data-testid="join-link-card" aria-labelledby="join-link-heading" className="surface settings-card">
+    <section data-testid="join-link-card" aria-labelledby="join-link-heading" className="surface settings-card" data-layout="card">
       <h3 id="join-link-heading" className="t-headline" style={{ color: 'var(--text-primary)' }}>Invite link</h3>
       {state.kind === 'loading' && <p role="status" className="t-callout" style={{ color: 'var(--text-secondary)' }}>Loading the invite link…</p>}
       {state.kind === 'error' && <div className="flex flex-col items-start gap-3">
