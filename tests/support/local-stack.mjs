@@ -18,6 +18,8 @@ const cli = resolve(root, 'node_modules/.bin/supabase')
  *
  * `edgeRuntime: true` also serves `supabase/functions` (copied into the workdir at
  * start) at `<apiUrl>/functions/v1/<name>`, with `functionSecrets` as their env.
+ * Functions named in `noVerifyJwt` accept calls without a user JWT (as deployed with
+ * `--no-verify-jwt`); from inside the stack (pg_net) they are at `internalFunctionsUrl`.
  */
 export function createLocalStack({
   projectId: baseProjectId,
@@ -29,6 +31,7 @@ export function createLocalStack({
   confirmations = false,
   edgeRuntime = false,
   functionSecrets = {},
+  noVerifyJwt = [],
   siteUrl = `http://127.0.0.1:${process.env.TRIP_WEB_PORT ?? '4173'}`,
 }) {
   // Parallel worktrees running the same suite set TRIP_STACK_PORT_OFFSET (e.g. 1000)
@@ -102,7 +105,7 @@ site_url = "${siteUrl}"
 enable_confirmations = ${confirmations}
 [edge_runtime]
 enabled = ${edgeRuntime}
-${edgeConfig}[analytics]
+${edgeConfig}${noVerifyJwt.map((name) => `[functions.${name}]\nverify_jwt = false\n`).join('')}[analytics]
 enabled = false
 `)
     run(cli, ['start', '--workdir', workdir], { label: 'stack-start' })
@@ -142,6 +145,8 @@ enabled = false
   return {
     projectId,
     apiUrl: `http://127.0.0.1:${port(1)}`,
+    /** The API gateway as seen from the database container (for pg_net). */
+    internalFunctionsUrl: `http://supabase_kong_${projectId}:8000/functions/v1`,
     dbPort: port(2),
     mailboxUrl: `http://127.0.0.1:${port(4)}`,
     get workdir() { return workdir },

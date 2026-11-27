@@ -36,6 +36,8 @@
   --m-icon-scale: 0.8;    /* spinner / check arriving in a button */
   --m-tab-move: 280ms;    /* tab indicator travel */
   --m-switch-move: 220ms; /* switch thumb travel */
+  --m-tapback-from: 0.9;  /* chat: the tapback bar and message menu grow out of the bubble */
+  --m-chip-from: 0.94;    /* chat: a reaction chip that just changed */
 }
 
 /* No grey flash on tap anywhere; keyboard focus keeps its :focus-visible ring. */
@@ -300,6 +302,8 @@ details[open] > :not(summary, .m-collapse) { animation: m-enter-xs 200ms var(--e
     --m-switch-move: 0ms;
     --m-label-shift: 0px;
     --m-icon-scale: 1;
+    --m-tapback-from: 1;
+    --m-chip-from: 1;
   }
   /* Heights jump; only the fades stay. The check fades instead of drawing. */
   .m-collapse, .m-fold { transition: opacity var(--dur-fast) var(--ease-out); }

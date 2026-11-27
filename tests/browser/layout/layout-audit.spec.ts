@@ -112,10 +112,20 @@ async function signedIn(page: Page) {
   await page.route('**/rest/v1/trip_parse_usage*', (route) => route.fulfill({ status: 200, body: '', headers: {
     'content-range': '*/0', 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-expose-headers': 'content-range',
   } }))
+  // Chat: a reply, a mention of me, reactions, and an unread divider above the last two.
+  const m = (n: number) => `d3100000-0000-4000-8000-00000000000${n}`
   await page.route('**/rest/v1/trip_messages*', (route) => route.fulfill(json([
-    { id: 'm2', group_id: groupId, sender_id: ownMemberId, client_id: 'c2', body: 'Perfect, I will wait by the money exchange.', created_at: '2026-11-27T08:05:00Z' },
-    { id: 'm1', group_id: groupId, sender_id: friendMemberId, client_id: 'c1', body: 'Landing at 6:15, see you at arrivals!', created_at: '2026-11-27T08:00:00Z' },
+    { id: m(4), group_id: groupId, sender_id: friendMemberId, client_id: 'c4', body: '@Olive Owner bring the passports please', created_at: '2026-11-27T08:09:00Z', reply_to: null, mentions: [ownMemberId], mentions_everyone: false },
+    { id: m(3), group_id: groupId, sender_id: friendMemberId, client_id: 'c3', body: 'Great, see you there', created_at: '2026-11-27T08:07:00Z', reply_to: m(2), mentions: [], mentions_everyone: false },
+    { id: m(2), group_id: groupId, sender_id: ownMemberId, client_id: 'c2', body: 'Perfect, I will wait by the money exchange.', created_at: '2026-11-27T08:05:00Z', reply_to: null, mentions: [], mentions_everyone: false },
+    { id: m(1), group_id: groupId, sender_id: friendMemberId, client_id: 'c1', body: 'Landing at 6:15, see you at arrivals!', created_at: '2026-11-27T08:00:00Z', reply_to: null, mentions: [], mentions_everyone: false },
   ])))
+  await page.route('**/rest/v1/trip_message_reactions*', (route) => route.fulfill(json([
+    { message_id: m(1), member_id: ownMemberId, emoji: '❤️' }, { message_id: m(2), member_id: friendMemberId, emoji: '👍' },
+    { message_id: m(2), member_id: friendMemberId, emoji: '✅' },
+  ])))
+  await page.route('**/rest/v1/trip_chat_reads*', (route) => route.fulfill(json([{ last_read_at: '2026-11-27T08:06:00Z' }])))
+  await page.route('**/rest/v1/rpc/get_my_unread_counts', (route) => route.fulfill(json([{ group_id: groupId, unread: 2 }])))
 }
 
 /** Wait for entrance animations to settle so boxes are measured at rest. */

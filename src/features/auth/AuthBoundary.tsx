@@ -18,6 +18,8 @@ import { useMyProfile } from '../profile/profileApi'
 import { ProfileScreen } from '../profile/ProfileScreen'
 import { TripSettingsScreen } from '../settings/TripSettingsScreen'
 import { TripTodosScreen } from '../todos/TripTodosScreen'
+import { resetUnread } from '../chat/unreadStore'
+import { forgetPushOnSignOut, usePushSync } from '../notifications/pushApi'
 import {
   adjacentTab, entryDepthOf, navDirection, planHistory, previousView, readRoveState, roveState, tripOf, viewDepth, viewKey,
   withRoveState, type View,
@@ -55,6 +57,11 @@ const openTripKey = 'trip:open-trip:v1'
 function readOpenTrip(): string | null {
   try { return window.sessionStorage.getItem(openTripKey) } catch { return null }
 }
+/** `#chat=<groupId>`: a notification's link to a Trip's Chat (public/sw-push.js). */
+function chatLink(hash: string): string | null {
+  const match = /^#chat=([0-9a-f-]{36})$/iu.exec(hash)
+  return match ? match[1].toLowerCase() : null
+}
 function writeOpenTrip(groupId: string | null) {
   try {
     if (groupId) window.sessionStorage.setItem(openTripKey, groupId)
@@ -79,6 +86,8 @@ export function AuthBoundary() {
   const pendingOpen = useRef<string | null>(null)
   // The Trip this tab had open before a reload; restored once, on the first load.
   const restoreTrip = useRef<string | null>(readOpenTrip())
+  // A Trip whose Chat a tapped notification asked for, opened once the Trips are loaded.
+  const pendingChat = useRef<string | null>(typeof window === 'undefined' ? null : chatLink(window.location.hash))
   const refreshTrips = () => {
     backgroundReload.current = true
     setGroupReload((value) => value + 1)
@@ -282,6 +291,44 @@ export function AuthBoundary() {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
+  // A tapped notification: the Trip's Chat. From a cold start it arrives as `#chat=<id>`;
+  // with the app already open the service worker posts `rove:open-chat` instead.
+  const [chatRequest, setChatRequest] = useState(0)
+  useEffect(() => {
+    const request = (groupId: string | null) => {
+      if (!groupId) return
+      pendingChat.current = groupId
+      setChatRequest((value) => value + 1)
+    }
+    const onHash = () => request(chatLink(window.location.hash))
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string; groupId?: unknown } | null
+      if (data?.type === 'rove:open-chat' && typeof data.groupId === 'string') request(data.groupId)
+    }
+    window.addEventListener('hashchange', onHash)
+    const worker = 'serviceWorker' in navigator ? navigator.serviceWorker : null
+    worker?.addEventListener('message', onMessage)
+    return () => {
+      window.removeEventListener('hashchange', onHash)
+      worker?.removeEventListener('message', onMessage)
+    }
+  }, [])
+
+  useEffect(() => {
+    const groupId = pendingChat.current
+    if (!groupId || groupAccess !== 'ready') return
+    pendingChat.current = null
+    if (chatLink(window.location.hash)) {
+      try { window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search) } catch { /* see above */ }
+    }
+    if (!groups.some((group) => group.groupId === groupId)) return
+    restoreTrip.current = null
+    setOpenTabs((current) => ({ ...current, [groupId]: 'chat' }))
+    const current = viewRef.current
+    if (current.kind === 'trip' && current.groupId === groupId) return
+    setView({ kind: 'trip', groupId })
+  }, [chatRequest, groupAccess, groups])
+
   useEffect(() => {
     // A reload on a Trip's To-dos or Settings returns to that Trip.
     const open = view.kind === 'trip' || view.kind === 'todos' || view.kind === 'settings' ? tripOf(view) : null
@@ -346,12 +393,15 @@ export function AuthBoundary() {
 
   const signOut = async () => {
     setSignOutError(null)
+    // This device stops notifying the person who is leaving (needs their session, so first).
+    await forgetPushOnSignOut()
     const { error } = await supabase.auth.signOut()
     if (error) {
       setSignOutError('We could not sign you out. Check your connection and try again.')
       return
     }
     resetSignedIn()
+    resetUnread()
     auth.markSignedOut()
   }
 
@@ -365,6 +415,8 @@ export function AuthBoundary() {
   const profileId = auth.status === 'authenticated-linked' ? auth.profileId : null
   const userId = auth.status === 'authenticated-linked' ? auth.session.user.id : null
   const myProfile = useMyProfile(userId)
+  // Keep this device's push subscription saved for whoever is signed in.
+  usePushSync(profileId)
 
   useEffect(() => {
     if (!profileId) return

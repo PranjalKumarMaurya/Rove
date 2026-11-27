@@ -1,8 +1,8 @@
 # Chat plan
 
-What Rove's in-trip group chat should become, and in what order. This is a plan only: nothing here is built yet. Written 2026-11-27 from the current code (`src/features/chat/`, migration 095), `docs/STATUS.md`, and the research in [Sources](#sources).
+What Rove's in-trip group chat should become, and in what order. Phase 1 is built (in code and tested locally, not deployed; see [Phase 1: what was built](#phase-1-what-was-built)); the rest is still a plan. Written 2026-11-27 from the current code (`src/features/chat/`, migration 095), `docs/STATUS.md`, and the research in [Sources](#sources).
 
-**Where chat is today:** text only, realtime (Supabase Realtime plus a 30 s catch-up), optimistic send with a client id so retries never post twice, links made tappable, iMessage-style runs (name above, avatar on the last bubble, tail), "Delivered / Sending… / Not delivered · Tap to retry". No edit, no delete, no replies, no reactions, no notifications.
+**Where chat was before Phase 1:** text only, realtime (Supabase Realtime plus a 30 s catch-up), optimistic send with a client id so retries never post twice, links made tappable, iMessage-style runs (name above, avatar on the last bubble, tail), "Delivered / Sending… / Not delivered · Tap to retry". No edit, no delete, no replies, no reactions, no notifications.
 
 **The owner's goal:** "People shouldn't have to go back to WhatsApp for anything about the trip. The whole app should feel like one smooth flow, remove the stress of noting and tracking everything while travelling."
 
@@ -257,12 +257,12 @@ All Tier 2 cards share one mechanism: a message has a `kind` (`text`, `card`, `d
 
 ## 5. Suggested build order
 
-### Phase 1: "Good enough to leave WhatsApp" (≈ 3–4 weeks)
-- Push notifications with per-Trip mute and grouping (1.5, 1.9) — the single biggest reason people won't leave WhatsApp.
-- Unread marker, badges, jump to latest (1.4).
-- Replies and reactions, with the long-press menu (1.1, 1.2, 1.8).
-- Mentions incl. @everyone (1.3).
-- Schema groundwork: `kind`, `ref_type`, `ref_id`, `reply_to`, `edited_at`, `deleted_at` on `trip_messages`, so Phase 2 doesn't need another reshape.
+### Phase 1: "Good enough to leave WhatsApp" (≈ 3–4 weeks) — built 2026-11-27 (migration 097), not deployed
+- ✅ Push notifications with per-Trip mute and grouping (1.5, 1.9) — the single biggest reason people won't leave WhatsApp.
+- ✅ Unread marker, badges (1.4). The existing "New messages ↓" pill is the jump to latest; it shows no count yet.
+- ✅ Replies and reactions, with the long-press menu (1.1, 1.2, 1.8: Reply, React, Copy only; Edit and Unsend are Phase 2).
+- ✅ Mentions incl. @everyone (1.3).
+- ✅ Schema groundwork: `kind`, `ref_type`, `ref_id`, `reply_to`, `edited_at`, `deleted_at` on `trip_messages`, so Phase 2 doesn't need another reshape (all but `reply_to` are server-only and unused for now).
 
 ### Phase 2: "Chat that knows the trip" (≈ 3–4 weeks)
 - Rich cards for expenses, events, flights, day plans, with the RLS privacy rule (2.1).
@@ -286,11 +286,37 @@ All Tier 2 cards share one mechanism: a message has a `kind` (`text`, `card`, `d
 
 ---
 
+### Phase 1: what was built
+
+**Schema (097).** `trip_messages` gains `reply_to` (same-Trip FK, set null if the original is deleted), `mentions uuid[]` and `mentions_everyone` (a trigger keeps only active Members of the Trip, sorted, and refuses `@everyone` from someone who used it in the last hour: `everyone_rate_limited`), plus the Phase 2 columns. New tables, all RLS-forced: `trip_message_reactions` (one row per message, member and emoji; seven allowed; insert and delete your own; Realtime), `trip_chat_reads` (your own row only; never moves backwards; everyone starts "read" at the moment they join), `push_subscriptions` (your own devices; `save_push_subscription` moves an endpoint to whoever signs in on that browser), `trip_notification_prefs` (`all` / `mentions` / `none`, `muted_until`). RPCs: `mark_chat_read`, `get_my_unread_counts` (invoker, capped at 100). Server only: `trip_private.chat_push_state` / `chat_push_log` and the service-role RPCs `chat_push_message_context`, `chat_push_claim_due`, `chat_push_record`.
+
+**Push path.** A trigger on `trip_messages` insert calls the `send-chat-push` Edge Function through **pg_net** (queued in the sender's transaction, sent after commit, so closing the app never skips it), unless nobody else in the Trip has a device subscribed. A **pg_cron** job every 20 s calls it only when a collapsed summary is due. Both send the shared secret from **Vault** (`chat_push_url`, `chat_push_secret`); with either missing nothing is called. The function decides with `supabase/functions/send-chat-push/rules.ts` and sends standard Web Push with `npm:web-push` (checked working in Supabase's Deno runtime). Both pg_net and pg_cron exist on hosted Supabase and on the local CLI stack; the migration enables them. Rules: every other active Member with a device, as their Trip setting allows; mentions and @everyone always (unless Off), each as its own notification; ordinary messages share one tag per Trip and at most one push per 60 s per recipient, after which "N new messages · Asha: …" replaces it; quiet hours 23:00–07:00 Trip time drop ordinary messages; someone who read the chat in the last 20 s gets nothing now and a summary later only if still unread; reactions never push; 404/410 devices are deleted. Payload: Trip name, "Sender: text" (140 characters), `/#chat=<trip>`, and the unread total for the Home Screen badge.
+
+**App.** Service worker: `public/sw-push.js`, pulled into the generated worker with `importScripts` (content-hashed, so changes go through the normal update prompt); it shows the notification, sets the badge, and on tap focuses the open app (which switches to that Chat) or opens `/#chat=<trip>`. The prompt card shows only in the installed app and only asks from the Turn on tap; iPhone Safari gets "add Rove to your Home Screen first". Settings → Notifications per Trip; Profile → "Notifications on this device"; signing out removes the device. The VAPID public key comes from `VITE_VAPID_PUBLIC_KEY` (or `VAPID_PUBLIC_KEY_FALLBACK` in `src/features/notifications/pushApi.ts`); without one, push stays off and Settings say so.
+
+**Deviations from this plan.**
+- Mentions are stored as readable `@Name` text plus resolved ids, not `@[member_id]` tokens: copy, push text and old clients stay readable; after someone renames, their old mentions show as plain text (no chip).
+- `@everyone`: anyone, once an hour per person per Trip (not Owner-only or 3 a day). There is no separate "@everyone breaks mute" switch: Mute lets it through, Off silences it.
+- No "+" for any emoji; the fixed seven are 👍 ❤️ 😂 😮 😢 🙏 ✅. No double-tap shortcut.
+- The settings table is `trip_notification_prefs` (plan: `trip_chat_prefs`); `push_subscriptions` uses `profile_id` and `last_used_at`.
+- Mute is "for 8 hours" only (no "until tomorrow"); no "Hide message previews" and no test notification; the Profile switch is per device, not per account.
+- Notification links open the Trip's Chat (`#chat=<trip>`), not a specific message.
+- Quiet hours drop ordinary messages rather than delivering them at 07:00; mentions sent while you are reading the chat wait like ordinary ones.
+- Realtime cannot filter DELETE events, so un-reactions reach every subscriber as keys only (Trip, message, member, emoji ids); the app keeps only its Trip's.
+
+**Production setup (owner).**
+1. `npx supabase db push` (applies 097: enables pg_net and pg_cron, schedules `rove-chat-push-summaries` every 20 s and a daily cron-history cleanup).
+2. `node scripts/generate-vapid.mjs <private folder>/rove-vapid.env` prints the public key and writes `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` to that file. Add two lines to the same file: `VAPID_SUBJECT=mailto:rove.noreply@gmail.com` and `CHAT_PUSH_SECRET=<openssl rand -hex 32>`.
+3. `npx supabase secrets set --env-file <private folder>/rove-vapid.env`, then `npx supabase functions deploy send-chat-push --no-verify-jwt` (the database has no user JWT; the secret is the check).
+4. SQL editor: `select vault.create_secret('https://<project-ref>.supabase.co/functions/v1/send-chat-push', 'chat_push_url');` and `select vault.create_secret('<the same CHAT_PUSH_SECRET>', 'chat_push_secret');`
+5. Cloudflare Pages: environment variable `VITE_VAPID_PUBLIC_KEY=<public key>`, then redeploy (or paste the key into `VAPID_PUBLIC_KEY_FALLBACK`).
+6. Check on two phones with Rove installed: turn on notifications, send from the other phone; `select status_code, error_msg from net._http_response order by id desc limit 5;` shows 200s, and the function logs show `send-chat-push message sent=…`. Never set `CHAT_PUSH_STUB` on a hosted project.
+
 ## 6. Open questions for the owner
-- Who may use `@everyone`: everyone (rate-limited) or Owner only?
+- ~~Who may use `@everyone`: everyone (rate-limited) or Owner only?~~ Decided 2026-11-27: everyone, once an hour per person per Trip.
 - Should decision answers be visible to all (recommended) or only counts?
 - Is a static map provider (and its key/cost) acceptable for meet-up cards, or link out to Maps only?
-- Do we want sub-chats for private bookings eventually, or is one Trip chat the rule?
+- ~~Do we want sub-chats for private bookings eventually, or is one Trip chat the rule?~~ Decided 2026-11-27: one chat per Trip. Also decided: no per-message "seen by" and no last seen.
 
 ---
 

@@ -19,6 +19,7 @@ import {
 import { APP_VERSION, SUPPORT_EMAIL, supportMailto } from './appInfo'
 import { AVATAR_ACCEPT, AvatarError, prepareAvatar, removeAvatars, uploadAvatar, useAvatarUrl } from './avatarStorage'
 import { LegalPage } from './LegalPage'
+import { DeviceNotificationsSection } from '../notifications/NotificationSettings'
 import { TextSizeSettings } from './TextSizeSettings'
 import { type MyProfile, ProfileRequestError, updateMyProfile } from './profileApi'
 import {
@@ -83,6 +84,7 @@ export function ProfileScreen({ userId, email, profile, profileStatus, onProfile
         <AvatarEditor userId={userId} profile={profile} onChanged={onProfileChanged} />
         <DetailsForm profile={profile} onChanged={onProfileChanged} />
         <TextSizeSettings />
+        <DeviceNotificationsSection />
         <AiUsage />
 
         <section aria-labelledby="profile-sign-in" className="section" data-layout="section">

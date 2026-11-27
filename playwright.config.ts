@@ -30,6 +30,8 @@ export default defineConfig({
       ...process.env,
       VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL ?? 'http://127.0.0.1:56321',
       VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY ?? 'ir001-local-browser-anon-key',
+      // A throwaway VAPID public key (its private half was never kept), so push UI is testable.
+      VITE_VAPID_PUBLIC_KEY: process.env.VITE_VAPID_PUBLIC_KEY ?? 'BI72tgSZ3DL4hnstxG70xqMDfey3wsCZK33p7H8Ugf_TqX3nkhmCRVWZBelhRM4DUUt0RjhyDeryTndSFR9ZBow',
     },
   },
 })

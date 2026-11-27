@@ -1,0 +1,36 @@
+/* ─── Notifications (NotificationSettings.tsx) ───────────────── */
+
+/* Trip Settings: the three levels share the card's width. */
+.notify-levels { display: flex; width: 100%; }
+.notify-levels > .segmented__item { flex: 1 1 auto; min-width: 0; white-space: nowrap; }
+.notify-levels > .segmented__item:disabled { opacity: 0.6; }
+
+.notify-mute { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.notify-mute > .btn-quiet { flex-shrink: 0; }
+
+/* Chat: a small card docked above the composer. */
+.notify-prompt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 139, 77, 0.35);
+  background: #22170F;
+  animation: m-enter-xs 200ms var(--ease-out) backwards;
+}
+.notify-prompt[data-kind="install"] { padding-top: var(--space-2); padding-bottom: var(--space-2); border-color: var(--border-strong); background: var(--bg-elevated); }
+.notify-prompt__text { flex: 1; min-width: 0; color: var(--text-secondary); }
+.notify-prompt__on {
+  flex-shrink: 0;
+  min-height: var(--tap);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #1A0A03;
+  font-weight: var(--w-semibold);
+}
+.notify-prompt__on:disabled { opacity: 0.7; }
+.notify-prompt__close { margin-right: 0; }

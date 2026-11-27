@@ -2,6 +2,8 @@ import { type CSSProperties, type KeyboardEvent, useRef } from 'react'
 import { ScreenHeader } from '../../components/ui/ScreenHeader'
 import { IconChat, IconChecklist, IconExchange, IconMap, IconReceipt, IconScan, IconSettings } from '../../components/ui/icons'
 import { ChatTab } from '../chat/ChatTab'
+import { unreadLabel } from '../chat/chatSocial'
+import { useUnreadCounts, useUnreadLive, useUnreadRefresh } from '../chat/unreadStore'
 import { FxTab } from '../fx/FxTab'
 import { ScanTab } from '../scan/ScanTab'
 import { SplitTab } from '../split/SplitTab'
@@ -79,6 +81,11 @@ function TripSections({ trip, tab, onTabChange, onTripsChanged }: {
   // A tab that disappears (e.g. FX after a Trip becomes domestic) falls back to the first.
   const current = TABS.find((entry) => entry.id === tab) ?? TABS[0]
   const currentIndex = TABS.findIndex((entry) => entry.id === current.id)
+  // Unread chat messages: a count on the Chat tab while another tab is open.
+  useUnreadRefresh()
+  useUnreadLive(trip.groupId)
+  const unread = useUnreadCounts()[trip.groupId] ?? 0
+  const chatDot = current.id !== 'chat' && unread > 0 ? unreadLabel(unread) : null
 
   const choose = (id: TripSectionId, focus = false) => {
     onTabChange(id)
@@ -112,16 +119,23 @@ function TripSections({ trip, tab, onTabChange, onTripsChanged }: {
         <div role="tablist" aria-label="Trip sections" className="tab-bar__inner" onKeyDown={onKeyDown}>
           {TABS.map((entry) => {
             const active = entry.id === current.id
+            const dot = entry.id === 'chat' ? chatDot : null
             return (
               <button key={entry.id} ref={(node) => { tabRefs.current[entry.id] = node }} type="button" role="tab"
                 id={`trip-tab-${entry.id}`} aria-selected={active} aria-controls="trip-tab-panel" tabIndex={active ? 0 : -1}
+                // Named by its label alone: the count (CSS content) would otherwise join the name.
+                aria-label={entry.label} aria-describedby={dot ? 'trip-tab-chat-unread' : undefined}
                 onClick={() => choose(entry.id)} className={`nav-tab${active ? ' active' : ''}`}>
-                <entry.Icon size="lg" />
+                {/* The count is drawn from data-count (no text node), and described rather than named. */}
+                <span className="nav-tab__icon" data-count={dot ?? undefined} data-testid={entry.id === 'chat' ? 'chat-tab-icon' : undefined}>
+                  <entry.Icon size="lg" />
+                </span>
                 <span>{entry.label}</span>
               </button>
             )
           })}
         </div>
+        {chatDot && <span id="trip-tab-chat-unread" className="sr-only">{chatDot} unread {chatDot === '1' ? 'message' : 'messages'}</span>}
       </div>
     </>
   )

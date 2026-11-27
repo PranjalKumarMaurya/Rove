@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
-  buildTimeline, CHAT_BODY_MAX, dayLabel, isNearBottom, latestStatus, linkify, mergeServerRows, mergeWithPending, settledPending, validateBody,
+  buildTimeline, CHAT_BODY_MAX, dayLabel, isNearBottom, latestStatus, linkify, mergeServerRows, mergeWithPending, readChatMessage, settledPending, validateBody,
   type ChatMessage, type DisplayMessage, type MessageGroup, type PendingMessage,
 } from '../../src/features/chat/chatRules.ts'
 
@@ -10,9 +10,10 @@ const tz = 'Asia/Kolkata'
 const [me, ana, ben] = ['m-me', 'm-ana', 'm-ben']
 
 function row(id: string, sender: string, createdAt: string, body = id, clientId = `c-${id}`): ChatMessage {
-  return { id, group_id: 'g', sender_id: sender, body, client_id: clientId, created_at: createdAt }
+  return { id, group_id: 'g', sender_id: sender, body, client_id: clientId, created_at: createdAt, reply_to: null, mentions: [], mentions_everyone: false }
 }
 const shown = (rows: ChatMessage[]): DisplayMessage[] => mergeWithPending(rows, [])
+const plain = { replyTo: null, mentions: [], mentionsEveryone: false }
 
 test('a body is trimmed and must be 1-2000 characters', () => {
   assert.deepEqual(validateBody('  hi there \n'), { ok: true, body: 'hi there' })
@@ -39,8 +40,8 @@ test('server rows merge once each by id, oldest first', () => {
 test('optimistic sends show after server rows until the server has them, matched by client_id', () => {
   const server = [row('a', ana, '2026-11-27T10:00:00Z')]
   const pending: PendingMessage[] = [
-    { clientId: 'p2', senderId: me, body: 'second', createdAt: '2026-11-27T10:05:01Z', status: 'failed' },
-    { clientId: 'p1', senderId: me, body: 'first', createdAt: '2026-11-27T10:05:00Z', status: 'sending' },
+    { clientId: 'p2', senderId: me, body: 'second', createdAt: '2026-11-27T10:05:01Z', status: 'failed', ...plain },
+    { clientId: 'p1', senderId: me, body: 'first', createdAt: '2026-11-27T10:05:00Z', status: 'sending', ...plain },
   ]
   const before = mergeWithPending(server, pending)
   assert.deepEqual(before.map((m) => [m.body, m.status]), [['a', 'sent'], ['first', 'sending'], ['second', 'failed']])
@@ -60,7 +61,7 @@ test('optimistic sends show after server rows until the server has them, matched
 })
 
 const label = (item: ReturnType<typeof buildTimeline>[number]) =>
-  item.kind === 'time' ? `[${item.day} ${item.time}]` : item.messages.map((m) => m.id).join()
+  item.kind === 'time' ? `[${item.day} ${item.time}]` : item.kind === 'unread' ? '—unread—' : item.messages.map((m) => m.id).join()
 
 test('runs: consecutive messages from one person within 5 minutes, broken by another sender or a timestamp', () => {
   const now = Date.parse('2026-11-27T12:00:00Z')
@@ -96,9 +97,9 @@ test('a timestamp goes above the first message, after gaps over 15 minutes and a
 test('"Delivered" sits under my latest message once saved; "Sending…" while in flight; nothing after a failure', () => {
   const server = [row('a', me, '2026-11-27T10:00:00Z'), row('b', ana, '2026-11-27T10:01:00Z')]
   assert.deepEqual(latestStatus(shown(server), me), { key: shown(server)[0].key, text: 'Delivered' }, 'even if others spoke since')
-  const sending = mergeWithPending(server, [{ clientId: 'p', senderId: me, body: 'x', createdAt: '2026-11-27T10:02:00Z', status: 'sending' }])
+  const sending = mergeWithPending(server, [{ clientId: 'p', senderId: me, body: 'x', createdAt: '2026-11-27T10:02:00Z', status: 'sending', ...plain }])
   assert.deepEqual(latestStatus(sending, me), { key: `${me}:p`, text: 'Sending…' })
-  const failed = mergeWithPending(server, [{ clientId: 'p', senderId: me, body: 'x', createdAt: '2026-11-27T10:02:00Z', status: 'failed' }])
+  const failed = mergeWithPending(server, [{ clientId: 'p', senderId: me, body: 'x', createdAt: '2026-11-27T10:02:00Z', status: 'failed', ...plain }])
   assert.equal(latestStatus(failed, me), null)
   assert.equal(latestStatus(shown([row('c', ana, '2026-11-27T10:00:00Z')]), me), null, 'nothing of mine')
 })
@@ -140,4 +141,25 @@ test('near the bottom means within 48px', () => {
   assert.equal(isNearBottom({ scrollTop: 552, scrollHeight: 1000, clientHeight: 400 }), true)
   assert.equal(isNearBottom({ scrollTop: 551, scrollHeight: 1000, clientHeight: 400 }), false)
   assert.equal(isNearBottom({ scrollTop: 0, scrollHeight: 300, clientHeight: 400 }), true, 'short list')
+})
+
+test('rows from the API or Realtime are read defensively; Phase 1 columns default when absent', () => {
+  const base = { id: 'a', group_id: 'g', sender_id: ana, body: 'hi', client_id: 'c', created_at: '2026-11-27T10:00:00Z' }
+  assert.deepEqual(readChatMessage(base), { ...base, reply_to: null, mentions: [], mentions_everyone: false })
+  const id = 'f0000000-0000-4000-8000-000000000001'
+  assert.deepEqual(readChatMessage({ ...base, reply_to: id, mentions: [id, 'nope', 7], mentions_everyone: true }),
+    { ...base, reply_to: id, mentions: [id], mentions_everyone: true })
+  assert.equal(readChatMessage({ ...base, body: null }), null)
+  assert.equal(readChatMessage('x'), null)
+})
+
+test('the unread divider goes above the first unread message and starts a new run', () => {
+  const now = Date.parse('2026-11-27T12:00:00Z')
+  const messages = shown([
+    row('1', ana, '2026-11-27T05:00:00Z'),
+    row('2', ana, '2026-11-27T05:01:00Z'),
+    row('3', ana, '2026-11-27T05:02:00Z'),
+  ])
+  const items = buildTimeline(messages, { timeZone: tz, nowMs: now, me, unreadKey: messages[1].key })
+  assert.deepEqual(items.map(label), ['[Today 10:30]', '1', '—unread—', '2,3'])
 })

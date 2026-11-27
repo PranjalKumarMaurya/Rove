@@ -94,7 +94,7 @@ test('To-dos and Settings are full screens above the Trip; back returns to the s
   await openSettings(page)
   const settings = tripSettings(page)
   await expect(settings.getByRole('heading', { level: 1 })).toHaveText('Settings')
-  await expect(settings.getByRole('heading', { level: 2 })).toHaveText(['Trip details', 'People', 'Invite', 'Danger zone'])
+  await expect(settings.getByRole('heading', { level: 2 })).toHaveText(['Trip details', 'Notifications', 'People', 'Invite', 'Danger zone'])
   await expect(crewSection(page).getByRole('list', { name: 'Trip members' })).toContainText('Farah Friend')
   await expect(crewSection(page).getByRole('button', { name: 'Manage Farah Friend' })).toBeVisible()
   await expect(settings.getByTestId('danger-zone').getByRole('button', { name: 'Leave Trip' })).toBeVisible()

@@ -45,6 +45,16 @@ test('the manifest, icons and service worker are served', async ({ request }) =>
   expect(worker).toContain('precacheAndRoute')
   // App shell only: no runtime caching routes besides the navigation fallback.
   expect(worker).not.toMatch(/NetworkFirst|CacheFirst|StaleWhileRevalidate|supabase/iu)
+  // Web Push handlers come in by importScripts, versioned by their content so a change updates the worker.
+  const imported = /importScripts\("(sw-push\.js\?v=[0-9a-f]{12})"\)/u.exec(worker)?.[1]
+  expect(imported).toBeTruthy()
+  const push = await request.get(`/${imported}`)
+  expect(push.status()).toBe(200)
+  expect(push.headers()['content-type']).toMatch(/javascript/u)
+  const handler = await push.text()
+  expect(handler).toContain("addEventListener('push'")
+  expect(handler).toContain("addEventListener('notificationclick'")
+  expect(handler).not.toMatch(/caches\.|fetch\(|supabase/iu)
 })
 
 test('under automation no service worker is registered, so route mocks keep working', async ({ page }) => {

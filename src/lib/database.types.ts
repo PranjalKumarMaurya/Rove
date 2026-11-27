@@ -9,6 +9,66 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      ai_usage: {
+        Row: {
+          cache_read_tokens: number
+          cache_write_tokens: number
+          cost_micro_usd: number
+          created_at: string
+          document_id: string | null
+          feature: string
+          group_id: string | null
+          id: string
+          input_tokens: number
+          model: string
+          output_tokens: number
+          profile_id: string | null
+        }
+        Insert: {
+          cache_read_tokens?: number
+          cache_write_tokens?: number
+          cost_micro_usd?: number
+          created_at?: string
+          document_id?: string | null
+          feature: string
+          group_id?: string | null
+          id?: string
+          input_tokens?: number
+          model: string
+          output_tokens?: number
+          profile_id?: string | null
+        }
+        Update: {
+          cache_read_tokens?: number
+          cache_write_tokens?: number
+          cost_micro_usd?: number
+          created_at?: string
+          document_id?: string | null
+          feature?: string
+          group_id?: string | null
+          id?: string
+          input_tokens?: number
+          model?: string
+          output_tokens?: number
+          profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           airline: string | null
@@ -672,6 +732,47 @@ export type Database = {
           },
         ]
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          last_used_at: string | null
+          p256dh: string
+          profile_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          last_used_at?: string | null
+          p256dh: string
+          profile_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          last_used_at?: string | null
+          p256dh?: string
+          profile_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       settlements: {
         Row: {
           amount: number
@@ -728,6 +829,32 @@ export type Database = {
           user_name?: string
         }
         Relationships: []
+      }
+      trip_chat_reads: {
+        Row: {
+          group_id: string
+          last_read_at: string
+          member_id: string
+        }
+        Insert: {
+          group_id: string
+          last_read_at?: string
+          member_id: string
+        }
+        Update: {
+          group_id?: string
+          last_read_at?: string
+          member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_chat_reads_group_id_member_id_fkey"
+            columns: ["group_id", "member_id"]
+            isOneToOne: true
+            referencedRelation: "group_members"
+            referencedColumns: ["group_id", "id"]
+          },
+        ]
       }
       trip_documents: {
         Row: {
@@ -1093,6 +1220,192 @@ export type Database = {
           },
         ]
       }
+      trip_join_links: {
+        Row: {
+          created_at: string
+          created_by: string
+          group_id: string
+          id: string
+          proof_verifier: string
+          revoked_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          group_id: string
+          id?: string
+          proof_verifier: string
+          revoked_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          group_id?: string
+          id?: string
+          proof_verifier?: string
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_join_links_group_id_created_by_fkey"
+            columns: ["group_id", "created_by"]
+            isOneToOne: false
+            referencedRelation: "group_members"
+            referencedColumns: ["group_id", "id"]
+          },
+          {
+            foreignKeyName: "trip_join_links_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          group_id: string
+          member_id: string
+          message_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          group_id: string
+          member_id: string
+          message_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          group_id?: string
+          member_id?: string
+          message_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_message_reactions_group_id_member_id_fkey"
+            columns: ["group_id", "member_id"]
+            isOneToOne: false
+            referencedRelation: "group_members"
+            referencedColumns: ["group_id", "id"]
+          },
+          {
+            foreignKeyName: "trip_message_reactions_group_id_message_id_fkey"
+            columns: ["group_id", "message_id"]
+            isOneToOne: false
+            referencedRelation: "trip_messages"
+            referencedColumns: ["group_id", "id"]
+          },
+        ]
+      }
+      trip_messages: {
+        Row: {
+          body: string
+          client_id: string
+          created_at: string
+          deleted_at: string | null
+          edited_at: string | null
+          group_id: string
+          id: string
+          kind: string
+          mentions: string[]
+          mentions_everyone: boolean
+          ref_id: string | null
+          ref_type: string | null
+          reply_to: string | null
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          client_id: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          group_id: string
+          id?: string
+          kind?: string
+          mentions?: string[]
+          mentions_everyone?: boolean
+          ref_id?: string | null
+          ref_type?: string | null
+          reply_to?: string | null
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          client_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          group_id?: string
+          id?: string
+          kind?: string
+          mentions?: string[]
+          mentions_everyone?: boolean
+          ref_id?: string | null
+          ref_type?: string | null
+          reply_to?: string | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_messages_reply_same_group"
+            columns: ["group_id", "reply_to"]
+            isOneToOne: false
+            referencedRelation: "trip_messages"
+            referencedColumns: ["group_id", "id"]
+          },
+          {
+            foreignKeyName: "trip_messages_sender_same_group"
+            columns: ["group_id", "sender_id"]
+            isOneToOne: false
+            referencedRelation: "group_members"
+            referencedColumns: ["group_id", "id"]
+          },
+        ]
+      }
+      trip_notification_prefs: {
+        Row: {
+          group_id: string
+          level: string
+          member_id: string
+          muted_until: string | null
+          updated_at: string
+        }
+        Insert: {
+          group_id: string
+          level?: string
+          member_id: string
+          muted_until?: string | null
+          updated_at?: string
+        }
+        Update: {
+          group_id?: string
+          level?: string
+          member_id?: string
+          muted_until?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_notification_prefs_group_id_member_id_fkey"
+            columns: ["group_id", "member_id"]
+            isOneToOne: true
+            referencedRelation: "group_members"
+            referencedColumns: ["group_id", "id"]
+          },
+        ]
+      }
       trip_parse_usage: {
         Row: {
           created_at: string
@@ -1224,90 +1537,6 @@ export type Database = {
           },
         ]
       }
-      trip_join_links: {
-        Row: {
-          created_at: string
-          created_by: string
-          group_id: string
-          id: string
-          proof_verifier: string
-          revoked_at: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by: string
-          group_id: string
-          id?: string
-          proof_verifier: string
-          revoked_at?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string
-          group_id?: string
-          id?: string
-          proof_verifier?: string
-          revoked_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trip_join_links_group_id_created_by_fkey"
-            columns: ["group_id", "created_by"]
-            isOneToOne: false
-            referencedRelation: "group_members"
-            referencedColumns: ["group_id", "id"]
-          },
-          {
-            foreignKeyName: "trip_join_links_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      trip_messages: {
-        Row: {
-          body: string
-          client_id: string
-          created_at: string
-          group_id: string
-          id: string
-          sender_id: string
-        }
-        Insert: {
-          body: string
-          client_id: string
-          created_at?: string
-          group_id: string
-          id?: string
-          sender_id: string
-        }
-        Update: {
-          body?: string
-          client_id?: string
-          created_at?: string
-          group_id?: string
-          id?: string
-          sender_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trip_messages_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trip_messages_sender_same_group"
-            columns: ["group_id", "sender_id"]
-            isOneToOne: false
-            referencedRelation: "group_members"
-            referencedColumns: ["group_id", "id"]
-          },
-        ]
-      }
       trip_todos: {
         Row: {
           completed_at: string | null
@@ -1430,6 +1659,12 @@ export type Database = {
         }
         Returns: Json
       }
+      chat_push_claim_due: { Args: { p_limit?: number }; Returns: Json }
+      chat_push_message_context: {
+        Args: { p_message_id: string }
+        Returns: Json
+      }
+      chat_push_record: { Args: { p_entries: Json }; Returns: undefined }
       claim_document_parse: {
         Args: {
           p_document_id: string
@@ -1530,6 +1765,14 @@ export type Database = {
           status: string
         }[]
       }
+      get_my_ai_usage: {
+        Args: never
+        Returns: {
+          calls: number
+          cost_micro_usd: number
+          total_tokens: number
+        }[]
+      }
       get_my_archived_groups: {
         Args: never
         Returns: {
@@ -1563,12 +1806,11 @@ export type Database = {
           member_count: number
         }[]
       }
-      get_my_ai_usage: {
+      get_my_unread_counts: {
         Args: never
         Returns: {
-          calls: number
-          cost_micro_usd: number
-          total_tokens: number
+          group_id: string
+          unread: number
         }[]
       }
       get_split_ledger: { Args: { p_group_id: string }; Returns: Json }
@@ -1686,6 +1928,10 @@ export type Database = {
         }
         Returns: Json
       }
+      mark_chat_read: {
+        Args: { p_group_id: string; p_read_at: string }
+        Returns: string
+      }
       record_settlement: {
         Args: {
           p_amount: string
@@ -1700,6 +1946,15 @@ export type Database = {
       revoke_invitation: {
         Args: { group_id: string; invitation_id: string; request_id: string }
         Returns: Json
+      }
+      save_push_subscription: {
+        Args: {
+          p_auth: string
+          p_endpoint: string
+          p_p256dh: string
+          p_user_agent: string
+        }
+        Returns: string
       }
       set_group_archive_state: {
         Args: {

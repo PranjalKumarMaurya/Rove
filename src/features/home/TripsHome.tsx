@@ -5,6 +5,8 @@ import { NeonBtn } from '../../components/ui/NeonBtn'
 import { BrandMark } from '../../components/ui/ScreenFrame'
 import { supabase } from '../../lib/supabase'
 import { ArchivedTrips } from '../crew/ArchivedTrips'
+import { unreadLabel } from '../chat/chatSocial'
+import { useUnreadCounts, useUnreadRefresh } from '../chat/unreadStore'
 import type { MyGroupAccess } from '../groups/myGroupAccess'
 import { formatTripDates } from '../onboarding/tripSettings'
 import type { MyProfile } from '../profile/profileApi'
@@ -75,6 +77,8 @@ export function TripsHome({ trips, profile, accountName, onCreate, onOpenTrip, o
   const now = useNow()
   const refreshKey = trips.map((trip) => `${trip.groupId}:${trip.role}`).join(',')
   const counts = useTripMemberCounts(refreshKey)
+  useUnreadRefresh()
+  const unread = useUnreadCounts()
   const grouped = groupTrips(trips, now)
   const fresh = useFreshTrips(trips)
   let entering = 0
@@ -120,7 +124,8 @@ export function TripsHome({ trips, profile, accountName, onCreate, onOpenTrip, o
                 {grouped[phase].map((trip) => (
                   <li key={trip.groupId} className={fresh.has(trip.groupId) ? 'm-enter' : undefined}
                     style={fresh.has(trip.groupId) ? enterIndex(entering++) : undefined}>
-                    <TripCard trip={trip} phase={phase} now={now} members={counts[trip.groupId]} onOpen={() => onOpenTrip(trip.groupId)} />
+                    <TripCard trip={trip} phase={phase} now={now} members={counts[trip.groupId]} unread={unread[trip.groupId] ?? 0}
+                      onOpen={() => onOpenTrip(trip.groupId)} />
                   </li>
                 ))}
               </ul>
@@ -138,11 +143,13 @@ export function TripsHome({ trips, profile, accountName, onCreate, onOpenTrip, o
   )
 }
 
-function TripCard({ trip, phase, now, members, onOpen }: {
+function TripCard({ trip, phase, now, members, unread, onOpen }: {
   trip: MyGroupAccess
   phase: TripPhase
   now: Date
   members?: number
+  /** Unread chat messages. */
+  unread: number
   onOpen: () => void
 }) {
   const detailsId = `trip-card-${trip.groupId}`
@@ -158,8 +165,10 @@ function TripCard({ trip, phase, now, members, onOpen }: {
             <span className="trip-card__when">{relativeTripLine(trip, now)}</span>
             {' · '}{trip.role === 'owner' ? 'Owner' : 'Member'}{people ? ` · ${people}` : ''}
           </span>
+          {unread > 0 && <span className="sr-only">{unreadLabel(unread)} unread {unread === 1 ? 'message' : 'messages'}</span>}
         </span>
       </span>
+      {unread > 0 && <span className="trip-card__unread" aria-hidden="true" data-testid="trip-card-unread">{unreadLabel(unread)}</span>}
       <span aria-hidden="true" style={{ color: 'var(--text-tertiary)' }}><IconChevronRight size="md" /></span>
     </button>
   )

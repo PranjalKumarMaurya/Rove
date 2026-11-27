@@ -620,6 +620,28 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
 }
 .nav-tab > span { display: block; max-width: calc(100% - 4px); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .nav-tab svg { flex-shrink: 0; }
+/* The icon, with an unread count on its corner (the Chat tab). The count is CSS content
+   from data-count, so it is not part of the tab's name; the tab describes it instead. */
+.nav-tab > .nav-tab__icon { position: relative; display: block; max-width: none; overflow: visible; line-height: 0; }
+.nav-tab__icon[data-count]::after {
+  content: attr(data-count);
+  position: absolute;
+  top: -4px;
+  left: calc(100% - 8px);
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #1A0A03;
+  font-size: var(--type-caption);
+  line-height: 18px;
+  font-weight: var(--w-semibold);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--bg-base);
+  animation: m-fade 180ms var(--ease-out) backwards;
+}
 .nav-tab:hover { color: var(--text-secondary); }
 .nav-tab.active, .nav-tab.active:hover { color: var(--text-primary); }
 .nav-tab.active svg { color: var(--accent); }
@@ -773,6 +795,22 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
 .trip-card--ongoing { border-color: rgba(255, 139, 77, 0.45); background: linear-gradient(135deg, rgba(255, 139, 77, 0.12), rgba(255, 139, 77, 0.03)); }
 .trip-card__when { font-size: var(--type-footnote); line-height: var(--lh-footnote); font-weight: var(--w-medium); font-variant-numeric: tabular-nums; color: var(--text-secondary); }
 .trip-card--ongoing .trip-card__when { color: var(--accent); }
+/* Unread chat messages on a Trip's card (the count is in the card's description for screen readers). */
+.trip-card__unread {
+  flex-shrink: 0;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #1A0A03;
+  font-size: var(--type-caption);
+  line-height: 22px;
+  font-weight: var(--w-semibold);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  animation: m-fade 180ms var(--ease-out) backwards;
+}
 
 .switch-row {
   display: flex;

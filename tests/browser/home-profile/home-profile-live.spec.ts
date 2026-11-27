@@ -129,7 +129,7 @@ test('Trips home, Profile, Trip settings and domestic vs International Trips', a
     await workspace(owner).getByRole('button', { name: 'Trip settings' }).click()
     const settings = tripSettings(owner)
     await expect(settings.getByRole('heading', { level: 1 })).toHaveText('Settings')
-    await expect(settings.getByRole('heading', { level: 2 })).toHaveText(['Trip details', 'People', 'Invite', 'Danger zone'])
+    await expect(settings.getByRole('heading', { level: 2 })).toHaveText(['Trip details', 'Notifications', 'People', 'Invite', 'Danger zone'])
     await expect(settings.getByLabel('Trip name')).toHaveValue('Goa weekend')
     await settings.getByLabel('Trip name').fill('Goa long weekend')
     await settings.getByLabel('End date').fill(day(9))

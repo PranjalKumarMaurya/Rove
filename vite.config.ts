@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -9,6 +10,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 // runtime caching: Supabase (REST, Auth, Storage, Functions, Realtime) and every
 // Trip document always go to the network. Registration lives in
 // src/features/pwa/serviceWorker.ts (prompted updates, off under automation).
+//
+// Web Push (chat notifications) lives in public/sw-push.js, pulled into the worker
+// with importScripts. Its content hash is in the URL, so a change to it changes
+// sw.js and goes through the same prompted update as any other release.
+const pushHandler = createHash('sha256').update(readFileSync(new URL('./public/sw-push.js', import.meta.url))).digest('hex').slice(0, 12)
 const pwa = VitePWA({
   registerType: 'prompt',
   injectRegister: false,
@@ -35,6 +41,9 @@ const pwa = VitePWA({
   },
   workbox: {
     globPatterns: ['**/*.{html,js,css,svg,png}'],
+    // Loaded by importScripts below (the browser keeps it with the worker), not precached.
+    globIgnores: ['**/sw-push.js'],
+    importScripts: [`sw-push.js?v=${pushHandler}`],
     navigateFallback: '/index.html',
     // Never answer API-looking paths or files with the shell.
     navigateFallbackDenylist: [/^\/(rest|auth|storage|functions|realtime|graphql)\//u, /\/[^/?]+\.[^/?]+$/u],

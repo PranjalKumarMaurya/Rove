@@ -42,3 +42,6 @@ export const IconLink = ({ size }: IconProps) => <Icon size={size}><path d="M10 
 export const IconLinkPlus = ({ size }: IconProps) => <Icon size={size}><path d="M9 16.5H7a4.5 4.5 0 0 1 0-9h2" /><path d="M15 7.5h2a4.5 4.5 0 0 1 4.5 4.5" /><path d="M8.5 12h7" /><path d="M18.5 15.5v5M16 18h5" /></Icon>
 /** A suitcase outline: the Trips list. */
 export const IconSuitcase = ({ size }: IconProps) => <Icon size={size}><rect x="4.5" y="7" width="15" height="12" rx="2.5" /><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /><path d="M9 10.5v5M15 10.5v5" /><path d="M8 19v1.5M16 19v1.5" /></Icon>
+export const IconReply = ({ size }: IconProps) => <Icon size={size}><path d="M9.5 6.5 4 12l5.5 5.5" /><path d="M4.5 12H14a6 6 0 0 1 6 6v.5" /></Icon>
+export const IconCopy = ({ size }: IconProps) => <Icon size={size}><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5" /><path d="M15.5 8.5V6.5A2.5 2.5 0 0 0 13 4H6.5A2.5 2.5 0 0 0 4 6.5V13a2.5 2.5 0 0 0 2.5 2.5h2" /></Icon>
+export const IconSmile = ({ size }: IconProps) => <Icon size={size}><circle cx="12" cy="12" r="8.5" /><path d="M8.5 14.2c.9 1.3 2.1 2 3.5 2s2.6-.7 3.5-2" /><path d="M9.2 9.6h.01M14.8 9.6h.01" strokeWidth={2.4} /></Icon>

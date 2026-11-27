@@ -64,7 +64,8 @@
     "test:db:backup": "node tests/database/backup/verify-backup-restore.mjs",
     "test:scan:bills:db": "node tests/database/scan/verify-bill-expenses.mjs",
     "test:scan:private:db": "node tests/database/scan/verify-private-bookings.mjs",
-    "test:chat:db": "node tests/database/chat/verify-trip-messages.mjs",
+    "test:chat:db": "node tests/database/chat/verify-trip-messages.mjs && node tests/database/chat/verify-chat-social.mjs",
+    "test:chat:push": "node tests/database/chat/verify-chat-push.mjs",
     "test:join:db": "node tests/database/invitations/verify-join-links.mjs"
   },
   "dependencies": {

@@ -11,21 +11,39 @@ export interface ChatMessage {
   body: string
   client_id: string
   created_at: string
+  /** The message this one quotes (same Trip), if any. */
+  reply_to: string | null
+  /** Members mentioned (`group_members.id`), resolved when sent. */
+  mentions: string[]
+  mentions_everyone: boolean
 }
 
+/** What a send carries besides the text. */
+export interface SendExtras {
+  replyTo: string | null
+  mentions: string[]
+  mentionsEveryone: boolean
+}
+
+export const NO_EXTRAS: SendExtras = { replyTo: null, mentions: [], mentionsEveryone: false }
+
+/** Why a send failed, when the server said so: @everyone used within the hour. */
+export type SendFailure = 'everyone_limit'
+
 /** A message this device is sending (or failed to send). */
-export interface PendingMessage {
+export interface PendingMessage extends SendExtras {
   clientId: string
   senderId: string
   body: string
   /** Local clock, only for ordering pending messages among themselves. */
   createdAt: string
   status: 'sending' | 'failed'
+  failure?: SendFailure
 }
 
 export type MessageStatus = 'sent' | 'sending' | 'failed'
 
-export interface DisplayMessage {
+export interface DisplayMessage extends SendExtras {
   /** Stable across pending → sent, so the bubble never remounts. */
   key: string
   id: string | null
@@ -34,6 +52,26 @@ export interface DisplayMessage {
   clientId: string
   createdAt: string
   status: MessageStatus
+  failure?: SendFailure
+}
+
+const isUuid = (value: unknown): value is string => typeof value === 'string' && /^[0-9a-f-]{36}$/iu.test(value)
+
+/**
+ * A `trip_messages` row from the API or Realtime, or null if it is not one. The
+ * Phase 1 columns (reply_to, mentions, mentions_everyone) default when absent.
+ */
+export function readChatMessage(value: unknown): ChatMessage | null {
+  if (!value || typeof value !== 'object') return null
+  const row = value as Record<string, unknown>
+  if (!['id', 'group_id', 'sender_id', 'body', 'client_id', 'created_at'].every((key) => typeof row[key] === 'string')) return null
+  return {
+    id: row.id as string, group_id: row.group_id as string, sender_id: row.sender_id as string, body: row.body as string,
+    client_id: row.client_id as string, created_at: row.created_at as string,
+    reply_to: isUuid(row.reply_to) ? row.reply_to : null,
+    mentions: Array.isArray(row.mentions) ? row.mentions.filter(isUuid) : [],
+    mentions_everyone: row.mentions_everyone === true,
+  }
 }
 
 export const CHAT_BODY_MAX = 2000
@@ -85,13 +123,15 @@ export function mergeWithPending(server: readonly ChatMessage[], pending: readon
   const shown: DisplayMessage[] = server.map((row) => ({
     key: messageKey(row.sender_id, row.client_id), id: row.id, senderId: row.sender_id, body: row.body,
     clientId: row.client_id, createdAt: row.created_at, status: 'sent',
+    replyTo: row.reply_to, mentions: row.mentions, mentionsEveryone: row.mentions_everyone,
   }))
   const waiting = pending.filter((item) => !delivered.has(messageKey(item.senderId, item.clientId)))
     .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
   for (const item of waiting) {
     shown.push({
       key: messageKey(item.senderId, item.clientId), id: null, senderId: item.senderId, body: item.body,
-      clientId: item.clientId, createdAt: item.createdAt, status: item.status,
+      clientId: item.clientId, createdAt: item.createdAt, status: item.status, failure: item.failure,
+      replyTo: item.replyTo, mentions: item.mentions, mentionsEveryone: item.mentionsEveryone,
     })
   }
   return shown
@@ -138,7 +178,13 @@ export interface TimeSeparator {
   time: string
 }
 
-export type TimelineItem = TimeSeparator | MessageGroup
+/** "Unread messages": above the first message from others that arrived after the person last read. */
+export interface UnreadDivider {
+  kind: 'unread'
+  key: 'unread'
+}
+
+export type TimelineItem = TimeSeparator | MessageGroup | UnreadDivider
 
 /** A timestamp separator goes above a message more than this after the one before it (and at every new day). */
 export const SEPARATOR_GAP_MS = 15 * 60 * 1000
@@ -149,10 +195,12 @@ export const SEPARATOR_GAP_MS = 15 * 60 * 1000
  * minutes. A run is consecutive messages from one person, each within 5
  * minutes of the one before, with no separator between them.
  */
-export function buildTimeline(messages: readonly DisplayMessage[], { timeZone, nowMs, me }: {
+export function buildTimeline(messages: readonly DisplayMessage[], { timeZone, nowMs, me, unreadKey = null }: {
   timeZone: string
   nowMs: number
   me: string
+  /** The message the unread divider goes above (it also starts a new run). */
+  unreadKey?: string | null
 }): TimelineItem[] {
   const items: TimelineItem[] = []
   let day = ''
@@ -164,6 +212,10 @@ export function buildTimeline(messages: readonly DisplayMessage[], { timeZone, n
     if (thisDay !== day || ms - lastMs > SEPARATOR_GAP_MS) {
       day = thisDay
       items.push({ kind: 'time', key: `time:${message.key}`, day: dayLabel(message.createdAt, timeZone, nowMs), time: formatTime(message.createdAt, timeZone) })
+      group = null
+    }
+    if (message.key === unreadKey) {
+      items.push({ kind: 'unread', key: 'unread' })
       group = null
     }
     if (group && group.senderId === message.senderId && ms - lastMs <= GROUP_GAP_MS) {
