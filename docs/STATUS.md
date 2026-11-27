@@ -58,7 +58,10 @@ All streams are merged into `v2`. Every row below passed on the combined branch.
 | **iPhone fixes (2026-11-27, unverified on device):**
 - **Top blur:** iOS 26 skips its blur only when a solid, full-width box covers the top edge, and it finds that box by hit-testing. The status-bar strip is now a real element (`index.html` `.status-shield`) that takes pointer events, not a `pointer-events: none` pseudo-element.
 - **Bottom bars after launch:** they are re-placed several times during the first two seconds and on every resize, because iOS lays a cold launch out as if Safari's toolbar were there.
-- **Swipe layers:** no longer scroll containers. Scroll offset comes from a margin and they use `overflow: clip`, to stop WebKit drawing the underlay twice. | browser suites | `tests/unit/split-travel.test.ts`, `tests/unit/navigation-gestures.test.ts`, browser suites |
+- **Swipe layers:** no longer scroll containers. Scroll offset comes from a margin and they use `overflow: clip`, to stop WebKit drawing the underlay twice. | browser suites |
+| **Installed iPhone app (2026-11-27):**
+- **Status bar:** `black` (opaque), not `black-translucent`. Under a see-through status bar, iOS 26 blurs the top of home-screen web apps and lays a cold launch out short of the bottom (WebKit bug 301108). iOS reads this tag only when the icon is added, so existing installs must delete and re-add the app.
+- **Bottom gap on existing installs:** a standalone-only `html { min-height: min(100lvh, calc(100% + inset)) }` rule closes the gap without a reinstall. | browser suites; device check pending | `tests/unit/split-travel.test.ts`, `tests/unit/navigation-gestures.test.ts`, browser suites |
 | **FX tab** (international Trips): converter with live rates and offline cache | `npm run test:fx:unit`, scan-fx live test |
 | **Crew tab:** roster with each member's shared details, invitations with **Share… / WhatsApp**, revoke, roles, transfer, remove, leave, archive/restore (060) | `npm run test:crew:db`, `npm run test:crew:live`, `npm run test:crew:browser`, `npm run test:extras:live` |
 | **Installable app (PWA):** manifest, icons, app-shell service worker (never caches data or auth), offline notice, update prompt | `tests/browser/pwa/installable-app.spec.ts` |

@@ -165,4 +165,5 @@
 /* Reduced motion: the scale tokens go to 1 (motion.css), leaving only the fades. */
 
 /* The wordmark sits centred, close under the status bar (about half the usual top gap). */
-.screen.home-top { padding-top: calc(4px + env(safe-area-inset-top, 0px)); }
+/* With an opaque status bar the inset is 0, so keep a little room under it. */
+.screen.home-top { padding-top: calc(10px + env(safe-area-inset-top, 0px)); }

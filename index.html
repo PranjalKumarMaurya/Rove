@@ -10,7 +10,11 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Rove" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- "black": the home-screen app starts below an opaque status bar. With
+         "black-translucent", iOS 26 blurs the top of the app (Liquid Glass edge
+         effect) and lays a cold launch out short of the bottom. iOS reads this
+         only when the icon is added, so existing installs must be re-added. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <title>Rove</title>
     <meta name="description" content="Plan, split and share your group trip." />
   </head>

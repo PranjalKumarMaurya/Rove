@@ -80,7 +80,8 @@ body {
   z-index: 10001;
 }
 /* Scrolled: also cover the band below the status bar that content scrolls under (src/lib/topShade.ts). */
-html[data-scrolled="true"] .status-shield { height: calc(env(safe-area-inset-top, 0px) + 28px); }
+/* Only under a see-through status bar (inset > 0); with an opaque one there is nothing to cover. */
+html[data-scrolled="true"] .status-shield { height: calc(env(safe-area-inset-top, 0px) + min(28px, env(safe-area-inset-top, 0px))); }
 
 button { font-family: inherit; }
 input, textarea, select { font-family: inherit; }
@@ -724,3 +725,13 @@ input, textarea, select, [contenteditable="true"], [contenteditable=""] {
 }
 /* Images and icons can't be long-pressed into "Save image" or dragged out either. */
 img, svg { -webkit-user-drag: none; }
+
+
+/* Installed iPhone app (iOS 26): while the page is shorter than the screen,
+   WebKit sizes the viewport short of the bottom edge, so fixed bottom bars
+   float above it. Making the document at least full height lets WebKit give
+   it the whole screen. The min() cap keeps it exact under an opaque status
+   bar, where 100lvh is already the full screen. */
+@media (display-mode: standalone) {
+  html { min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px))); }
+}
