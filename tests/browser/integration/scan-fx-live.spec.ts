@@ -81,6 +81,8 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
     // The first read waits for the local Edge runtime to warm up.
     await expect(review).toBeVisible({ timeout: 30_000 })
     await expect(review.getByLabel('Title')).toHaveValue('IndiGo 6E-123 · DEL → GOI')
+    await expect(review.getByTestId('scan-kind')).toContainText('Read as a booking')
+    await expect(review.getByRole('button', { name: 'Change to bill' })).toBeVisible()
     await expect(review.getByLabel('Starts')).toHaveValue('2026-11-01T06:15')
     await expect(review.getByLabel('Start timezone')).toHaveValue('Asia/Kolkata')
     await expect(review.getByLabel('Flight number')).toHaveValue('6E-123')
@@ -123,6 +125,9 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
     const billForm = owner.getByTestId('expense-form')
     await expect(billForm).toContainText('Split this bill')
     await expect(billForm.getByTestId('scan-bill-notice')).toContainText('dinner-bill.png')
+    // What the reader decided, with a clear way to change it.
+    await expect(billForm.getByTestId('scan-kind')).toContainText('Read as a bill')
+    await expect(billForm.getByTestId('scan-kind').getByRole('button', { name: 'Change to booking' })).toBeVisible()
     await expect(billForm.getByLabel('Description')).toHaveValue('Curlies by the Sea: food and drinks')
     await expect(billForm.getByLabel('Total amount')).toHaveValue('7770.00')
     await expect(billForm.getByLabel('When')).toHaveValue(/T\d\d:\d\d$/u)

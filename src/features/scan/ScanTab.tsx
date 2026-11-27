@@ -8,6 +8,7 @@ import type { LedgerExpense } from '../split/ledger'
 import { loadLedger } from '../split/splitApi'
 import { useTravelLegs } from '../trip/tripEventsApi'
 import { DraftReviewForm } from './DraftReviewForm'
+import { KindRow } from './KindRow'
 import { prepareForUpload } from './prepareImage'
 import {
   ScanError, type TripDocument, addDocumentEvent, deleteTripDocument, eventAudience, isUnsplitBill, linkDocumentExpense, listTripDocuments, myReadsToday,
@@ -405,14 +406,15 @@ export function ScanTab({ trip, roster }: TripTabProps) {
 function BillNotice({ fileName, draft, onSwitchToBooking }: { fileName: string; draft: BillDraft; onSwitchToBooking: () => void }) {
   return (
     <div className="flex flex-col gap-2 text-sm" data-testid="scan-bill-notice">
-      <p className="truncate" style={{ color: 'var(--text-secondary)' }}>Read from {fileName}. Pick who paid and how to split it.</p>
+      <p className="truncate" style={{ color: 'var(--text-secondary)' }}>From {fileName}</p>
+      <KindRow kind="bill" onChange={onSwitchToBooking} />
+      <p style={{ color: 'var(--text-secondary)' }}>Pick who paid and how to split it.</p>
       {draft.warnings.length > 0 && (
         <ul aria-label="Check these details" className="flex list-disc flex-col gap-1 pl-5" style={{ color: 'var(--accent)' }}>
           {draft.warnings.map((warning) => <li key={warning}>{BILL_WARNING_MESSAGES[warning]}</li>)}
         </ul>
       )}
       <p style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Not ready? Cancel, and the bill waits in Trip documents until you split it.</p>
-      <button type="button" onClick={onSwitchToBooking} className="self-start" style={{ color: 'var(--text-secondary)' }}>This is a booking, not a bill</button>
     </div>
   )
 }

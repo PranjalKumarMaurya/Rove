@@ -2,6 +2,7 @@ import { type ChangeEvent, type FormEvent, type ReactNode, useEffect, useRef, us
 import { NeonBtn } from '../../components/ui/NeonBtn'
 import { NeonInput } from '../../components/ui/NeonInput'
 import { formatMoney, minorUnits, parseAmount } from '../split/money'
+import { KindRow } from './KindRow'
 import {
   EVENT_TYPES, EVENT_TYPE_LABELS, WARNING_MESSAGES, type AudienceChoice, type EventDraft, type EventForm, type EventInput, type FormErrors,
   audienceHint, audienceMismatch, defaultAddToSplit, draftToForm, formToEventInput, initialAudience,
@@ -83,6 +84,7 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
     <section data-testid="scan-review" aria-label="Review booking" className="surface px-4 py-5">
       <h2 ref={headingRef} tabIndex={-1} className="serif-display outline-none" style={{ color: 'var(--text-primary)', fontSize: 25 }}>Review booking</h2>
       <p className="mt-1 truncate" style={{ color: 'var(--text-secondary)', fontSize: 13 }}>From {fileName}</p>
+      {onSwitchToBill && <div className="mt-3"><KindRow kind="booking" onChange={onSwitchToBill} disabled={saving} /></div>}
       {notice && <p role="status" className="mt-3 rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>{notice}</p>}
       {draft.warnings.length > 0 && (
         <ul aria-label="Check these details" className="mt-3 flex list-disc flex-col gap-1 pl-5 text-sm" style={{ color: 'var(--accent)' }}>
@@ -204,7 +206,6 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
         <NeonBtn type="submit" disabled={saving} className="w-full">{saving ? 'Adding…' : addToSplit ? 'Add to itinerary and split' : 'Add to itinerary'}</NeonBtn>
         <div className="flex flex-wrap justify-between gap-3">
           <button type="button" onClick={onCancel} disabled={saving} style={{ color: 'var(--text-secondary)' }}>{cancelLabel}</button>
-          {onSwitchToBill && <button type="button" onClick={onSwitchToBill} disabled={saving} style={{ color: 'var(--text-secondary)' }}>This is a bill, not a booking</button>}
           {onRetryRead && <button type="button" onClick={onRetryRead} disabled={saving} style={{ color: 'var(--text-secondary)' }}>Try reading again</button>}
         </div>
       </form>
