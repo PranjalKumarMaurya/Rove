@@ -1,5 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
-import { TEST_PASSWORD, createTrip, goToTrips, openProfile, openTrip, signUp, tripsHome, workspace } from '../support/trip-frame'
+import {
+  TEST_PASSWORD, backToTrip, createTrip, goToTrips, openProfile, openSettings, openTodos, openTrip, openTripTab, signUp, tripSettings, tripsHome,
+  workspace,
+} from '../support/trip-frame'
 
 // Real stack (npm run test:home:live): Trips home, Profile, Trip settings, and
 // domestic vs International Trips, with two signed-up accounts.
@@ -109,8 +112,8 @@ test('Trips home, Profile, Trip settings and domestic vs International Trips', a
     await createTrip(owner, { name: 'Goa weekend', destination: 'Goa', startDate: day(5), endDate: day(8) })
 
     // A domestic Trip has no FX tab and no currency choice in Split.
-    await expect(tabs(owner)).toHaveText(['Trip', 'Todos', 'Split', 'Scan', 'Crew'])
-    await owner.getByRole('tab', { name: 'Split' }).click()
+    await expect(tabs(owner)).toHaveText(['Trip', 'Split', 'Scan', 'Chat'])
+    await openTripTab(owner, 'Split')
     await expect(owner.getByTestId('split-currency')).toHaveText('AMOUNTS IN SGD')
     await owner.getByRole('button', { name: 'Add expense' }).click()
     let form = owner.getByRole('dialog', { name: 'Add expense' })
@@ -121,9 +124,12 @@ test('Trips home, Profile, Trip settings and domestic vs International Trips', a
     await form.getByRole('button', { name: 'Save expense' }).click()
     await expect(form).toHaveCount(0)
 
-    // ---- Trip settings (Owner) -----------------------------------------------
+    // ---- Trip settings (Owner): a full screen above the Trip ---------------------
+    await openTripTab(owner, 'Scan')
     await workspace(owner).getByRole('button', { name: 'Trip settings' }).click()
-    const settings = owner.getByTestId('trip-settings-sheet')
+    const settings = tripSettings(owner)
+    await expect(settings.getByRole('heading', { level: 1 })).toHaveText('Settings')
+    await expect(settings.getByRole('heading', { level: 2 })).toHaveText(['Trip details', 'People', 'Invite', 'Danger zone'])
     await expect(settings.getByLabel('Trip name')).toHaveValue('Goa weekend')
     await settings.getByLabel('Trip name').fill('Goa long weekend')
     await settings.getByLabel('End date').fill(day(9))
@@ -134,64 +140,45 @@ test('Trips home, Profile, Trip settings and domestic vs International Trips', a
     await settings.getByRole('button', { name: 'More options' }).click()
     await settings.getByLabel('Also show amounts in').selectOption('INR')
     await settings.getByRole('button', { name: 'Save changes' }).click()
-    await expect(settings).toHaveCount(0)
+    // Saved in place; the screen stays, and its header follows the new name.
+    await expect(settings.locator('header')).toContainText('Goa long weekend · Owner')
+    await expect(settings.getByRole('button', { name: 'Save changes' })).toBeEnabled()
+    // Back returns to the Trip on the tab it was showing (Scan), with the new name and FX.
+    await settings.getByRole('button', { name: 'Back to Goa long weekend' }).click()
     await expect(workspace(owner).getByRole('heading', { name: 'Goa long weekend', exact: true })).toBeVisible()
-    await expect(tabs(owner)).toHaveText(['Trip', 'Todos', 'Split', 'Scan', 'FX', 'Crew'])
+    await expect(owner.getByRole('tab', { name: 'Scan', exact: true })).toHaveAttribute('aria-selected', 'true')
+    await expect(tabs(owner)).toHaveText(['Trip', 'Split', 'Scan', 'Chat', 'FX'])
+    // The system back gesture steps back from a pushed screen too.
+    await openTodos(owner)
+    await owner.goBack()
+    await expect(workspace(owner)).toBeVisible()
+    await expect(owner.getByTestId('trip-todos')).toHaveCount(0)
 
-    // ---- On a phone: nothing slides sideways, no scroll bars, sheets drag down -------
+    // ---- On a phone: nothing slides sideways, no scroll bars --------------------
     const desktopSize = owner.viewportSize()
     await owner.setViewportSize({ width: 390, height: 844 })
     const noSidewaysOverflow = async (label: string) => {
       const widths = await owner.evaluate(() => ({ page: document.documentElement.scrollWidth, screen: window.innerWidth }))
       expect(widths.page, `${label}: page wider than the screen`).toBeLessThanOrEqual(widths.screen)
     }
-    for (const tab of ['Trip', 'Todos', 'Split', 'Scan', 'FX', 'Crew']) {
-      await owner.getByRole('tab', { name: tab }).click()
+    for (const tab of ['Trip', 'Split', 'Scan', 'Chat', 'FX']) {
+      await openTripTab(owner, tab)
       await noSidewaysOverflow(tab)
     }
-    await workspace(owner).getByRole('button', { name: 'Trip settings' }).click()
-    const sheet = owner.getByTestId('trip-settings-sheet')
-    await expect(sheet.getByLabel('Trip name')).toBeVisible()
-    // The page behind is locked; the sheet scrolls only up and down, with no visible scroll bar.
-    await expect(owner.locator('body')).toHaveAttribute('data-scroll-locked', 'true')
-    const sheetBox = await sheet.evaluate((element) => ({
-      scrollWidth: element.scrollWidth, clientWidth: element.clientWidth,
-      overflowX: getComputedStyle(element).overflowX, scrollbar: getComputedStyle(element).scrollbarWidth,
-    }))
-    expect(sheetBox.scrollWidth).toBeLessThanOrEqual(sheetBox.clientWidth)
-    expect(sheetBox.overflowX).toBe('hidden')
-    expect(sheetBox.scrollbar).toBe('none')
-    // Both date fields sit inside the sheet.
+    await openTodos(owner)
+    await noSidewaysOverflow('To-dos')
+    await openSettings(owner)
+    await noSidewaysOverflow('Settings')
+    // Both date fields sit inside their card, on the 20px gutter.
     for (const name of ['Start date', 'End date']) {
-      const field = await sheet.getByLabel(name).boundingBox()
-      const frame = await sheet.boundingBox()
-      expect(field && frame && field.x + field.width <= frame.x + frame.width + 0.5, `${name} inside the sheet`).toBe(true)
+      const field = await settings.getByLabel(name).boundingBox()
+      expect(field && field.x >= 20 && field.x + field.width <= 390 - 20 + 0.5, `${name} inside the gutter`).toBe(true)
     }
-    const handle = sheet.getByTestId('sheet-drag-handle')
-    // Measure once the sheet has finished sliding up.
-    await sheet.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)))
-    const grip = await handle.boundingBox()
-    if (!grip) throw new Error('no-sheet-handle')
-    const startX = grip.x + 40
-    const startY = grip.y + grip.height / 2
-    // A small pull springs back.
-    await owner.mouse.move(startX, startY)
-    await owner.mouse.down()
-    await owner.mouse.move(startX, startY + 30, { steps: 5 })
-    await owner.mouse.up()
-    await expect(sheet).toBeVisible()
-    await expect.poll(() => sheet.evaluate((element) => element.style.transform)).toBe('')
-    // Pulling the handle well down closes it, and the page is unlocked again.
-    await owner.mouse.move(startX, startY)
-    await owner.mouse.down()
-    await owner.mouse.move(startX, startY + 220, { steps: 12 })
-    await owner.mouse.up()
-    await expect(sheet).toHaveCount(0)
-    await expect(owner.locator('body')).not.toHaveAttribute('data-scroll-locked', /.*/u)
+    await backToTrip(owner)
     if (desktopSize) await owner.setViewportSize(desktopSize)
 
     // International now: Split offers other currencies.
-    await owner.getByRole('tab', { name: 'Split' }).click()
+    await openTripTab(owner, 'Split')
     await owner.getByRole('button', { name: 'Add expense' }).click()
     form = owner.getByRole('dialog', { name: 'Add expense' })
     await expect(form.getByLabel('Currency')).toHaveValue('SGD')
@@ -211,7 +198,7 @@ test('Trips home, Profile, Trip settings and domestic vs International Trips', a
 
     // ---- A friend joins by pasting the invite link on her empty home ------------
     await openTrip(owner, 'Goa long weekend')
-    await owner.getByRole('tab', { name: 'Crew' }).click()
+    await openSettings(owner)
     await owner.getByLabel('Friend’s email').fill('farah-home@example.test')
     await owner.getByRole('button', { name: 'Create link' }).click()
     const link = await owner.getByLabel('Invitation link').inputValue()
@@ -229,16 +216,75 @@ test('Trips home, Profile, Trip settings and domestic vs International Trips', a
     await expect(workspace(friend).getByRole('heading', { name: 'Goa long weekend', exact: true })).toBeVisible()
 
     // A Member sees read-only Trip details, never the settings form.
-    await workspace(friend).getByRole('button', { name: 'Trip details' }).click()
-    const details = friend.getByTestId('trip-settings-sheet')
+    await openSettings(friend)
+    const details = tripSettings(friend)
     await expect(details.getByTestId('trip-details')).toContainText('Goa long weekend')
     await expect(details.getByTestId('trip-details')).toContainText('Also shown in')
     await expect(details.getByTestId('trip-details')).toContainText('INR')
     await expect(details.getByRole('textbox')).toHaveCount(0)
     await expect(details.getByRole('button', { name: 'Save changes' })).toHaveCount(0)
-    await details.getByRole('button', { name: 'Close' }).click()
+    // The invite link is off until the Owner turns it on.
+    await expect(friend.getByTestId('join-link-card')).toContainText('The Owner has turned off the invite link.')
+    await expect(friend.getByRole('switch', { name: 'Anyone with the link can join' })).toHaveCount(0)
     await goToTrips(friend)
     await expect(card(friend, 'Goa long weekend')).toHaveAccessibleDescription(/Member · 2 people/u)
+
+    // ---- Invite link: anyone with the link can join --------------------------------
+    await openSettings(owner)
+    const linkCard = owner.getByTestId('join-link-card')
+    await expect(linkCard).toContainText('Turn on to share one link anyone can use.')
+    await linkCard.getByRole('switch', { name: 'Anyone with the link can join' }).click()
+    await expect(linkCard.getByRole('switch', { name: 'Anyone with the link can join' })).toHaveAttribute('aria-checked', 'true')
+    const joinUrl = (await linkCard.getByTestId('join-link-url').innerText()).trim()
+    expect(new URL(joinUrl).hash).toMatch(/^#join=[0-9a-f]{64}$/u)
+    await expect(linkCard.getByRole('button', { name: 'Copy' })).toBeVisible()
+    await expect(linkCard.getByRole('button', { name: 'Share' })).toBeVisible()
+    // A Member sees the same link, with Copy and Share but no switch or reset.
+    await openTrip(friend, 'Goa long weekend')
+    await openSettings(friend)
+    await expect(friend.getByTestId('join-link-url')).toHaveText(joinUrl)
+    await expect(friend.getByTestId('join-link-card').getByRole('button', { name: 'Reset link' })).toHaveCount(0)
+    await goToTrips(friend)
+
+    // Gita, with no account, pastes the link on her empty home, signs up and joins.
+    const gitaContext = await browser.newContext()
+    try {
+      const gita = await gitaContext.newPage()
+      await gita.goto(joinUrl)
+      await expect(gita.getByTestId('join-entry')).toContainText('Join Goa long weekend?')
+      await gita.getByRole('button', { name: 'Continue', exact: true }).click()
+      await signUp(gita, 'Gita Guest', 'gita-home@example.test')
+      // The pending link survived sign-up: confirm, then the Trip opens.
+      await expect(gita.getByTestId('join-entry')).toContainText('Join Goa long weekend?')
+      await expect(gita.getByTestId('join-entry')).toContainText('Goa ·')
+      await gita.getByRole('button', { name: 'Join trip' }).click()
+      await expect(workspace(gita).getByRole('heading', { name: 'Goa long weekend', exact: true })).toBeVisible()
+      await expect(workspace(gita)).toContainText('Goa · Member')
+
+      // The Owner resets the link: the old one says it is off, also when pasted on the home.
+      await linkCard.getByRole('button', { name: 'Reset link' }).click()
+      const reset = owner.getByTestId('reset-join-link-sheet')
+      await reset.getByRole('button', { name: 'Reset link' }).click()
+      await expect(reset.getByRole('status')).toContainText('The old link no longer works')
+      await reset.getByRole('button', { name: 'Done' }).click()
+      await expect(linkCard.getByTestId('join-link-url')).not.toHaveText(joinUrl)
+      const stranger = await gitaContext.newPage()
+      await stranger.goto('/')
+      await expect(tripsHome(stranger)).toBeVisible()
+      await stranger.getByRole('button', { name: 'Join with an invite link' }).click()
+      await stranger.getByLabel('Have an invite link?').fill(`Come along: ${joinUrl}`)
+      await stranger.getByRole('button', { name: 'Open invite' }).click()
+      await expect(stranger.getByTestId('join-entry')).toContainText('This invite link is off. Ask the Trip Owner for a new one.')
+      await stranger.getByRole('button', { name: 'Go to my Trips' }).click()
+      await expect(tripsHome(stranger)).toBeVisible()
+
+      // Off again: the Owner's card asks to turn it on.
+      await linkCard.getByRole('switch', { name: 'Anyone with the link can join' }).click()
+      await expect(linkCard).toContainText('Turn on to share one link anyone can use.')
+    } finally {
+      await gitaContext.close()
+    }
+    await goToTrips(owner)
 
     // ---- Delete account -------------------------------------------------------------
     // Olive is the only Owner of her Trips, so she is told to hand over first.
@@ -265,11 +311,12 @@ test('Trips home, Profile, Trip settings and domestic vs International Trips', a
 
     await goToTrips(owner)
     await openTrip(owner, 'Goa long weekend')
-    await owner.getByRole('tab', { name: 'Crew' }).click()
+    await openSettings(owner)
     await owner.getByRole('button', { name: 'Refresh crew' }).click()
     await expect(owner.getByRole('list', { name: 'Trip members' })).not.toContainText('Farah Friend')
     await goToTrips(owner)
-    await expect(card(owner, 'Goa long weekend')).toHaveAccessibleDescription(/Owner · 1 person/u)
+    // Gita, who joined by link, is still in.
+    await expect(card(owner, 'Goa long weekend')).toHaveAccessibleDescription(/Owner · 2 people/u)
 
     // ---- Sign out from Profile, sign in with the new password --------------------
     await openProfile(owner)

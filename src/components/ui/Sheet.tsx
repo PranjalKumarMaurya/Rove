@@ -191,7 +191,7 @@ export function Sheet({ title, onClose, testId, children }: {
         onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd}>
         <div className="sheet__grabber" aria-hidden="true" />
         <div className="sheet__head">
-          <h2 id={titleId} ref={heading} tabIndex={-1} className="sheet__title serif-display min-w-0 flex-1 truncate" style={{ fontSize: 22 }}>{title}</h2>
+          <h2 id={titleId} ref={heading} tabIndex={-1} className="sheet__title t-title2 min-w-0 flex-1 truncate">{title}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="close-x">
             <IconClose />
           </button>

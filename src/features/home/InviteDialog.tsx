@@ -6,7 +6,7 @@ import { Collapse } from '../../components/ui/Collapse'
 import { NeonInput } from '../../components/ui/NeonInput'
 import { useTriggerOrigin } from '../../components/ui/motion'
 import { lockBodyScroll } from '../../hooks/useBodyScrollLock'
-import { inviteProofFromInput } from './tripGrouping'
+import { type PastedTripLink, tripLinkFromInput } from './tripGrouping'
 import './home.css'
 
 /** The close transition (home.css): card 160ms, backdrop 150ms. */
@@ -28,8 +28,8 @@ export function InviteDialog({ open, onClose, onInvite, triggerRef }: {
   onClose: () => void
   /** The control that opens it; the card grows from and returns to it. */
   triggerRef?: RefObject<HTMLElement | null>
-  /** A valid invite proof from the pasted link. */
-  onInvite: (proof: string) => void
+  /** A valid invitation or join link from what was pasted. */
+  onInvite: (link: PastedTripLink) => void
 }) {
   const [mounted, setMounted] = useState(open)
   const [shown, setShown] = useState(false)
@@ -55,7 +55,7 @@ function InviteDialogCard({ shown, open, onClose, onInvite, triggerRef }: {
   shown: boolean
   open: boolean
   onClose: () => void
-  onInvite: (proof: string) => void
+  onInvite: (link: PastedTripLink) => void
   triggerRef?: RefObject<HTMLElement | null>
 }) {
   const [value, setValue] = useState('')
@@ -93,9 +93,9 @@ function InviteDialogCard({ shown, open, onClose, onInvite, triggerRef }: {
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const proof = inviteProofFromInput(value)
+    const link = tripLinkFromInput(value)
     if (action.status === 'busy') return
-    if (!proof) {
+    if (!link) {
       setError(INVALID_LINK)
       action.fail()
       return
@@ -103,7 +103,7 @@ function InviteDialogCard({ shown, open, onClose, onInvite, triggerRef }: {
     setError(undefined)
     // "Opening…" for a beat, so the press visibly lands before the invitation screen takes over.
     action.busy()
-    window.setTimeout(() => onInvite(proof), 260)
+    window.setTimeout(() => onInvite(link), 260)
   }
 
   const paste = async () => {
@@ -125,7 +125,7 @@ function InviteDialogCard({ shown, open, onClose, onInvite, triggerRef }: {
         <form noValidate onSubmit={submit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5 pr-8">
             <label htmlFor="invite-link" className="invite-dialog__title">Have an invite link?</label>
-            <p id={messageId} className="field-hint" style={{ fontSize: 13 }}>Paste the link a friend sent you to join their Trip.</p>
+            <p id={messageId} className="field-hint t-footnote">Paste the invite link or Trip link a friend sent you to join their Trip.</p>
           </div>
           <div className="flex flex-col gap-1.5">
             <div className="relative">
@@ -133,13 +133,13 @@ function InviteDialogCard({ shown, open, onClose, onInvite, triggerRef }: {
                 onChange={(event) => { setValue(event.target.value); setError(undefined); if (action.status === 'error') action.reset() }}
                 aria-describedby={error ? `${messageId} invite-link-error` : messageId} aria-invalid={error ? true : undefined}
                 placeholder="Paste invite link" autoComplete="off" autoCapitalize="off" spellCheck={false} inputMode="url"
-                enterKeyHint="go" style={{ fontSize: 16, minHeight: 48, paddingRight: canPaste ? 76 : undefined }} />
+                enterKeyHint="go" style={{ minHeight: 48, paddingRight: canPaste ? 'calc(28px + 3.4em)' : undefined }} />
               {canPaste && (
                 <button type="button" className="invite-dialog__paste" onClick={() => { void paste() }}>Paste</button>
               )}
             </div>
             <Collapse open={Boolean(error)} gap={6}>
-              <p id="invite-link-error" className="field-error">{error}</p>
+              <p id="invite-link-error" className="field-error t-footnote">{error}</p>
             </Collapse>
           </div>
           <AsyncButton type="submit" size="lg" className="w-full" status={action.status} busyLabel="Opening…">Open invite</AsyncButton>

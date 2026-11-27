@@ -10,11 +10,12 @@ import { memberName, splitTodos, TODO_TITLE_MAX, validateTodoTitle, type TripTod
 import { addTodo, clearCompleted, deleteTodo, renameTodo, setTodoDone, useTripTodos } from './tripTodosApi'
 
 const smallButton: CSSProperties = {
-  fontSize: 12, color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px', flexShrink: 0,
+  fontSize: 'var(--type-footnote)', lineHeight: 'var(--lh-footnote)', fontWeight: 'var(--w-medium)', whiteSpace: 'nowrap',
+  color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px', flexShrink: 0,
 }
 /** Border and background come from `.m-input` (motion.css), so focus eases them in. */
 const inputStyle: CSSProperties = {
-  color: 'var(--text-primary)', borderRadius: 12, padding: '10px 14px', fontSize: 14, outline: 'none', minWidth: 0,
+  color: 'var(--text-primary)', borderRadius: 12, padding: '10px 14px', fontSize: 'var(--type-field)', outline: 'none', minWidth: 0,
 }
 
 const foldGap = { '--fold-gap': '8px' } as CSSProperties
@@ -22,6 +23,7 @@ const foldGap = { '--fold-gap': '8px' } as CSSProperties
 /** A rename in progress. `from` is the title the user started editing. */
 interface Editing { id: string; from: string; draft: string; conflict: boolean }
 
+/** The Trip's shared to-do list: the content of the To-dos screen (TripTodosScreen.tsx). */
 export function TodosTab({ trip, roster }: TripTabProps) {
   const { todos, loading, error, live, reload, patchLocal } = useTripTodos(trip.groupId)
   const [editing, setEditing] = useState<Editing | null>(null)
@@ -117,53 +119,52 @@ export function TodosTab({ trip, roster }: TripTabProps) {
   }
 
   return (
-    <section data-testid="todos-tab" className="flex flex-col gap-6">
-      <div className="surface px-4 py-5">
+    <section data-testid="todos-tab" aria-label="To-dos" className="flex flex-col gap-6">
+      <div className="surface settings-card">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 25 }}>Todos</h2>
+          <p className="t-callout min-w-0" style={{ color: 'var(--text-secondary)' }}>One shared list for everyone in this Trip.</p>
           <LiveBadge status={live} />
         </div>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>One shared list for everyone in this Trip.</p>
         <AddTodo onAdd={(title) => addTodo(trip.groupId, trip.groupMemberId, title).finally(() => void reload())} />
       </div>
 
       <Collapse open={Boolean(failure)} gap={24}>
-        <p role="alert" className="surface px-3.5 py-3 text-sm" style={{ color: 'var(--accent)' }}>{failure}</p>
+        <p role="alert" className="surface px-3.5 py-3 t-callout" style={{ color: 'var(--accent)' }}>{failure}</p>
       </Collapse>
       <Collapse open={Boolean(notice)} gap={24}>
-        <p role="status" className="surface px-3.5 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <p role="status" className="surface px-3.5 py-3 t-callout" style={{ color: 'var(--text-secondary)' }}>
           {notice} <button type="button" onClick={() => setNotice(null)} style={{ color: 'var(--accent)' }}>Dismiss</button>
         </p>
       </Collapse>
       <Collapse open={Boolean(error)} gap={24}>
-        <p role="alert" className="surface px-3.5 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <p role="alert" className="surface px-3.5 py-3 t-callout" style={{ color: 'var(--text-secondary)' }}>
           Could not load the list. <button type="button" onClick={() => void reload()} style={{ color: 'var(--accent)' }}>Try again</button>
         </p>
       </Collapse>
 
       <Swap id={loading ? 'loading' : !error && todos.length === 0 ? 'empty' : 'list'}>
       {loading ? (
-        <p role="status" className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Loading todos…</p>
+        <p role="status" className="t-callout" style={{ color: 'var(--text-tertiary)' }}>Loading to-dos…</p>
       ) : !error && todos.length === 0 ? (
         <div className="m-appear px-1" data-testid="todos-empty">
-          <p className="serif-display" style={{ color: 'var(--text-secondary)', fontSize: 19 }}>Nothing on the list yet.</p>
-          <p className="mt-1 text-sm" style={{ color: 'var(--text-tertiary)' }}>Add what the group needs to sort out before or during the Trip.</p>
+          <p className="t-title3 t-voice" style={{ color: 'var(--text-secondary)' }}>Nothing on the list yet.</p>
+          <p className="mt-1 t-callout" style={{ color: 'var(--text-tertiary)' }}>Add what the group needs to sort out before or during the Trip.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-6">
           <section aria-labelledby="todos-open-heading">
-            <p id="todos-open-heading" className="font-mono mb-2.5" style={{ color: 'var(--accent)', fontSize: 11, letterSpacing: '0.12em' }}>TO DO — {open.length}</p>
+            <p id="todos-open-heading" className="t-eyebrow t-num mb-2.5" style={{ color: 'var(--accent)' }}>TO DO — {open.length}</p>
             {open.length === 0
-              ? <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>All done.</p>
+              ? <p className="t-callout" style={{ color: 'var(--text-tertiary)' }}>All done.</p>
               : <ul aria-label="Open todos" className="m-list flex flex-col gap-2" style={foldGap}>
                 {openRows.entries.map(({ item, leaving }) => <TodoRow key={item.id} leaving={leaving} {...rowProps(item)} />)}
               </ul>}
           </section>
           <Collapse open={done.length > 0} gap={24}>
             <section aria-labelledby="todos-done-heading">
-              <div className="mb-2.5 flex items-center justify-between">
-                <p id="todos-done-heading" className="font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 11, letterSpacing: '0.12em' }}>DONE — {done.length}</p>
-                <button type="button" disabled={clearing} onClick={() => void clearDone()} className="text-xs underline" style={{ color: 'var(--text-tertiary)' }}>
+              <div className="mb-2.5 flex items-center justify-between gap-3">
+                <p id="todos-done-heading" className="t-eyebrow t-num" style={{ color: 'var(--text-tertiary)' }}>DONE — {done.length}</p>
+                <button type="button" disabled={clearing} onClick={() => void clearDone()} className="t-footnote t-medium min-h-11 shrink-0" style={{ color: 'var(--text-secondary)' }}>
                   {clearing ? 'Clearing…' : 'Clear completed'}
                 </button>
               </div>
@@ -212,18 +213,18 @@ function AddTodo({ onAdd }: { onAdd: (title: string) => Promise<void> }) {
   }
 
   return (
-    <form onSubmit={(event) => void submit(event)} aria-label="Add a todo" className="mt-4 flex flex-col gap-1.5">
+    <form onSubmit={(event) => void submit(event)} aria-label="Add a todo" className="flex flex-col gap-1.5">
       <div className="flex gap-2">
         {/* Never disabled while saving: disabling would drop keyboard focus. */}
         <input aria-label="New todo" value={draft} maxLength={TODO_TITLE_MAX} placeholder="Book the airport transfer…"
           onChange={(event) => { setDraft(event.target.value); if (error) setError(null) }} className="m-input flex-1" style={inputStyle} />
-        <button type="submit" className="m-press rounded-xl px-4 text-sm" aria-busy={action.status === 'busy' || undefined}
-          style={{ background: 'var(--accent)', color: '#1A0A03', fontWeight: 600 }}>
+        <button type="submit" className="m-press shrink-0 whitespace-nowrap rounded-xl px-4 t-callout" aria-busy={action.status === 'busy' || undefined}
+          style={{ background: 'var(--accent)', color: '#1A0A03', fontWeight: 'var(--w-semibold)' }}>
           <AsyncLabel status={action.status} busyLabel="Adding…" doneLabel="Added">Add todo</AsyncLabel>
         </button>
       </div>
       <Collapse open={Boolean(error)} gap={6}>
-        <p role="alert" className="text-xs" style={{ color: 'var(--accent)' }}>{error}</p>
+        <p role="alert" className="t-footnote" style={{ color: 'var(--accent)' }}>{error}</p>
       </Collapse>
     </form>
   )
@@ -260,10 +261,10 @@ function TodoRow({ todo, attribution, editing, onToggle, onStartRename, onDraft,
             <button type="button" onClick={onCancelRename} className="m-press" style={smallButton}>Cancel</button>
           </div>
           {changedElsewhere && !editing.conflict && (
-            <p role="status" className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Someone else changed this to “{todo.title}”.</p>
+            <p role="status" className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>Someone else changed this to “{todo.title}”.</p>
           )}
           {editing.conflict && (
-            <div role="alert" className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <div role="alert" className="t-footnote" style={{ color: 'var(--text-secondary)' }}>
               Not saved: someone else changed this to “{todo.title}”. Your text is kept.
               <div className="mt-1.5 flex gap-2">
                 <button type="button" onClick={() => onSaveRename(todo.title)} style={smallButton}>Save mine anyway</button>
@@ -277,7 +278,7 @@ function TodoRow({ todo, attribution, editing, onToggle, onStartRename, onDraft,
           <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
             {/* Native checkbox, restyled so its tick can draw itself in (motion.css). */}
             <Checkbox checked={todo.done} onChange={(event) => onToggle(event.target.checked)} />
-            <span className="todo-text min-w-0 break-words text-sm" style={{
+            <span className="todo-text min-w-0 break-words t-callout" style={{
               color: todo.done ? 'var(--text-tertiary)' : 'var(--text-primary)', textDecoration: todo.done ? 'line-through' : 'none',
             }}>{todo.title}</span>
           </label>
@@ -285,7 +286,7 @@ function TodoRow({ todo, attribution, editing, onToggle, onStartRename, onDraft,
           <button type="button" aria-label={`Delete ${todo.title}`} onClick={() => void onDelete()} className="m-press" style={smallButton}>Delete</button>
         </div>
       )}
-      {!editing && <p className="font-mono mt-1 pl-[30px]" data-testid="todo-attribution" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.06em' }}>{attribution}</p>}
+      {!editing && <p className="t-footnote mt-1 pl-[30px]" data-testid="todo-attribution" style={{ color: 'var(--text-tertiary)' }}>{attribution}</p>}
       </div></div>
     </li>
   )

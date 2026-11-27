@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
-import { fillAndCreateTrip } from '../support/trip-frame'
+import { fillAndCreateTrip, openSettings } from '../support/trip-frame'
 
 test.skip(process.env.TRIP_LIVE_JOURNEY !== '1' || process.env.TRIP_VERIFY_EMAIL !== '1',
   'requires disposable local Supabase stack with mailbox confirmation')
@@ -63,7 +63,7 @@ test('verification emails return Owner and invited friend to the right journey',
     await expect(owner.getByTestId('trips-empty')).toBeVisible()
     await owner.getByRole('button', { name: 'Create your first Trip' }).click()
     await fillAndCreateTrip(owner, { name: 'Verified Goa', destination: 'Goa' })
-    await owner.getByRole('tab', { name: 'Crew' }).click()
+    await openSettings(owner)
     await owner.getByLabel('Friend’s email').fill(friendEmail)
     await owner.getByRole('button', { name: 'Create link' }).click()
     const invitationLink = await owner.getByLabel('Invitation link').inputValue()

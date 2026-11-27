@@ -168,8 +168,8 @@ test('IR-003 sends only the frozen RPC arguments and renders terminal ONB-06 Sta
   await expect(page.getByTestId('bootstrap-success-state-a').getByText('Trip created')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Northern lights' })).toBeVisible()
   await expect(page.getByTestId('bootstrap-success-state-a')).toContainText('Tromsø · 11–18 Jan 2027')
-  // No invitation is created with the Trip; friends are invited later from the Crew tab.
-  await expect(page.getByText('Invite friends from the Crew tab when you’re ready.')).toBeVisible()
+  // No invitation is created with the Trip; friends are invited later from the Trip’s Settings.
+  await expect(page.getByText('Invite friends from the Trip’s Settings when you’re ready.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Open Trip' })).toBeVisible()
   await expect(page.getByText(/copy|share|join|recipient|group/i)).toHaveCount(0)
 })

@@ -1,0 +1,134 @@
+/* ─── Type system (docs/TYPOGRAPHY.md) ──────────────────────────────────────
+   One scale for the whole app. Every size and line height multiplies by
+   --text-scale (Profile › Text size, src/lib/textSize.ts), and every weight adds
+   --weight-boost (Profile › Bold text). Components use the .t-* classes below,
+   or the --type-* / --lh-* / --w-* tokens in their own CSS, never raw pixel sizes.
+
+   Floors and ceilings:
+   - nothing under 11px at the smallest step (12px at the default);
+   - fields never under 16px, so iPhone Safari does not zoom on focus;
+   - display and title1 are capped so screen titles do not explode at the largest step. */
+:root {
+  --text-scale: 1;
+  --weight-boost: 0;
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Weights: 400 / 500 / 600 only; Bold text adds 100 (variable fonts, so 500/600/700 are smooth). */
+  --w-regular: calc(400 + var(--weight-boost));
+  --w-medium: calc(500 + var(--weight-boost));
+  --w-semibold: calc(600 + var(--weight-boost));
+
+  /* Size / line height per role. */
+  --type-display: min(40px, calc(34px * var(--text-scale)));
+  --lh-display: min(46px, calc(40px * var(--text-scale)));
+  --type-title1: min(33px, calc(28px * var(--text-scale)));
+  --lh-title1: min(39px, calc(34px * var(--text-scale)));
+  --type-title2: calc(22px * var(--text-scale));
+  --lh-title2: calc(28px * var(--text-scale));
+  --type-title3: calc(19px * var(--text-scale));
+  --lh-title3: calc(25px * var(--text-scale));
+  --type-headline: calc(17px * var(--text-scale));
+  --lh-headline: calc(22px * var(--text-scale));
+  --type-body: calc(16px * var(--text-scale));
+  --lh-body: calc(24px * var(--text-scale));
+  --type-callout: calc(15px * var(--text-scale));
+  --lh-callout: calc(21px * var(--text-scale));
+  --type-footnote: max(12px, calc(13px * var(--text-scale)));
+  --lh-footnote: max(17px, calc(18px * var(--text-scale)));
+  --type-caption: max(11px, calc(12px * var(--text-scale)));
+  --lh-caption: max(15px, calc(16px * var(--text-scale)));
+  --type-eyebrow: max(11px, calc(12px * var(--text-scale)));
+  --lh-eyebrow: max(15px, calc(16px * var(--text-scale)));
+
+  /* Text in fields: body size, never under 16px (no iOS zoom). */
+  --type-field: max(16px, var(--type-body));
+  /* Bottom nav and tab bar labels: grow a little, but capped so they never wrap. */
+  --type-nav: min(13px, var(--type-caption));
+  --lh-nav: min(16px, var(--lh-caption));
+}
+
+/* body and <strong> use these tokens in global.css (after Tailwind's base). */
+
+/* ─── Roles ─────────────────────────────────────────────────────────────── */
+/* Fraunces: optical size follows the font size; a little softness for warmth. */
+.t-display, .t-title1, .t-title2, .t-title3 {
+  font-family: var(--font-display);
+  font-weight: var(--w-medium);
+  font-style: normal;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 50;
+  letter-spacing: -0.02em;
+  text-transform: none;
+}
+.t-display { font-size: var(--type-display); line-height: var(--lh-display); font-variation-settings: "opsz" 72, "SOFT" 50; letter-spacing: -0.025em; }
+.t-title1  { font-size: var(--type-title1); line-height: var(--lh-title1); }
+.t-title2  { font-size: var(--type-title2); line-height: var(--lh-title2); letter-spacing: -0.015em; }
+.t-title3  { font-size: var(--type-title3); line-height: var(--lh-title3); letter-spacing: -0.01em; }
+
+.t-headline, .t-body, .t-callout, .t-footnote, .t-caption, .t-eyebrow {
+  font-family: var(--font-ui);
+  font-style: normal;
+  letter-spacing: -0.005em;
+}
+.t-headline { font-size: var(--type-headline); line-height: var(--lh-headline); font-weight: var(--w-semibold); letter-spacing: -0.01em; }
+.t-body     { font-size: var(--type-body); line-height: var(--lh-body); font-weight: var(--w-regular); }
+.t-callout  { font-size: var(--type-callout); line-height: var(--lh-callout); font-weight: var(--w-regular); }
+.t-footnote { font-size: var(--type-footnote); line-height: var(--lh-footnote); font-weight: var(--w-regular); letter-spacing: 0; }
+.t-caption  { font-size: var(--type-caption); line-height: var(--lh-caption); font-weight: var(--w-medium); letter-spacing: 0.005em; }
+.t-eyebrow  {
+  font-size: var(--type-eyebrow);
+  line-height: var(--lh-eyebrow);
+  font-weight: var(--w-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  /* Section labels are read, so secondary rather than tertiary; a style can override. */
+  color: var(--text-secondary);
+}
+
+/* Friendly voice only (greetings, "the crew, right now", empty states): Fraunces italic.
+   Combine with a size role, e.g. "t-callout t-voice". */
+.t-voice {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: var(--w-regular);
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 100;
+  letter-spacing: 0;
+}
+
+/* Modifiers: keep the role's size. */
+/* Codes only (PNR, booking refs, flight numbers, UPI IDs): JetBrains Mono, slightly
+   smaller than the text around it because its letters are wider. */
+.t-code {
+  font-family: var(--font-mono);
+  font-size: 0.93em;
+  font-weight: var(--w-medium);
+  font-style: normal;
+  letter-spacing: 0;
+  font-variant-ligatures: none;
+  font-feature-settings: "zero" 1;
+  text-transform: none;
+}
+/* Money, times, dates in lists and counts: Inter's tabular figures. */
+.t-num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1, "cv05" 1, "cv08" 1; }
+/* Weight modifiers that follow Bold text. */
+.t-medium   { font-weight: var(--w-medium); }
+.t-semibold { font-weight: var(--w-semibold); }
+/* Inline links in running text only. */
+.t-link {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--border-strong);
+}
+
+/* Text size preview (Profile): the only place a size change is animated. */
+.text-size-preview, .text-size-preview * {
+  transition: font-size 160ms var(--ease-out, ease-out), line-height 160ms var(--ease-out, ease-out), font-weight 160ms var(--ease-out, ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .text-size-preview, .text-size-preview * { transition: none; }
+}

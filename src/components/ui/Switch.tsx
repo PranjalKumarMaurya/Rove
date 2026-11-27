@@ -19,8 +19,8 @@ export function Switch({ label, hint, checked, onChange, disabled, testId }: {
       aria-describedby={hint ? hintId : undefined} disabled={disabled} data-testid={testId}
       className="switch-row" onClick={() => onChange(!checked)}>
       <span className="min-w-0 flex-1 text-left">
-        <span id={labelId} className="block" style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>{label}</span>
-        {hint && <span id={hintId} className="mt-0.5 block field-hint">{hint}</span>}
+        <span id={labelId} className="block t-callout t-medium" style={{ color: 'var(--text-primary)' }}>{label}</span>
+        {hint && <span id={hintId} className="mt-0.5 block field-hint t-footnote">{hint}</span>}
       </span>
       <span className={`switch-track${checked ? ' is-on' : ''}`} aria-hidden="true"><span className="switch-thumb" /></span>
     </button>

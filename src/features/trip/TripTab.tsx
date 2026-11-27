@@ -73,33 +73,33 @@ export function TripTab({ trip, roster }: TripTabProps) {
 
       <div>
         <div className="flex items-center justify-between gap-3">
-          <h2 className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 25 }}>Itinerary</h2>
+          <h2 className="t-title2 min-w-0" style={{ color: 'var(--text-primary)' }}>Itinerary</h2>
           <NeonBtn type="button" variant="outline" color="#FF8B4D" className="min-h-11 shrink-0" onClick={() => setEditing({ mode: 'add' })}>
             Add event
           </NeonBtn>
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 t-footnote" style={{ color: 'var(--text-tertiary)' }}>
           <span>Times in {timeZoneCity(tripZone)} time{showsLocal ? ` · yours shown below each` : ''}</span>
           <LiveBadge status={live} />
         </div>
 
         <Collapse open={Boolean(notice)}>
-          <p role="status" className="surface mt-4 px-3.5 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <p role="status" className="surface mt-4 px-3.5 py-3 t-callout" style={{ color: 'var(--text-secondary)' }}>
             {notice} <button type="button" onClick={() => setNotice(null)} style={{ color: 'var(--accent)' }}>Dismiss</button>
           </p>
         </Collapse>
         <Collapse open={Boolean(error)}>
-          <p role="alert" className="surface mt-4 px-3.5 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <p role="alert" className="surface mt-4 px-3.5 py-3 t-callout" style={{ color: 'var(--text-secondary)' }}>
             Could not load the itinerary. <button type="button" onClick={() => void reload()} style={{ color: 'var(--accent)' }}>Try again</button>
           </p>
         </Collapse>
         <Swap id={loading ? 'loading' : !error && entries.length === 0 ? 'empty' : 'list'}>
         {loading ? (
-          <p role="status" className="mt-6 text-sm" style={{ color: 'var(--text-tertiary)' }}>Loading itinerary…</p>
+          <p role="status" className="mt-6 t-callout" style={{ color: 'var(--text-tertiary)' }}>Loading itinerary…</p>
         ) : !error && events.length === 0 ? (
           <div className="surface m-appear mt-4 px-4 py-5" data-testid="itinerary-empty">
-            <p className="serif-display" style={{ color: 'var(--text-secondary)', fontSize: 19 }}>Nothing planned yet.</p>
-            <p className="mt-1 text-sm" style={{ color: 'var(--text-tertiary)' }}>Add flights, stays and plans. Everyone in the Trip sees them.</p>
+            <p className="t-title3 t-voice" style={{ color: 'var(--text-secondary)' }}>Nothing planned yet.</p>
+            <p className="mt-1 t-callout" style={{ color: 'var(--text-tertiary)' }}>Add flights, stays and plans. Everyone in the Trip sees them.</p>
           </div>
         ) : (
           <div className="relative mt-4 flex flex-col gap-5" data-testid="itinerary">
@@ -107,7 +107,7 @@ export function TripTab({ trip, roster }: TripTabProps) {
               <section key={day.key} aria-label={day.label} className={day.leaving ? 'm-fold is-leaving' : 'm-fold'}
                 style={{ '--fold-gap': '20px' } as CSSProperties} aria-hidden={day.leaving || undefined}>
                 <div>
-                <p className="serif-eyebrow mb-2" style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{day.label}</p>
+                <p className="t-headline t-num mb-2" style={{ color: 'var(--text-primary)' }}>{day.label}</p>
                 <ol className="flex flex-col gap-3" style={{ '--fold-gap': '12px' } as CSSProperties}>
                   {day.events.map(({ event, leaving }) => (
                     <EventCard key={event.id} leaving={leaving && !day.leaving} index={order.get(event.id) ?? 0} event={event} status={statuses.get(event.id) ?? 'upcoming'}

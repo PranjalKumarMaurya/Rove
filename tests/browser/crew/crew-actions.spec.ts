@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { openTrip } from '../support/trip-frame'
+import { openSettings, openTrip } from '../support/trip-frame'
 
 // UI wiring only: every Auth/Profile/RPC response below is synthetic.
 const localBrowserHost = `127.0.0.1:${process.env.TRIP_WEB_PORT ?? '4173'}`
@@ -53,7 +53,7 @@ async function mockTrip(page: Page, role: 'owner' | 'member', calls: string[]) {
 async function openCrew(page: Page) {
   await page.goto('/')
   await openTrip(page, 'Goa weekend')
-  await page.getByRole('tab', { name: 'Crew' }).click()
+  await openSettings(page)
   await expect(page.getByRole('list', { name: 'Trip members' })).toContainText('Farah Friend')
 }
 
@@ -83,7 +83,7 @@ test('an ambiguous failure retries with the same request id; a new action gets a
   const rosterReads = calls.filter((name) => name === 'get_group_roster').length
   await sheet.getByRole('button', { name: 'Done' }).click()
   await expect(sheet).toHaveCount(0)
-  await expect(page.getByTestId('crew-tab').getByRole('status')).toHaveText('Farah Friend is now an Owner.')
+  await expect(page.getByTestId('crew-section').getByRole('status')).toHaveText('Farah Friend is now an Owner.')
   await expect.poll(() => calls.filter((name) => name === 'get_group_roster').length).toBeGreaterThan(rosterReads)
 
   await page.getByRole('button', { name: 'Manage Farah Friend' }).click()
@@ -121,13 +121,13 @@ test('a Member sees roles but no management, and never requests the invitation l
   const calls: string[] = []
   await mockTrip(page, 'member', calls)
   await openCrew(page)
-  const crew = page.getByTestId('crew-tab')
+  const crew = page.getByTestId('crew-section')
   await expect(crew.getByRole('list', { name: 'Trip members' })).toContainText('Member')
   await expect(crew.getByRole('button', { name: /^Manage / })).toHaveCount(0)
-  await expect(crew.getByRole('button', { name: 'Archive Trip' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Archive Trip' })).toHaveCount(0)
   await expect(crew.getByRole('button', { name: 'Step down to Member' })).toHaveCount(0)
   await expect(page.getByTestId('invite-member')).toHaveCount(0)
   await expect(page.getByTestId('invitation-list')).toHaveCount(0)
-  await expect(crew.getByRole('button', { name: 'Leave Trip' })).toBeVisible()
+  await expect(page.getByTestId('danger-zone').getByRole('button', { name: 'Leave Trip' })).toBeVisible()
   expect(calls).not.toContain('list_group_invitations')
 })

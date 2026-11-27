@@ -63,7 +63,9 @@
     "test:home:live": "node tests/integration/run-home-profile-live.mjs",
     "test:db:backup": "node tests/database/backup/verify-backup-restore.mjs",
     "test:scan:bills:db": "node tests/database/scan/verify-bill-expenses.mjs",
-    "test:scan:private:db": "node tests/database/scan/verify-private-bookings.mjs"
+    "test:scan:private:db": "node tests/database/scan/verify-private-bookings.mjs",
+    "test:chat:db": "node tests/database/chat/verify-trip-messages.mjs",
+    "test:join:db": "node tests/database/invitations/verify-join-links.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

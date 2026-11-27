@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  adjacentTab, entryDepthOf, navDirection, planHistory, previousView, readRoveState, roveState, viewDepth, viewKey, withRoveState,
+  adjacentTab, entryDepthOf, navDirection, planHistory, previousView, readRoveState, roveState, tripOf, viewDepth, viewKey, withRoveState,
   type View,
 } from '../../src/features/auth/navigationHistory.ts'
 import {
@@ -19,6 +19,8 @@ const trip: View = { kind: 'trip', groupId: 'g1' }
 const create: View = { kind: 'create' }
 const profileFromHome: View = { kind: 'profile', from: { kind: 'home' } }
 const profileFromTrip: View = { kind: 'profile', from: { kind: 'trip', groupId: 'g1' } }
+const todos: View = { kind: 'todos', groupId: 'g1' }
+const settings: View = { kind: 'settings', groupId: 'g1' }
 
 test('screens have depths: home 0, Trip/Create/Profile 1, Profile from a Trip 2', () => {
   assert.equal(viewDepth(home), 0)
@@ -113,6 +115,41 @@ test('Trips and Profile-from-home are side-by-side tabs; taps between them slide
   // The history still treats Profile-from-home as one level above the Trips home.
   assert.deepEqual(planHistory(viewDepth(home), viewDepth(adjacentTab(home)!.view)), { kind: 'push', count: 1 })
   assert.deepEqual(planHistory(viewDepth(profileFromHome), viewDepth(adjacentTab(profileFromHome)!.view)), { kind: 'back', count: 1 })
+})
+
+test('a Trip’s To-dos and Settings are full screens one level above that Trip', () => {
+  assert.equal(viewDepth(todos), 2)
+  assert.equal(viewDepth(settings), 2)
+  assert.notEqual(viewKey(todos), viewKey(settings))
+  assert.notEqual(viewKey(todos), viewKey(trip))
+  assert.notEqual(viewKey(settings), viewKey({ kind: 'settings', groupId: 'g2' }))
+  // Opening from the Trip header pushes one entry; back (button, system gesture or edge swipe) pops it.
+  assert.deepEqual(planHistory(viewDepth(trip), viewDepth(todos)), { kind: 'push', count: 1 })
+  assert.deepEqual(planHistory(viewDepth(settings), viewDepth(trip)), { kind: 'back', count: 1 })
+  // Losing the Trip from Settings (leave, archive) returns straight to the Trips home.
+  assert.deepEqual(planHistory(viewDepth(settings), viewDepth(home)), { kind: 'back', count: 2 })
+  assert.equal(navDirection(trip, todos), 'push')
+  assert.equal(navDirection(trip, settings), 'push')
+  assert.equal(navDirection(todos, trip), 'pop')
+  assert.equal(navDirection(settings, home), 'pop')
+  // The edge swipe shows the Trip underneath.
+  assert.deepEqual(previousView(todos), trip)
+  assert.deepEqual(previousView(settings), trip)
+  for (const view of [todos, settings]) {
+    assert.equal(viewDepth(previousView(view)!), viewDepth(view) - 1)
+    assert.equal(adjacentTab(view), null, 'no tab swipe from a pushed screen')
+    assert.deepEqual(readRoveState(roveState(view)), { rove: view, roveDepth: 2 })
+  }
+  for (const foreign of [{ rove: { kind: 'todos' } }, { rove: { kind: 'settings', groupId: '' } }, { rove: { kind: 'todos', groupId: 3 } }]) {
+    assert.deepEqual(readRoveState(foreign), { rove: home, roveDepth: 0 })
+  }
+  assert.equal(tripOf(todos), 'g1')
+  assert.equal(tripOf(settings), 'g1')
+  assert.equal(tripOf(trip), 'g1')
+  assert.equal(tripOf(profileFromTrip), 'g1')
+  assert.equal(tripOf(home), null)
+  assert.equal(tripOf(create), null)
+  assert.equal(tripOf(profileFromHome), null)
 })
 
 test('a tab swipe commits after 10px only when clearly sideways, either way', () => {

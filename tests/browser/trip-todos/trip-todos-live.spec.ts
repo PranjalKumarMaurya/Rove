@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { createTrip as createTripFromHome, signUp } from '../support/trip-frame'
+import { backToTrip, createTrip as createTripFromHome, openSettings, openTodos, openTripTab, signUp } from '../support/trip-frame'
 
 // Real stack: two Auth accounts in one Trip, itinerary and shared todos kept
 // live between them over Supabase Realtime. Run with `npm run test:trip:live`.
@@ -46,7 +46,7 @@ test('two members share a live itinerary and todo list', async ({ browser }) => 
     await signUp(owner, 'Owner One', 'owner-trip@example.test')
     await createTrip(owner)
 
-    await owner.getByRole('tab', { name: 'Crew' }).click()
+    await openSettings(owner)
     await owner.getByLabel('Friend’s email').fill('friend-trip@example.test')
     await owner.getByRole('button', { name: 'Create link' }).click()
     const link = await owner.getByLabel('Invitation link').inputValue()
@@ -64,7 +64,7 @@ test('two members share a live itinerary and todo list', async ({ browser }) => 
     // Reload so the owner's roster includes the friend who just joined.
     await owner.reload()
     for (const page of [owner, friend]) {
-      await page.getByRole('tab', { name: 'Trip' }).click()
+      await openTripTab(page, 'Trip')
       await expect(page.getByTestId('itinerary-empty')).toBeVisible()
       await expect(page.getByTestId('next-flight')).toHaveCount(0)
       await expect(page.locator('[data-live-status="live"]')).toBeVisible(LIVE)
@@ -142,9 +142,9 @@ test('two members share a live itinerary and todo list', async ({ browser }) => 
     await expect(card(friend, 'Fly home')).toHaveCount(0, LIVE)
     await expect(friend.getByTestId('next-flight')).toHaveCount(0)
 
-    // ---- Todos tab --------------------------------------------------------
+    // ---- To-dos screen ----------------------------------------------------
     for (const page of [owner, friend]) {
-      await page.getByRole('tab', { name: 'Todos' }).click()
+      await openTodos(page)
       await expect(page.getByTestId('todos-empty')).toBeVisible()
       await expect(page.locator('[data-live-status="live"]')).toBeVisible(LIVE)
     }
@@ -210,6 +210,10 @@ test('two members share a live itinerary and todo list', async ({ browser }) => 
     await todo(friendOpen, 'Buy SIM cards').getByRole('button', { name: 'Delete Buy SIM cards' }).click()
     await expect(todo(ownerOpen, 'Buy SIM cards')).toHaveCount(0, LIVE)
     await expect(ownerOpen.getByTestId('todo-row')).toHaveText([/Book airport transfer \(6 people\)/u])
+
+    // Back on the Trip, the header's To-dos button counts what is still open.
+    await backToTrip(owner)
+    await expect(owner.getByRole('button', { name: 'To-dos, 1 open' })).toBeVisible()
   } finally {
     await ownerContext.close()
     await friendContext.close()

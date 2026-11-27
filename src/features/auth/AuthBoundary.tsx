@@ -8,15 +8,19 @@ import { useAuthSession } from './authSession'
 import { BootstrapOnboarding } from '../onboarding/BootstrapOnboarding'
 import { InvitationEntry } from '../invitations/InvitationEntry'
 import { clearPendingInvitation, pendingInvitationFromBrowser } from '../invitations/invitationLink'
-import { GroupWorkspace } from '../groups/GroupWorkspace'
+import { JoinEntry } from '../invitations/JoinEntry'
+import { clearPendingJoin, pendingJoinFromBrowser } from '../invitations/joinLink'
+import { GroupWorkspace, type TripSectionId } from '../groups/GroupWorkspace'
 import { loadMyGroupAccess, type MyGroupAccess } from '../groups/myGroupAccess'
 import { HomeNav } from '../home/HomeNav'
 import { TripsHome } from '../home/TripsHome'
 import { useMyProfile } from '../profile/profileApi'
 import { ProfileScreen } from '../profile/ProfileScreen'
+import { TripSettingsScreen } from '../settings/TripSettingsScreen'
+import { TripTodosScreen } from '../todos/TripTodosScreen'
 import {
-  adjacentTab, entryDepthOf, navDirection, planHistory, previousView, readRoveState, roveState, viewDepth, viewKey, withRoveState,
-  type View,
+  adjacentTab, entryDepthOf, navDirection, planHistory, previousView, readRoveState, roveState, tripOf, viewDepth, viewKey,
+  withRoveState, type View,
 } from './navigationHistory'
 import {
   clearLayerStyles, setLayerScroll, notifySwipeSettled, registerSwipeHost, runNavTransition, systemAnimatedBack, takeSwipeNavigation,
@@ -29,7 +33,10 @@ type SwipeLayer = { view: View; mode: SwipeMode; side?: 'left' | 'right' }
 /**
  * Signed-in screens (`View`, see navigationHistory.ts). After sign-in the Trips home
  * always comes first; from there the person opens a Trip, creates one, or opens Profile.
- * An invite link opens the invitation screen first, and joining opens that Trip.
+ * An invite link (`#invite=`, one person by email) or a Trip's join link (`#join=`,
+ * anyone with the link) opens its screen first, and joining opens that Trip. A Trip's
+ * To-dos and Settings are full screens pushed above it (depth 2), so back, the system
+ * gesture and the edge swipe return to the Trip, on the tab it was showing.
  * Screens are mirrored into the browser history so the system back gesture (and the
  * iOS edge swipe, EdgeSwipeBack) steps back through them.
  *
@@ -40,7 +47,7 @@ type SwipeLayer = { view: View; mode: SwipeMode; side?: 'left' | 'right' }
  * one (same component instance, no remount, no flash). The tab swipe between the Trips
  * home and Profile-from-home (TabSwipe) uses the same layers, with the other tab beside
  * the current one instead of beneath it. Each screen's scroll position is remembered,
- * so going back returns to where the person was.
+ * so going back returns to where the person was (the Trips home and a Trip).
  */
 
 // The Trip open in this browser tab, so a reload returns to it (cleared on sign-out).
@@ -62,6 +69,9 @@ export function AuthBoundary() {
   const [groups, setGroups] = useState<MyGroupAccess[]>([])
   const [view, setView] = useState<View>({ kind: 'home' })
   const [groupReload, setGroupReload] = useState(0)
+  // The tab each open Trip shows, so returning from its To-dos or Settings (or seeing it
+  // beneath an edge swipe) shows the same tab. Opening a Trip afresh starts on its first.
+  const [openTabs, setOpenTabs] = useState<Record<string, TripSectionId>>({})
   // A refresh (Crew changes, settings, focus, back to the Trips home) re-reads Trips in
   // the background so the open screen stays mounted.
   const backgroundReload = useRef(false)
@@ -140,7 +150,7 @@ export function AuthBoundary() {
       }
       // Following an invite link inside the app is handled by the hashchange listener.
       const ours = !!event.state && typeof event.state === 'object' && 'rove' in event.state
-      if (!ours && window.location.hash.startsWith('#invite=')) return
+      if (!ours && /^#(invite|join)=/u.test(window.location.hash)) return
       entryDepth.current = entry.roveDepth
       syncedKey.current = viewKey(entry.rove)
       // The edge swipe (or the browser) already animated this step back.
@@ -156,9 +166,11 @@ export function AuthBoundary() {
   // Scroll positions are ours to restore (the screens are React state, not pages).
   useEffect(() => {
     try { if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual' } catch { /* see above */ }
-    // Only the Trips home comes back as it was; a Trip reopens on its first tab, at the top.
+    // The Trips home, and a Trip when coming back from its To-dos or Settings, return where
+    // they were. A Trip opened afresh starts on its first tab, at the top (a push).
     const onScroll = () => {
-      if (!swipeStart.current && viewRef.current.kind === 'home') scrollMemory.current.set('home', window.scrollY)
+      const current = viewRef.current
+      if (!swipeStart.current && (current.kind === 'home' || current.kind === 'trip')) scrollMemory.current.set(viewKey(current), window.scrollY)
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
@@ -249,19 +261,31 @@ export function AuthBoundary() {
     return pendingInvitationFromBrowser(window.location.hash, storage).proof
   })
 
+  // A Trip join link ("anyone with the link can join"), kept through sign-in and sign-up.
+  const [joinProof, setJoinProof] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    let storage: Storage | null = null
+    try { storage = window.localStorage } catch { /* private browsing may deny storage */ }
+    return pendingJoinFromBrowser(window.location.hash, storage).proof
+  })
+
   useEffect(() => {
     const onHashChange = () => {
-      if (!window.location.hash.startsWith('#invite=')) return
+      const hash = window.location.hash
+      if (!hash.startsWith('#invite=') && !hash.startsWith('#join=')) return
       let storage: Storage | null = null
       try { storage = window.localStorage } catch { /* private browsing may deny storage */ }
-      setInviteProof(pendingInvitationFromBrowser(window.location.hash, storage).proof)
+      if (hash.startsWith('#join=')) setJoinProof(pendingJoinFromBrowser(hash, storage).proof)
+      else setInviteProof(pendingInvitationFromBrowser(hash, storage).proof)
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
   useEffect(() => {
-    if (view.kind === 'trip') writeOpenTrip(view.groupId)
+    // A reload on a Trip's To-dos or Settings returns to that Trip.
+    const open = view.kind === 'trip' || view.kind === 'todos' || view.kind === 'settings' ? tripOf(view) : null
+    if (open) writeOpenTrip(open)
     else if (view.kind === 'home') writeOpenTrip(null)
   }, [view])
 
@@ -277,6 +301,14 @@ export function AuthBoundary() {
     setInviteProof(null)
   }
 
+  const closeJoin = () => {
+    try { clearPendingJoin(window.localStorage) } catch { /* storage may be unavailable */ }
+    if (window.location.hash.startsWith('#join=')) {
+      window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
+    }
+    setJoinProof(null)
+  }
+
   const goHome = () => {
     navigate({ kind: 'home' })
     refreshTrips()
@@ -284,6 +316,13 @@ export function AuthBoundary() {
 
   /** Open a Trip; one not listed yet (or `reload`) opens after the Trip list is re-read. */
   const openTrip = (groupId: string, { reload = false, animate = true }: { reload?: boolean; animate?: boolean } = {}) => {
+    // Opened afresh: its first tab.
+    setOpenTabs((current) => {
+      if (!(groupId in current)) return current
+      const next = { ...current }
+      delete next[groupId]
+      return next
+    })
     if (reload || !groups.some((group) => group.groupId === groupId)) {
       pendingOpen.current = groupId
       refreshTrips()
@@ -362,8 +401,10 @@ export function AuthBoundary() {
         setGroupAccess('ready')
         setView((current) => {
           if (restore && current.kind === 'home' && listed(restore)) return { kind: 'trip', groupId: restore }
-          // An open Trip the person lost (left, removed, archived) returns to the Trips home.
-          if (current.kind === 'trip' && !listed(current.groupId) && current.groupId !== stillPending) return { kind: 'home' }
+          // An open Trip the person lost (left, removed, archived), or its To-dos or
+          // Settings, returns to the Trips home.
+          const open = current.kind === 'trip' || current.kind === 'todos' || current.kind === 'settings' ? current.groupId : null
+          if (open && !listed(open) && open !== stillPending) return { kind: 'home' }
           return current
         })
       } catch {
@@ -392,6 +433,14 @@ export function AuthBoundary() {
         // The invitation screen is leaving too, so this is a plain switch.
         openTrip(groupId, { reload: true, animate: false })
       }} signOutError={signOutError} />
+  }
+  if (joinProof) {
+    return <JoinEntry proof={joinProof} auth={auth} onClose={closeJoin}
+      onOpenTrip={(groupId) => {
+        closeJoin()
+        // The join screen is leaving too, so this is a plain switch.
+        openTrip(groupId, { reload: true, animate: false })
+      }} />
   }
   if (auth.status === 'signed-out') {
     return <AuthEntry mode={auth.reason === 'expired' ? 'expired' : 'sign-in'}
@@ -451,16 +500,29 @@ export function AuthBoundary() {
       // Waiting for the Trip list that includes a just-created or just-joined Trip.
       if (!trip) return <AuthEntry mode="restoring" />
       // Profile lives on the home screen (bottom nav, swipe); a Trip shows only its own settings.
-      return <GroupWorkspace trip={trip} onBack={goHome} onRefresh={refreshTrips} />
+      const groupId = trip.groupId
+      return <GroupWorkspace trip={trip} onBack={goHome} onRefresh={refreshTrips}
+        tab={openTabs[groupId] ?? 'trip'} onTabChange={(tab) => setOpenTabs((current) => ({ ...current, [groupId]: tab }))}
+        onOpenTodos={() => navigate({ kind: 'todos', groupId })} onOpenSettings={() => navigate({ kind: 'settings', groupId })} />
+    }
+
+    if (screen.kind === 'todos' || screen.kind === 'settings') {
+      const trip = groups.find((group) => group.groupId === screen.groupId)
+      if (!trip) return <AuthEntry mode="restoring" />
+      const back = () => navigate({ kind: 'trip', groupId: trip.groupId })
+      return screen.kind === 'todos'
+        ? <TripTodosScreen trip={trip} onBack={back} />
+        : <TripSettingsScreen trip={trip} onBack={back} onTripsChanged={refreshTrips} />
     }
 
     return <TripsHome trips={groups} profile={myProfile.profile} accountName={accountName}
       onCreate={() => navigate({ kind: 'create' })} onOpenTrip={openTrip}
       onOpenProfile={() => navigate({ kind: 'profile', from: { kind: 'home' } })}
-      onInvite={(proof) => {
+      onInvite={(link) => {
         let storage: Storage | null = null
         try { storage = window.localStorage } catch { /* private browsing may deny storage */ }
-        setInviteProof(pendingInvitationFromBrowser(`#invite=${proof}`, storage).proof)
+        if (link.kind === 'join') setJoinProof(pendingJoinFromBrowser(`#join=${link.proof}`, storage).proof)
+        else setInviteProof(pendingInvitationFromBrowser(`#invite=${link.proof}`, storage).proof)
       }} />
   }
 

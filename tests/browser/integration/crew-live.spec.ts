@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { createTrip as createTripFromHome, expectTripCount, goToTrips, openTrip, refreshTrips, signUp, switchTrip, tripsHome } from '../support/trip-frame'
+import { createTrip as createTripFromHome, expectTripCount, goToTrips, openSettings, openTrip, refreshTrips, signUp, switchTrip, tripsHome } from '../support/trip-frame'
 
 test.skip(process.env.TRIP_CREW_LIVE !== '1', 'requires disposable local Supabase stack (npm run test:crew:live)')
 
@@ -23,7 +23,8 @@ async function joinWithLink(page: Page, link: string) {
   await expect(page.getByTestId('group-workspace')).toContainText('Goa weekend')
 }
 
-const crew = (page: Page) => page.getByTestId('crew-tab')
+// The Trip's Settings screen: People, Invite and Danger zone (what was the Crew tab).
+const crew = (page: Page) => page.getByTestId('trip-settings')
 const memberRow = (page: Page, name: string) =>
   page.getByRole('list', { name: 'Trip members' }).getByRole('listitem').filter({ hasText: name })
 
@@ -63,7 +64,7 @@ test('Owner manages invitations, roles, leaving, removal, archive and restore ag
     await signUp(owner, 'Olive Owner', 'olive-crew@example.test')
     await createTrip(owner, 'Goa weekend', 'Goa')
     await createTrip(owner, 'Jaipur weekend', 'Jaipur')
-    await owner.getByRole('tab', { name: 'Crew' }).click()
+    await openSettings(owner)
     expect(await confirmSheet(owner, 'Archive Trip')).toContain('Jaipur weekend is archived')
     // The archived Trip closes and the Trips home lists it under Archived Trips.
     await expect(tripsHome(owner)).toBeVisible()
@@ -82,7 +83,7 @@ test('Owner manages invitations, roles, leaving, removal, archive and restore ag
     await expect(owner.getByTestId('group-workspace').getByRole('heading', { name: 'Goa weekend' })).toBeVisible()
 
     // Two invitations from the UI; the list shows recipients and status, never the link.
-    await owner.getByRole('tab', { name: 'Crew' }).click()
+    await openSettings(owner)
     const farahLink = await invite(owner, 'farah-crew@example.test')
     await owner.getByRole('button', { name: 'Invite someone else' }).click()
     await expect(owner.getByLabel('Invitation link')).toHaveCount(0)
@@ -103,7 +104,7 @@ test('Owner manages invitations, roles, leaving, removal, archive and restore ag
     await expect(friend.getByTestId('invitation-entry')).toContainText('You joined Goa weekend.')
     await friend.getByRole('button', { name: 'Open Trip' }).click()
     await expect(friend.getByTestId('group-workspace')).toContainText('Goa weekend')
-    await friend.getByRole('tab', { name: 'Crew' }).click()
+    await openSettings(friend)
     await expect(friend.getByTestId('invite-member')).toHaveCount(0)
     await expect(friend.getByTestId('invitation-list')).toHaveCount(0)
     await expect(crew(friend).getByRole('button', { name: /^Manage / })).toHaveCount(0)
@@ -137,7 +138,7 @@ test('Owner manages invitations, roles, leaving, removal, archive and restore ag
     const staleOwner = await ownerContext.newPage()
     await staleOwner.goto('/')
     await openTrip(staleOwner, 'Goa weekend')
-    await staleOwner.getByRole('tab', { name: 'Crew' }).click()
+    await openSettings(staleOwner)
     await expect(memberRow(staleOwner, 'Farah Friend')).toContainText('Owner')
 
     // Demote Farah back. The stale tab still offers Leave; the server refuses the last Owner.
@@ -164,7 +165,7 @@ test('Owner manages invitations, roles, leaving, removal, archive and restore ag
     await joinWithLink(friend, await invite(owner, 'farah-crew@example.test'))
     await crew(owner).getByRole('button', { name: 'Refresh crew' }).click()
     expect(await manage(owner, 'Farah Friend', 'Transfer ownership')).toBe('Farah Friend is now an Owner. You are a Member.')
-    await expect(owner.getByTestId('group-workspace')).toContainText('Goa · Member')
+    await expect(crew(owner).locator('header')).toContainText('Goa weekend · Member')
     await expect(owner.getByTestId('invite-member')).toHaveCount(0)
     await expect(memberRow(owner, 'Farah Friend')).toContainText('Owner')
     await expect(memberRow(owner, 'Olive Owner')).toContainText('Member')
@@ -172,7 +173,7 @@ test('Owner manages invitations, roles, leaving, removal, archive and restore ag
     // Farah, now the Owner, removes Olive, who keeps only her other Trip.
     await refreshTrips(friend)
     await expect(friend.getByTestId('group-workspace')).toContainText('Goa · Owner')
-    await friend.getByRole('tab', { name: 'Crew' }).click()
+    await openSettings(friend)
     expect(await manage(friend, 'Olive Owner', 'Remove from Trip')).toBe('Olive Owner was removed. Their history stays in the Trip.')
     await expect(memberRow(friend, 'Olive Owner')).toHaveCount(0)
     await goToTrips(owner)

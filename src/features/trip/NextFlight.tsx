@@ -52,22 +52,23 @@ export function NextFlight({ flight, tripTimeZone, localTimeZone }: { flight: Tr
   return (
     <section aria-label={`Next ${kind}`} data-testid="next-flight" className="surface px-4 py-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="serif-eyebrow" style={{ color: 'var(--accent)', fontSize: 12 }}>next {kind}</p>
-        {flight.flight_no && <span className="pill font-mono">{flight.flight_no}</span>}
+        <p className="t-eyebrow min-w-0 truncate" style={{ color: 'var(--accent)' }}>next {kind}</p>
+        {flight.flight_no && <span className="pill t-code shrink-0" style={{ fontSize: 'var(--type-caption)' }}>{flight.flight_no}</span>}
       </div>
-      <p className="serif-display mt-1 truncate" style={{ color: 'var(--text-primary)', fontSize: 19 }}>{flight.title}</p>
+      <p className="t-title3 mt-1 truncate" style={{ color: 'var(--text-primary)' }}>{flight.title}</p>
       {(from || to) && (
-        <p className="serif-display mt-2 truncate" style={{ color: 'var(--text-primary)', fontSize: isFlight ? 28 : 22 }}>
-          {from ?? '—'} <span aria-hidden="true" style={{ color: 'var(--text-tertiary)', fontSize: 16 }}>{glyph}</span><span className="sr-only">to</span> {to ?? '—'}
+        <p className={`${isFlight ? 't-title1' : 't-title2'} mt-2 truncate`} style={{ color: 'var(--text-primary)' }}>
+          {from ?? '—'} <span aria-hidden="true" style={{ color: 'var(--text-tertiary)', fontSize: '0.6em' }}>{glyph}</span><span className="sr-only">to</span> {to ?? '—'}
         </p>
       )}
-      <p className="font-mono mt-3" data-testid="next-flight-countdown" style={{ color: 'var(--text-primary)', fontSize: 22, letterSpacing: '0.06em' }}>
+      <p className="t-headline t-num mt-3" data-testid="next-flight-countdown"
+        style={{ color: 'var(--text-primary)', fontSize: 'var(--type-title2)', lineHeight: 'var(--lh-title2)' }}>
         <span className="sr-only">Departs in </span><RollingDigits text={formatCountdown(parts)} />
       </p>
-      <p className="font-mono mt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+      <p className="t-footnote t-num mt-2" style={{ color: 'var(--text-tertiary)' }}>
         {time.tripDay} {time.trip} trip time{time.local ? ` · ${time.local.day} ${time.local.time} your time` : ''}
       </p>
-      {details && <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>{details}</p>}
+      {details && <p className="mt-1 t-footnote" style={{ color: 'var(--text-tertiary)' }}>{details}</p>}
     </section>
   )
 }

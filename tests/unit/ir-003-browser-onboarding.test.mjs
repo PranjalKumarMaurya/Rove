@@ -107,7 +107,7 @@ test('IR-003 validates every frozen bootstrap field and renders ONB-06 State A o
   assert.match(onboarding, /bootstrap-success-state-a/)
   assert.match(onboarding, /Trip created/)
   // State A creates no invitation; it only points to the Crew tab.
-  assert.match(onboarding, /Invite friends from the Crew tab/)
+  assert.match(onboarding, /Invite friends from the Trip’s Settings/)
   assert.doesNotMatch(onboarding, /copy invitation|share invitation|invitation URL|invitation code|invite members|recipient/i)
   // No jargon on the Create Trip screen.
   assert.doesNotMatch(onboarding, /IANA|ISO 4217|Accounting currency|\bGroups?\b/)

@@ -18,22 +18,54 @@ export async function signUp(page: Page, name: string, email: string, password =
 export const tripsHome = (page: Page) => page.getByTestId('trips-home')
 export const workspace = (page: Page) => page.getByTestId('group-workspace')
 
-/** Back to the Trips home from wherever the page is (a Trip, Profile or Create Trip). */
+/** Back to the Trips home from wherever the page is (a Trip, its To-dos or Settings, Profile or Create Trip). */
 export async function goToTrips(page: Page) {
-  // "Back to Trips" in a Trip, "Back" on Profile, "Trips" on Create Trip.
-  const back = page.getByRole('button', { name: /^(Back to Trips|Back|Trips)$/ })
-  const tripBack = page.getByRole('button', { name: 'Back to Trips', exact: true })
+  // "Back to Trips" in a Trip, "Back to <Trip>" on its To-dos and Settings, "Back" on Profile, "Trips" on Create Trip.
+  const back = page.getByRole('button', { name: /^(Back to .+|Back|Trips)$/ })
   // Wait until the app has settled on a screen (it may still be restoring the session).
   await expect(tripsHome(page).or(back).first()).toBeVisible()
-  if (await tripsHome(page).isVisible()) return
-  const onProfile = await page.getByRole('button', { name: 'Back', exact: true }).isVisible()
-  await back.first().click()
-  if (onProfile) {
-    // Profile opened from a Trip goes back to that Trip, one more step from home.
-    await expect(tripsHome(page).or(tripBack).first()).toBeVisible()
-    if (await tripBack.isVisible()) await tripBack.click()
+  // A screen pushed above a Trip, or Profile opened from a Trip, is two steps from home.
+  for (let step = 0; step < 3 && !(await tripsHome(page).isVisible()); step += 1) {
+    await back.first().click()
+    await expect(tripsHome(page).or(back).first()).toBeVisible()
   }
   await expect(tripsHome(page)).toBeVisible()
+}
+
+export const tripSettings = (page: Page) => page.getByTestId('trip-settings')
+export const tripTodos = (page: Page) => page.getByTestId('trip-todos')
+/** Settings → People (the crew list and its actions; what was the Crew tab). */
+export const crewSection = (page: Page) => page.getByTestId('crew-section')
+
+/** From a Trip's To-dos or Settings back to the Trip (no-op when already on it). */
+export async function backToTrip(page: Page) {
+  const pushed = tripSettings(page).or(tripTodos(page))
+  await expect(workspace(page).or(pushed).first()).toBeVisible()
+  if (await pushed.count()) await pushed.first().getByRole('button', { name: /^Back to / }).first().click()
+  await expect(workspace(page)).toBeVisible()
+}
+
+/** Select one of the Trip's bottom tabs (Trip, Split, Scan, Chat, FX), leaving To-dos or Settings first. */
+export async function openTripTab(page: Page, name: string) {
+  await backToTrip(page)
+  await page.getByRole('tab', { name, exact: true }).click()
+  await expect(page.getByRole('tab', { name, exact: true })).toHaveAttribute('aria-selected', 'true')
+}
+
+/** Open the Trip's Settings screen (details, People, Invite, Danger zone) from its header. */
+export async function openSettings(page: Page) {
+  if (await tripSettings(page).count()) return
+  await backToTrip(page)
+  await workspace(page).getByRole('button', { name: 'Trip settings' }).click()
+  await expect(tripSettings(page)).toBeVisible()
+}
+
+/** Open the Trip's To-dos screen from its header. */
+export async function openTodos(page: Page) {
+  if (await tripTodos(page).count()) return
+  await backToTrip(page)
+  await workspace(page).getByRole('button', { name: /^To-dos/ }).click()
+  await expect(tripTodos(page)).toBeVisible()
 }
 
 /**
@@ -113,6 +145,7 @@ export async function expectTripCount(page: Page, count: number) {
 
 /** Re-read the Trip list: back to the Trips home (which refreshes) and into the same Trip again. */
 export async function refreshTrips(page: Page) {
+  await backToTrip(page)
   const name = (await workspace(page).getByRole('heading', { level: 1 }).innerText()).trim()
   await goToTrips(page)
   await openTrip(page, name)

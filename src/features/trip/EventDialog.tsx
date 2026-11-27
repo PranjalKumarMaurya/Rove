@@ -45,7 +45,7 @@ const sheet: CSSProperties = {
 }
 const textareaStyle: CSSProperties = {
   background: 'rgba(245,241,235,0.035)', border: '1px solid var(--border)', color: 'var(--text-primary)',
-  borderRadius: 12, padding: '10px 14px', fontSize: 14, width: '100%', minHeight: 72, outline: 'none',
+  borderRadius: 12, padding: '10px 14px', fontSize: 'var(--type-field)', width: '100%', minHeight: 72, outline: 'none',
 }
 
 export type SaveEvent = (payload: EventPayload, audience: string[], overwrite: boolean) => Promise<void>
@@ -119,16 +119,16 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
     <div style={overlay} className="m-backdrop" onClick={onClose} onKeyDown={(keyEvent) => { if (keyEvent.key === 'Escape') onClose() }}>
       <div ref={card} role="dialog" aria-modal="true" aria-labelledby={titleId} style={sheet} onClick={(clickEvent) => clickEvent.stopPropagation()} className="m-dialog">
         <div className="mb-4 flex items-center justify-between">
-          <h2 id={titleId} className="serif-display" style={{ fontSize: 22, color: 'var(--text-primary)' }}>{event ? 'Edit event' : 'Add event'}</h2>
+          <h2 id={titleId} className="t-title2 min-w-0" style={{ color: 'var(--text-primary)' }}>{event ? 'Edit event' : 'Add event'}</h2>
           <button type="button" aria-label="Close" onClick={onClose} style={{ color: 'var(--text-tertiary)', fontSize: 18 }}>✕</button>
         </div>
         <form onSubmit={submit} aria-label={event ? 'Edit event' : 'Add event'} className="flex flex-col gap-3.5" noValidate>
           <Collapse open={Object.keys(errors).length > 0} gap={14}>
-            <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>Check the highlighted fields.</p>
+            <p role="alert" className="t-callout" style={{ color: 'var(--accent)' }}>Check the highlighted fields.</p>
           </Collapse>
           <Field label="Type" error={errors.eventType}>
             <select ref={firstField} aria-label="Type" value={values.eventType} onChange={(change) => set('eventType')(change.target.value)}
-              className="rounded-xl px-3.5 py-2.5 text-sm" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
+              className="rounded-xl px-3.5 py-2.5 t-callout" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
               {EVENT_TYPES.map((entry) => <option key={entry.type} value={entry.type}>{entry.icon} {entry.label}</option>)}
             </select>
           </Field>
@@ -151,7 +151,7 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
           </Field>
           {isFlight && (
             <fieldset className="grid grid-cols-2 gap-3">
-              <legend className="mb-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>Flight details</legend>
+              <legend className="mb-1.5 t-callout" style={{ color: 'var(--text-secondary)' }}>Flight details</legend>
               <Field label="From airport" error={errors.depCode}>
                 <NeonInput aria-label="Departure airport code" value={values.depCode} maxLength={5} onChange={(change) => set('depCode')(change.target.value)} placeholder="BOM" />
               </Field>
@@ -180,8 +180,8 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
           </Field>
           {activeMembers.length > 1 && (
             <fieldset>
-              <legend className="text-sm" style={{ color: 'var(--text-secondary)' }}>Who&rsquo;s on this</legend>
-              <p className="font-mono mt-0.5" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.08em' }}>Leave all unticked for everyone. If you tick people, only they and whoever added it can see it.</p>
+              <legend className="t-callout" style={{ color: 'var(--text-secondary)' }}>Who&rsquo;s on this</legend>
+              <p className="t-footnote mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Leave all unticked for everyone. If you tick people, only they and whoever added it can see it.</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {activeMembers.map((member) => (
                   <label key={member.groupMemberId} className="pill cursor-pointer" data-on={audience.includes(member.groupMemberId)}
@@ -198,7 +198,7 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
           )}
 
           <Collapse open={problem === 'conflict'} gap={14}>
-            <div role="alert" className="surface px-3.5 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            <div role="alert" className="surface px-3.5 py-3 t-callout" style={{ color: 'var(--text-secondary)' }}>
               Someone else changed this event while you were editing. Your changes are still here.
               <div className="mt-2 flex gap-2">
                 <NeonBtn type="button" variant="outline" disabled={saving} onClick={() => void save(true)}>Save mine anyway</NeonBtn>
@@ -207,10 +207,10 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
             </div>
           </Collapse>
           <Collapse open={problem === 'removed'} gap={14}>
-            <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>Someone else deleted this event. Nothing was saved.</p>
+            <p role="alert" className="t-callout" style={{ color: 'var(--accent)' }}>Someone else deleted this event. Nothing was saved.</p>
           </Collapse>
           <Collapse open={problem === 'failed'} gap={14}>
-            <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>Could not save. Check your connection and try again.</p>
+            <p role="alert" className="t-callout" style={{ color: 'var(--accent)' }}>Could not save. Check your connection and try again.</p>
           </Collapse>
 
           <div className="mt-1 flex gap-2">
@@ -226,11 +226,11 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
 
 function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: ReactNode }) {
   return (
-    <label className="m-field flex flex-col gap-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
+    <label className="m-field flex flex-col gap-1.5 t-callout" style={{ color: 'var(--text-secondary)' }}>
       <span>{label}</span>
       {children}
-      {hint && !error && <span className="font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.08em' }}>{hint}</span>}
-      {error && <span role="alert" className="m-field-error" style={{ color: 'var(--accent)', fontSize: 12 }}>{error}</span>}
+      {hint && !error && <span className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>{hint}</span>}
+      {error && <span role="alert" className="m-field-error t-footnote" style={{ color: 'var(--accent)' }}>{error}</span>}
     </label>
   )
 }

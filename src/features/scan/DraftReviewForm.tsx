@@ -15,7 +15,7 @@ const COMMON_ZONES = ['Asia/Kolkata', 'Asia/Makassar', 'Asia/Jakarta', 'Asia/Sin
 
 const fieldStyle = { color: 'var(--text-secondary)' }
 const selectStyle = {
-  background: 'rgba(245,241,235,0.035)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontSize: 14, colorScheme: 'dark',
+  background: 'rgba(245,241,235,0.035)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontSize: 'var(--type-field)', colorScheme: 'dark',
 } as const
 const dateStyle = { colorScheme: 'dark' } as const
 
@@ -86,18 +86,18 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
 
   return (
     <section data-testid="scan-review" aria-label="Review booking" className="surface px-4 py-5">
-      <h2 ref={headingRef} tabIndex={-1} className="serif-display outline-none" style={{ color: 'var(--text-primary)', fontSize: 25 }}>Review booking</h2>
-      <p className="mt-1 truncate" style={{ color: 'var(--text-secondary)', fontSize: 13 }}>From {fileName}</p>
+      <h2 ref={headingRef} tabIndex={-1} className="t-title2 outline-none" style={{ color: 'var(--text-primary)' }}>Review booking</h2>
+      <p className="t-footnote mt-1 truncate" style={{ color: 'var(--text-secondary)' }}>From {fileName}</p>
       {onSwitchToBill && <div className="mt-3"><KindRow kind="booking" onChange={onSwitchToBill} disabled={saving} /></div>}
-      {notice && <p role="status" className="mt-3 rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>{notice}</p>}
+      {notice && <p role="status" className="mt-3 rounded-md border px-3 py-2 t-callout" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>{notice}</p>}
       {draft.warnings.length > 0 && (
-        <ul aria-label="Check these details" className="mt-3 flex list-disc flex-col gap-1 pl-5 text-sm" style={{ color: 'var(--accent)' }}>
+        <ul aria-label="Check these details" className="mt-3 flex list-disc flex-col gap-1 pl-5 t-callout" style={{ color: 'var(--accent)' }}>
           {[...new Set(draft.warnings.map((warning) => WARNING_MESSAGES[warning]))].map((message) => <li key={message}>{message}</li>)}
         </ul>
       )}
       <form onSubmit={submit} aria-busy={saving} className="mt-4 flex flex-col gap-4" noValidate>
         <Collapse open={Object.keys(errors).length > 0} gap={16}>
-          <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>Fix the highlighted fields before adding this to the itinerary.</p>
+          <p role="alert" className="t-callout" style={{ color: 'var(--accent)' }}>Fix the highlighted fields before adding this to the itinerary.</p>
         </Collapse>
         <Field label="Type" error={errors.eventType}>
           <select aria-label="Type" value={form.eventType} onChange={set('eventType')} disabled={saving} className="w-full rounded-md px-3 py-2.5" style={selectStyle}>
@@ -154,8 +154,8 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
         </Field>
         {members.length > 1 && (
           <fieldset className="flex flex-col gap-2" disabled={saving}>
-            <legend className="text-sm" style={{ color: 'var(--text-secondary)' }}>Who&rsquo;s on this booking?</legend>
-            <p data-testid="scan-audience-hint" className="font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 11, letterSpacing: '0.04em' }}>
+            <legend className="t-callout" style={{ color: 'var(--text-secondary)' }}>Who&rsquo;s on this booking?</legend>
+            <p data-testid="scan-audience-hint" className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>
               {audienceHint(draft.partySize, choice, members.length)}
             </p>
             <div className="flex flex-wrap gap-2" data-testid="scan-audience">
@@ -171,12 +171,12 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
               ))}
             </div>
             <Collapse open={Boolean(audienceMismatch(draft.partySize, choice, members.length))} gap={8}>
-              <p data-testid="scan-audience-mismatch" style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{audienceMismatch(draft.partySize, choice, members.length)}</p>
+              <p data-testid="scan-audience-mismatch" className="t-footnote" style={{ color: 'var(--text-secondary)' }}>{audienceMismatch(draft.partySize, choice, members.length)}</p>
             </Collapse>
             <Collapse open={Boolean(audienceError)} gap={8}>
-              <p role="alert" style={{ color: 'var(--accent)', fontSize: 12 }}>{audienceError}</p>
+              <p role="alert" className="t-footnote" style={{ color: 'var(--accent)' }}>{audienceError}</p>
             </Collapse>
-            <p key={choice.everyone ? 'everyone' : 'picked'} className="m-text-swap" style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
+            <p key={choice.everyone ? 'everyone' : 'picked'} className="m-text-swap t-footnote" style={{ color: 'var(--text-tertiary)' }}>
               {choice.everyone
                 ? 'Everyone in the Trip will see this booking and its document.'
                 : 'Only the people picked, and you, will see this booking and its document.'}
@@ -186,19 +186,19 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
         <fieldset className="surface flex flex-col gap-2 px-3.5 py-3" disabled={saving} data-testid="scan-cost">
           <legend className="sr-only">Cost</legend>
           {priceText && (
-            <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
+            <p className="t-callout" style={{ color: 'var(--text-primary)' }}>
               Cost {priceText}
               <span style={{ color: 'var(--text-tertiary)' }}>
                 {price?.status === 'paid' ? ' · paid' : price?.status === 'pay_later' ? ' · to pay at the property or later' : ''}
               </span>
             </p>
           )}
-          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm" style={{ color: 'var(--text-primary)' }}>
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 t-callout" style={{ color: 'var(--text-primary)' }}>
             <Checkbox checked={addToSplit} onChange={(event) => setAddToSplit(event.target.checked)} />
             Also add the cost to Split
           </label>
           {/* The hint changes with the box: a quick crossfade, not a jump cut. */}
-          <p key={addToSplit ? 'split' : 'later'} className="m-text-swap" style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
+          <p key={addToSplit ? 'split' : 'later'} className="m-text-swap t-footnote" style={{ color: 'var(--text-tertiary)' }}>
             {addToSplit
               ? 'Next you pick who paid and check the split, shared between the people on this booking.'
               : price?.status === 'pay_later' ? 'Not paid yet, so it isn’t split now. You can split it later from Trip documents.' : 'You can split it later from Trip documents.'}
@@ -209,7 +209,7 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
             className="w-full rounded-md px-3.5 py-2.5" style={selectStyle} />
         </Field>
         <Collapse open={Boolean(saveError)} gap={16}>
-          <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>{saveError}</p>
+          <p role="alert" className="t-callout" style={{ color: 'var(--accent)' }}>{saveError}</p>
         </Collapse>
         <AsyncButton type="submit" status={saveStatus ?? (saving ? 'busy' : 'idle')} busyLabel="Adding…" doneLabel="Added" className="w-full">
           {addToSplit ? 'Add to itinerary and split' : 'Add to itinerary'}
@@ -225,10 +225,10 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
 
 function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
   return (
-    <label className="m-field flex flex-col gap-1.5 text-sm" style={fieldStyle}>
+    <label className="m-field flex flex-col gap-1.5 t-callout" style={fieldStyle}>
       <span>{label}</span>
       {children}
-      {error && <span role="alert" className="m-field-error" style={{ color: 'var(--accent)', fontSize: 12 }}>{error}</span>}
+      {error && <span role="alert" className="m-field-error t-footnote" style={{ color: 'var(--accent)' }}>{error}</span>}
     </label>
   )
 }

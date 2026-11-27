@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import {
-  calendarDateIn, daysBetween, groupTrips, inviteProofFromInput, relativeTripLine, tripPhase,
+  calendarDateIn, daysBetween, groupTrips, inviteProofFromInput, relativeTripLine, tripLinkFromInput, tripPhase,
 } from '../../src/features/home/tripGrouping.ts'
 import {
   PHONE_PATTERN, UPI_PATTERN, emailError, newPasswordError, profileChanges, validateProfileForm,
@@ -63,6 +63,19 @@ test('a pasted invite link or bare code yields the proof; anything else is refus
   assert.equal(inviteProofFromInput(`https://trip.example/#invite=${proof.toUpperCase()}`), null)
   assert.equal(inviteProofFromInput('https://trip.example/'), null)
   assert.equal(inviteProofFromInput(''), null)
+})
+
+test('a pasted join link opens the join screen; an invite link or bare code the invitation', () => {
+  const proof = 'cd'.repeat(32)
+  assert.deepEqual(tripLinkFromInput(`https://rove.example/#join=${proof}`), { kind: 'join', proof })
+  assert.deepEqual(tripLinkFromInput(`Join us on Rove: https://rove.example/#join=${proof} 🎉`), { kind: 'join', proof })
+  assert.deepEqual(tripLinkFromInput(`https://rove.example/#invite=${proof}`), { kind: 'invite', proof })
+  assert.deepEqual(tripLinkFromInput(proof), { kind: 'invite', proof })
+  assert.equal(tripLinkFromInput(`https://rove.example/#join=${proof}ab`), null, 'too long')
+  assert.equal(tripLinkFromInput(`https://rove.example/#join=${proof.slice(2)}`), null, 'too short')
+  assert.equal(tripLinkFromInput(`https://rove.example/#join=${proof.toUpperCase()}`), null)
+  assert.equal(tripLinkFromInput('https://rove.example/#join='), null)
+  assert.equal(tripLinkFromInput(''), null)
 })
 
 test('profile patterns match the database checks in migration 025', () => {

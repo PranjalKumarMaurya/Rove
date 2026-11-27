@@ -2,11 +2,9 @@ import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Field } from '../../components/ui/Field'
 import { AsyncButton, useAsyncStatus } from '../../components/ui/AsyncButton'
 import { Collapse } from '../../components/ui/Collapse'
-import { NeonBtn } from '../../components/ui/NeonBtn'
 import { Swap } from '../../components/ui/Swap'
 import { NeonInput } from '../../components/ui/NeonInput'
 import { NeonSelect } from '../../components/ui/NeonSelect'
-import { Sheet } from '../../components/ui/Sheet'
 import { Switch } from '../../components/ui/Switch'
 import type { MyGroupAccess } from '../groups/myGroupAccess'
 import { TripCurrencyFields } from '../onboarding/CurrencyFields'
@@ -21,7 +19,7 @@ import {
 
 type FormState = Omit<BootstrapFormValues, 'displayCurrencies'> & { international: boolean; extraCurrencies: string[] }
 
-const inputStyle = { fontSize: 16, minHeight: 44 } as const
+const inputStyle = { fontSize: 'var(--type-field)', minHeight: 44 } as const
 
 let timezoneChoices: { value: string; label: string }[] | null = null
 function timezoneOptions() {
@@ -35,12 +33,11 @@ function toValues(form: FormState): BootstrapFormValues {
 }
 
 /**
- * Trip settings, opened from the workspace header. Owners edit the Trip; Members
- * see the same facts read-only as "Trip details".
+ * Settings → Trip details. Owners edit the Trip in place; Members see the same facts
+ * read-only.
  */
-export function TripSettingsSheet({ trip, onClose, onSaved }: {
+export function TripDetailsSection({ trip, onSaved }: {
   trip: MyGroupAccess
-  onClose: () => void
   /** The server confirmed a change (or refused because the role changed): re-read the Trip. */
   onSaved: () => void
 }) {
@@ -64,18 +61,22 @@ export function TripSettingsSheet({ trip, onClose, onSaved }: {
     return () => { active = false }
   }, [trip.groupId, trip.accountingCurrency, owner])
 
+  const loading = display === null || (owner && locked === null)
   return (
-    <Sheet title={owner ? 'Trip settings' : 'Trip details'} testId="trip-settings-sheet" onClose={onClose}>
-      <Swap id={display === null || (owner && locked === null) ? 'loading' : 'ready'}>
-      {display === null || (owner && locked === null)
-        ? <p role="status" className="flex items-center gap-3 py-4" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-          <span className="spinner" aria-hidden="true" />Loading
-        </p>
-        : owner
-          ? <SettingsForm trip={trip} display={display} currencyLocked={Boolean(locked)} onClose={onClose} onSaved={onSaved} />
-          : <TripDetails trip={trip} display={display} />}
-      </Swap>
-    </Sheet>
+    <section data-testid="trip-details-section" aria-labelledby="settings-details-heading" className="settings-section">
+      <h2 id="settings-details-heading" className="t-title2" style={{ color: 'var(--text-primary)' }}>Trip details</h2>
+      <div className="surface settings-card">
+        <Swap id={loading ? 'loading' : 'ready'}>
+          {loading
+            ? <p role="status" className="t-callout flex items-center gap-3" style={{ color: 'var(--text-secondary)' }}>
+              <span className="spinner" aria-hidden="true" />Loading
+            </p>
+            : owner
+              ? <SettingsForm trip={trip} display={display ?? []} currencyLocked={Boolean(locked)} onSaved={onSaved} />
+              : <TripDetails trip={trip} display={display ?? []} />}
+        </Swap>
+      </div>
+    </section>
   )
 }
 
@@ -92,16 +93,15 @@ function TripDetails({ trip, display }: { trip: MyGroupAccess; display: string[]
         <dt>Trip currency</dt><dd>{trip.accountingCurrency} · {currencyName(trip.accountingCurrency)}</dd>
         {trip.isInternational && extras.length > 0 && <><dt>Also shown in</dt><dd>{extras.join(', ')}</dd></>}
       </dl>
-      <p className="notice mt-5">Only an Owner can change these.</p>
+      <p className="t-footnote mt-4" style={{ color: 'var(--text-secondary)' }}>Only an Owner can change these.</p>
     </div>
   )
 }
 
-function SettingsForm({ trip, display, currencyLocked, onClose, onSaved }: {
+function SettingsForm({ trip, display, currencyLocked, onSaved }: {
   trip: MyGroupAccess
   display: string[]
   currencyLocked: boolean
-  onClose: () => void
   onSaved: () => void
 }) {
   const [form, setForm] = useState<FormState>(() => ({
@@ -155,11 +155,13 @@ function SettingsForm({ trip, display, currencyLocked, onClose, onSaved }: {
         accounting_currency: values.accountingCurrency,
         display_currency_codes: values.displayCurrencies,
       }, requestId.current)
-      // "Saved ✓" on the button, then close.
-      await action.done()
-      // Close first: the refreshed Trip then shows the change in the header and tabs.
-      onClose()
+      // The refreshed Trip shows the change in the header and tabs; "Saved ✓" on the button meanwhile.
       onSaved()
+      await action.done()
+      setSaving(false)
+      setAttempted(false)
+      requestId.current = null
+      action.reset()
     } catch (error) {
       const code = error instanceof TripSettingsError ? error.code : 'retryable'
       setFailure(code)
@@ -174,8 +176,8 @@ function SettingsForm({ trip, display, currencyLocked, onClose, onSaved }: {
     : 'Used to split expenses. It can change only until the first expense or payment.'
 
   return (
-    <form onSubmit={(event) => void submit(event)} aria-label="Trip settings" aria-busy={saving} noValidate className="flex flex-col gap-5">
-      <Collapse open={attempted && Object.keys(errors).length > 0} gap={20}>
+    <form onSubmit={(event) => void submit(event)} aria-label="Trip details" aria-busy={saving} noValidate className="flex flex-col gap-4">
+      <Collapse open={attempted && Object.keys(errors).length > 0} gap={16}>
         <p role="alert" className="notice notice--error">Check the highlighted fields.</p>
       </Collapse>
       <Field id="settings-name" label="Trip name" error={show('tripName')}>
@@ -213,15 +215,12 @@ function SettingsForm({ trip, display, currencyLocked, onClose, onSaved }: {
           </NeonSelect>
         </Field>}
 
-      <Collapse open={Boolean(failure)} gap={20}>
+      <Collapse open={Boolean(failure)} gap={16}>
         <p role="alert" className="notice notice--error">{failure && tripSettingsErrorMessage(failure)}</p>
       </Collapse>
-      <div className="flex flex-col gap-3">
-        <AsyncButton type="submit" size="lg" className="w-full" status={action.status} busyLabel="Saving…" doneLabel="Saved">
-          {failure === 'retryable' ? 'Try again' : 'Save changes'}
-        </AsyncButton>
-        <NeonBtn type="button" variant="ghost" size="lg" className="w-full" disabled={saving} onClick={onClose}>Cancel</NeonBtn>
-      </div>
+      <AsyncButton type="submit" size="lg" className="w-full" status={action.status} busyLabel="Saving…" doneLabel="Saved">
+        {failure === 'retryable' ? 'Try again' : 'Save changes'}
+      </AsyncButton>
     </form>
   )
 }

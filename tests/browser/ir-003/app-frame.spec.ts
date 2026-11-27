@@ -42,12 +42,19 @@ test('the workspace is an app shell: compact top bar and a one-row bottom tab ba
   await expect(header).toContainText('Bali, Indonesia · Owner')
   await expect(header).not.toContainText(/\bGroups?\b|IANA|Supabase|Refresh|Sign out/)
   await expect(header.getByRole('button', { name: 'Back to Trips', exact: true })).toBeVisible()
-  await expect(header.getByRole('button', { name: 'Trip settings' })).toBeVisible()
+  // Top right: To-dos, then Settings at the far right.
+  const todosButton = header.getByRole('button', { name: /^To-dos/ })
+  const settingsButton = header.getByRole('button', { name: 'Trip settings' })
+  await expect(todosButton).toBeVisible()
+  await expect(settingsButton).toBeVisible()
+  const [todosBox, settingsBox] = [await todosButton.boundingBox(), await settingsButton.boundingBox()]
+  expect(todosBox!.x + todosBox!.width).toBeLessThanOrEqual(settingsBox!.x)
+  expect(todosBox!.y).toBe(settingsBox!.y)
   // Profile lives on the home screen, not in each Trip.
   await expect(header.getByRole('button', { name: 'Profile' })).toHaveCount(0)
 
   const tabs = page.getByRole('tablist', { name: 'Trip sections' }).getByRole('tab')
-  await expect(tabs).toHaveText(['Trip', 'Todos', 'Split', 'Scan', 'FX', 'Crew'])
+  await expect(tabs).toHaveText(['Trip', 'Split', 'Scan', 'Chat', 'FX'])
   await expect(page.getByRole('tab', { name: 'Trip' })).toHaveAttribute('aria-selected', 'true')
   const boxes = await tabs.evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().toJSON() as DOMRect))
   const viewport = page.viewportSize()!
@@ -61,12 +68,12 @@ test('the workspace is an app shell: compact top bar and a one-row bottom tab ba
   // Arrow keys move between tabs; the panel follows.
   await page.getByRole('tab', { name: 'Trip' }).focus()
   await page.keyboard.press('ArrowRight')
-  await expect(page.getByRole('tab', { name: 'Todos' })).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByRole('tab', { name: 'Todos' })).toBeFocused()
+  await expect(page.getByRole('tab', { name: 'Split' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tab', { name: 'Split' })).toBeFocused()
 
   // Scrolled to the end, the last content clears the fixed tab bar.
-  await page.getByRole('tab', { name: 'Crew' }).click()
-  await expect(page.getByTestId('crew-tab')).toBeVisible()
+  await page.getByRole('tab', { name: 'Scan' }).click()
+  await expect(page.getByRole('tab', { name: 'Scan' })).toHaveAttribute('aria-selected', 'true')
   const clearance = await page.evaluate(() => {
     window.scrollTo(0, document.documentElement.scrollHeight)
     const panel = document.getElementById('trip-tab-panel')!
@@ -79,7 +86,7 @@ test('the workspace is an app shell: compact top bar and a one-row bottom tab ba
 
 test('the Trips home lists Trips; back control, domestic tabs, and Profile with sign out', async ({ page }) => {
   await openWorkspace(page)
-  await page.getByRole('tab', { name: 'Crew' }).click()
+  await page.getByRole('tab', { name: 'Split' }).click()
 
   await goToTrips(page)
   const home = page.getByTestId('trips-home')
@@ -91,8 +98,8 @@ test('the Trips home lists Trips; back control, domestic tabs, and Profile with 
   await openTrip(page, 'Goa weekend')
   await expect(page.getByTestId('group-workspace').locator('header')).toContainText('Goa · Member')
   await expect(page.getByRole('tab', { name: 'Trip' })).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByRole('tablist', { name: 'Trip sections' }).getByRole('tab')).toHaveText(['Trip', 'Todos', 'Split', 'Scan', 'Crew'])
-  await expect(page.getByRole('button', { name: 'Trip details' })).toBeVisible()
+  await expect(page.getByRole('tablist', { name: 'Trip sections' }).getByRole('tab')).toHaveText(['Trip', 'Split', 'Scan', 'Chat'])
+  await expect(page.getByRole('button', { name: 'Trip settings' })).toBeVisible()
 
   // Profile is reached from the home screen's bottom nav.
   await page.getByRole('button', { name: 'Back to Trips' }).click()

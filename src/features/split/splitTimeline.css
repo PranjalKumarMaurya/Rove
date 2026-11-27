@@ -1,19 +1,19 @@
 /* Split's day-by-day expense timeline (SplitTab.tsx). Motion uses the tokens in
    src/styles/motion.css; distances there go to zero under reduced motion. */
 
-/* Sticky day header: pinned just under the status bar's solid strip, which grows
-   while the page is scrolled (global.css .status-shield). Solid so rows never show
-   through; below the tab bar (40) and the status strip, and native dialogs/sheets
-   sit in the top layer above all of it. */
+/* Sticky day header: pinned just under the top shield (global.css .status-shield),
+   at --safe-top (docs/DESIGN-SYSTEM.md §4). Solid so rows never show through; above
+   the shield's soft fade (z 4), so it stays crisp; below the tab bar (40) and the
+   shield, and native dialogs/sheets sit in the top layer above all of it. */
 .split-day__header {
   position: sticky;
-  top: calc(env(safe-area-inset-top, 0px) + min(28px, env(safe-area-inset-top, 0px)));
+  top: var(--safe-top);
   z-index: 5;
   background: var(--bg-base);
   /* Cover the 1px seams between the header and the cards scrolling under it. */
   box-shadow: 0 1px 0 var(--bg-base);
 }
-.split-day { scroll-margin-top: calc(env(safe-area-inset-top, 0px) + min(28px, env(safe-area-inset-top, 0px))); }
+.split-day { scroll-margin-top: var(--safe-top); }
 
 /* Day groups fade in (no travel, so the rows' own 8px rise is not doubled);
    the first six staggered via --i (enterIndex). Mount-only: stable keys mean a
@@ -39,3 +39,18 @@
 /* A row's details (breakdown, rate, who added it) opening in place. */
 .split-row__more:not([hidden]) { animation: m-enter-xs 200ms var(--ease-out) backwards; }
 
+
+/* Group totals: a name column plus three money columns. Amounts never wrap or
+   shrink, and names truncate first. Below about 31em of footnote text (a phone
+   column at any Text size; wider columns keep four), each name moves onto its own
+   line above that person's amounts, so names read in full and the three money
+   columns get the full width. em here follows the container's font size, so the
+   switch tracks the text size. */
+.split-totals { container: split-totals / inline-size; font-size: var(--type-footnote); }
+.split-totals__name-row { display: none; }
+@container split-totals (max-width: 31em) {
+  .split-totals__name-row { display: table-row; }
+  .split-totals__name-cell, .split-totals__name-col { display: none; }
+  .split-totals__table td { width: 33.33%; padding-top: 2px; }
+  .split-totals__table td:first-of-type { padding-left: 16px; }
+}

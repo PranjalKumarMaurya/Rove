@@ -1,5 +1,5 @@
 import { mkdirSync } from 'node:fs'
-import { createTrip, goToTrips, openProfile, openTrip, setTripSettings } from '../support/trip-frame'
+import { backToTrip, createTrip, goToTrips, openProfile, openSettings, openTodos, openTrip, openTripTab, setTripSettings } from '../support/trip-frame'
 import { expect, test, type Page } from '@playwright/test'
 
 // Visual tour: screenshots every main screen with realistic data for UI review.
@@ -17,6 +17,13 @@ async function shot(page: Page, name: string) {
   await page.screenshot({ path: `${outDir}/${String(index).padStart(2, '0')}-${name}.png`, fullPage: true })
 }
 
+/** Optional phone-screen shots (the viewport only, 390×844): set TRIP_NAV_SHOTS to a folder. */
+async function navShot(page: Page, name: string) {
+  if (!process.env.TRIP_NAV_SHOTS) return
+  await page.waitForTimeout(450)
+  await page.screenshot({ path: `${process.env.TRIP_NAV_SHOTS}/${name}.png` })
+}
+
 async function step(name: string, action: () => Promise<void>) {
   try {
     await action()
@@ -32,6 +39,7 @@ function inDays(days: number, time: string) {
 
 test('tour every screen', async ({ browser }) => {
   mkdirSync(outDir, { recursive: true })
+  if (process.env.TRIP_NAV_SHOTS) mkdirSync(process.env.TRIP_NAV_SHOTS, { recursive: true })
   const ownerContext = await browser.newContext({ timezoneId: 'Asia/Kolkata' })
   const friendContext = await browser.newContext({ timezoneId: 'Asia/Kolkata' })
   for (const context of [ownerContext, friendContext]) {
@@ -116,7 +124,7 @@ test('tour every screen', async ({ browser }) => {
   })
 
   await step('todos-tab', async () => {
-    await owner.getByRole('tab', { name: 'Todos' }).click()
+    await openTodos(owner)
     await shot(owner, 'todos-empty')
     for (const title of ['Book airport transfer', 'Buy sunscreen', 'Exchange cash']) {
       await owner.getByLabel('New todo').fill(title)
@@ -127,10 +135,15 @@ test('tour every screen', async ({ browser }) => {
     await owner.getByTestId('todo-row').filter({ hasText: 'Book airport transfer' }).getByRole('checkbox').click()
     await expect(owner.getByRole('list', { name: 'Completed todos' }).getByRole('checkbox')).toBeChecked()
     await shot(owner, 'todos-with-items')
+    await navShot(owner, 'todos')
+    // Back on the Trip, the header counts the open to-dos.
+    await backToTrip(owner)
+    await expect(owner.getByRole('button', { name: 'To-dos, 2 open' })).toBeVisible()
+    await navShot(owner, 'trip-header')
   })
 
   await step('split-tab', async () => {
-    await owner.getByRole('tab', { name: 'Split' }).click()
+    await openTripTab(owner, 'Split')
     await shot(owner, 'split-empty')
     await owner.getByRole('button', { name: 'Add expense' }).click()
     const form = owner.getByRole('dialog', { name: 'Add expense' })
@@ -143,42 +156,48 @@ test('tour every screen', async ({ browser }) => {
   })
 
   await step('scan-tab', async () => {
-    await owner.getByRole('tab', { name: 'Scan' }).click()
+    await openTripTab(owner, 'Scan')
     await shot(owner, 'scan')
   })
 
   await step('fx-tab', async () => {
-    await owner.getByRole('tab', { name: 'FX' }).click()
+    await openTripTab(owner, 'FX')
     await shot(owner, 'fx')
   })
 
   let link = ''
-  await step('crew-tab', async () => {
-    await owner.getByRole('tab', { name: 'Crew' }).click()
-    await shot(owner, 'crew-owner')
+  let joinUrl = ''
+  await step('settings', async () => {
+    await openSettings(owner)
+    await expect(owner.getByLabel('Trip name')).toBeVisible()
+    await shot(owner, 'settings-owner')
+    await navShot(owner, 'settings-owner-top')
+    const joinCard = owner.getByTestId('join-link-card')
+    await joinCard.getByRole('switch', { name: 'Anyone with the link can join' }).click()
+    await expect(joinCard.getByTestId('join-link-url')).toBeVisible()
+    joinUrl = (await joinCard.getByTestId('join-link-url').innerText()).trim()
+    await owner.getByTestId('invite-section').evaluate((node) => node.scrollIntoView({ block: 'start' }))
+    await navShot(owner, 'settings-owner-invite-link-on')
     await owner.getByLabel('Friend’s email').fill('astitva@example.test')
     await owner.getByRole('button', { name: 'Create link' }).click()
     link = await owner.getByLabel('Invitation link').inputValue()
-    await shot(owner, 'crew-invite-link')
+    await shot(owner, 'settings-invite-links')
+    await owner.getByTestId('danger-zone').evaluate((node) => node.scrollIntoView({ block: 'end' }))
+    await navShot(owner, 'settings-owner-danger-zone')
   })
 
   await step('frame', async () => {
-    await owner.getByRole('button', { name: 'Trip settings' }).click()
-    await expect(owner.getByLabel('Trip name')).toBeVisible()
-    await shot(owner, 'trip-settings')
-    await owner.keyboard.press('Escape')
-    await expect(owner.getByTestId('trip-settings-sheet')).toHaveCount(0)
     // A domestic Trip: no FX tab, no currency in Split.
     await createTrip(owner, { name: 'Goa long weekend', destination: 'Goa', startDate: inDays(-1, '00:00').slice(0, 10), endDate: inDays(2, '00:00').slice(0, 10) })
     await shot(owner, 'domestic-trip')
-    await owner.getByRole('tab', { name: 'Split' }).click()
+    await openTripTab(owner, 'Split')
     await owner.getByRole('button', { name: 'Add expense' }).click()
     await shot(owner, 'domestic-split-add-expense')
     await owner.getByRole('dialog', { name: 'Add expense' }).getByRole('button', { name: 'Cancel' }).click()
     await goToTrips(owner)
     await shot(owner, 'trips-home')
     await openTrip(owner, 'Bali bachelor')
-    await owner.getByRole('tab', { name: 'Crew' }).click()
+    await openSettings(owner)
   })
 
   const friend = await friendContext.newPage()
@@ -201,22 +220,63 @@ test('tour every screen', async ({ browser }) => {
     await friend.getByRole('button', { name: 'Open Trip' }).click()
     await expect(friend.getByTestId('group-workspace')).toBeVisible()
     await shot(friend, 'friend-trip')
-    await friend.getByRole('button', { name: 'Trip details' }).click()
+    await openSettings(friend)
     await expect(friend.getByTestId('trip-details')).toBeVisible()
-    await shot(friend, 'friend-trip-details')
-    await friend.keyboard.press('Escape')
-    await friend.getByRole('tab', { name: 'Split' }).click()
+    await shot(friend, 'friend-settings')
+    await openTripTab(friend, 'Split')
     await shot(friend, 'friend-split')
-    await friend.getByRole('tab', { name: 'Crew' }).click()
-    await shot(friend, 'friend-crew')
+  })
+
+  // A third person joins with the Trip's open invite link.
+  const guestContext = await browser.newContext({ timezoneId: 'Asia/Kolkata' })
+  const guest = await guestContext.newPage()
+  await step('join-link', async () => {
+    await guest.goto(joinUrl)
+    await expect(guest.getByTestId('join-entry')).toContainText('Join Bali bachelor?')
+    await shot(guest, 'join-entry-signed-out')
+    await guest.getByRole('button', { name: 'Continue', exact: true }).click()
+    await guest.getByRole('button', { name: 'Create an account' }).click()
+    await guest.getByLabel('Display name').fill('Neha')
+    await guest.getByLabel('Email').fill('neha@example.test')
+    await guest.getByLabel('Password').fill('LongerPass123!')
+    await guest.getByRole('button', { name: 'Create account' }).click()
+    await expect(guest.getByRole('button', { name: 'Join trip' })).toBeVisible()
+    await shot(guest, 'join-confirm')
+    await navShot(guest, 'join-confirm')
+    await guest.getByRole('button', { name: 'Join trip' }).click()
+    await expect(guest.getByTestId('group-workspace')).toContainText('Bali bachelor')
+  })
+
+  await step('chat', async () => {
+    await openTripTab(friend, 'Chat')
+    await friend.getByRole('textbox', { name: 'Message' }).fill('Landing at 6:15, see you at arrivals!')
+    await friend.getByRole('button', { name: 'Send' }).click()
+    await openTripTab(owner, 'Chat')
+    await expect(owner.getByRole('log', { name: 'Messages' })).toContainText('Landing at 6:15', { timeout: 15_000 })
+    await owner.getByRole('textbox', { name: 'Message' }).fill('Villa is booked. Pool on day one 🎉')
+    await owner.getByRole('button', { name: 'Send' }).click()
+    await expect(owner.getByRole('log', { name: 'Messages' })).toContainText('Villa is booked')
+    // The composer sits just above the tab bar.
+    const gap = await owner.evaluate(() => {
+      const composer = document.querySelector('.chat__composer')!.getBoundingClientRect()
+      const bar = document.querySelector('.tab-bar')!.getBoundingClientRect()
+      return bar.top - composer.bottom
+    })
+    expect(gap).toBeGreaterThanOrEqual(0)
+    expect(gap).toBeLessThanOrEqual(16)
+    await shot(owner, 'chat')
+    await navShot(owner, 'chat')
   })
 
   await step('owner-after-join', async () => {
+    await openSettings(owner)
     await owner.getByRole('button', { name: 'Refresh crew' }).click().catch(() => undefined)
-    await shot(owner, 'crew-owner-with-friend')
+    await expect(owner.getByRole('list', { name: 'Trip members' })).toContainText('Neha')
+    await shot(owner, 'settings-people-with-friends')
   })
 
   await ownerContext.close()
   await friendContext.close()
+  await guestContext.close()
   console.log(JSON.stringify({ screenshots: index, problems }))
 })

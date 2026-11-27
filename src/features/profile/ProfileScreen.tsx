@@ -19,13 +19,14 @@ import {
 import { APP_VERSION, SUPPORT_EMAIL, supportMailto } from './appInfo'
 import { AVATAR_ACCEPT, AvatarError, prepareAvatar, removeAvatars, uploadAvatar, useAvatarUrl } from './avatarStorage'
 import { LegalPage } from './LegalPage'
+import { TextSizeSettings } from './TextSizeSettings'
 import { type MyProfile, ProfileRequestError, updateMyProfile } from './profileApi'
 import {
   AVATAR_EMOJI, DIETARY_NOTES_MAX, EMERGENCY_CONTACT_MAX, type ProfileField, type ProfileFormValues, emailError,
   newPasswordError, profileChanges, validateProfileForm,
 } from './profileRules'
 
-const inputStyle = { fontSize: 16, minHeight: 44 } as const
+const inputStyle = { fontSize: 'var(--type-field)', minHeight: 44 } as const
 
 type Page = 'main' | 'privacy' | 'terms'
 type SheetKind = 'email' | 'password' | 'delete' | null
@@ -76,25 +77,26 @@ export function ProfileScreen({ userId, email, profile, profileStatus, onProfile
 
   return (
     <>
-    <ScreenFrame testId="profile-screen" centered={false} eyebrow={<p className="eyebrow">Profile</p>}
+    <ScreenFrame testId="profile-screen" centered={false} eyebrow={<p className="t-eyebrow">Profile</p>}
       title={profile.displayName} lede={email} top={top} className={navClass}>
       <div className="flex flex-col gap-8">
         <AvatarEditor userId={userId} profile={profile} onChanged={onProfileChanged} />
         <DetailsForm profile={profile} onChanged={onProfileChanged} />
+        <TextSizeSettings />
         <AiUsage />
 
         <section aria-labelledby="profile-sign-in" className="flex flex-col gap-3">
-          <h2 id="profile-sign-in" className="section-title">Sign-in</h2>
+          <h2 id="profile-sign-in" className="t-eyebrow">Sign-in</h2>
           <div className="surface px-4 py-3">
-            <p className="field-label">Email</p>
-            <p className="mt-0.5 truncate" style={{ color: 'var(--text-primary)', fontSize: 15 }} data-testid="profile-email">{email}</p>
+            <p className="field-label t-footnote t-medium">Email</p>
+            <p className="t-callout mt-0.5 truncate" style={{ color: 'var(--text-primary)' }} data-testid="profile-email">{email}</p>
           </div>
           <NeonBtn type="button" variant="outline" size="lg" className="w-full" onClick={() => setSheet('email')}>Change email</NeonBtn>
           <NeonBtn type="button" variant="outline" size="lg" className="w-full" onClick={() => setSheet('password')}>Change password</NeonBtn>
         </section>
 
         <section aria-labelledby="profile-help" className="flex flex-col gap-2">
-          <h2 id="profile-help" className="section-title mb-1">Help & legal</h2>
+          <h2 id="profile-help" className="t-eyebrow mb-1">Help & legal</h2>
           {SUPPORT_EMAIL && <a className="row-btn" href={supportMailto(SUPPORT_EMAIL)}>
             <span className="flex-1">Help & feedback</span><IconChevronRight size={18} />
           </a>}
@@ -106,7 +108,7 @@ export function ProfileScreen({ userId, email, profile, profileStatus, onProfile
           {signOutError && <p role="alert" className="notice notice--error">{signOutError}</p>}
           <NeonBtn type="button" variant="outline" size="lg" className="w-full" onClick={onSignOut}><IconSignOut size={18} />Sign out</NeonBtn>
           <button type="button" className="row-btn row-btn--danger justify-center" onClick={() => setSheet('delete')}>Delete account</button>
-          <p className="text-center" style={{ color: 'var(--text-tertiary)', fontSize: 12 }} data-testid="app-version">Version {APP_VERSION}</p>
+          <p className="t-footnote text-center" style={{ color: 'var(--text-tertiary)' }} data-testid="app-version">Version {APP_VERSION}</p>
         </section>
       </div>
 
@@ -189,7 +191,7 @@ function AvatarEditor({ userId, profile, onChanged }: { userId: string; profile:
 
   return (
     <section aria-labelledby="profile-avatar" className="surface px-4 py-5" data-testid="avatar-editor">
-      <h2 id="profile-avatar" className="section-title">Avatar</h2>
+      <h2 id="profile-avatar" className="t-eyebrow">Avatar</h2>
       <div className="mt-4 flex items-center gap-4">
         <UserAvatar size={76} name={profile.displayName} emoji={profile.avatarEmoji} imageUrl={photo} />
         <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -202,7 +204,7 @@ function AvatarEditor({ userId, profile, onChanged }: { userId: string; profile:
           {profile.avatarPath && <NeonBtn type="button" variant="ghost" size="lg" disabled={busy !== null} onClick={() => void removePhoto()}>Remove photo</NeonBtn>}
         </div>
       </div>
-      <p className="mt-5 field-label">Or pick an emoji</p>
+      <p className="mt-5 field-label t-footnote t-medium">Or pick an emoji</p>
       <div className="emoji-grid mt-2" role="group" aria-label="Avatar emoji">
         {AVATAR_EMOJI.map((emoji) => {
           const chosen = !profile.avatarPath && profile.avatarEmoji === emoji
@@ -269,7 +271,7 @@ function DetailsForm({ profile, onChanged }: { profile: MyProfile; onChanged: (c
 
   return (
     <form aria-label="Your details" noValidate onSubmit={(event) => void save(event)} className="flex flex-col gap-5" aria-busy={state === 'saving'}>
-      <h2 className="section-title">Your details</h2>
+      <h2 className="t-eyebrow">Your details</h2>
       <Field id="profile-name" label="Display name" hint="How you appear to everyone in your Trips." error={show('displayName')}>
         <NeonInput value={form.displayName} onChange={set('displayName')} autoComplete="name" maxLength={80} style={inputStyle} />
       </Field>
@@ -286,8 +288,8 @@ function DetailsForm({ profile, onChanged }: { profile: MyProfile; onChanged: (c
       <fieldset className="surface flex flex-col gap-4 px-4 py-4">
         <legend className="sr-only">Crew info</legend>
         <div>
-          <p aria-hidden="true" style={{ color: 'var(--text-primary)', fontSize: 15, fontWeight: 500 }}>Crew info</p>
-          <p className="field-hint mt-0.5">Visible only to people in your Trips</p>
+          <p aria-hidden="true" className="t-callout t-medium" style={{ color: 'var(--text-primary)' }}>Crew info</p>
+          <p className="field-hint t-footnote mt-0.5">Visible only to people in your Trips</p>
         </div>
         <Field id="profile-phone" label="Phone" optional error={show('phone')}>
           <NeonInput type="tel" value={form.phone} onChange={set('phone')} autoComplete="tel" placeholder="e.g. +91 98765 43210" style={inputStyle} />
@@ -355,7 +357,7 @@ function ChangeEmailSheet({ currentEmail, onClose }: { currentEmail: string | un
         </div>
       ) : (
         <form aria-label="Change email" noValidate onSubmit={(event) => void submit(event)} className="flex flex-col gap-4">
-          <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.5 }}>
+          <p className="t-callout" style={{ color: 'var(--text-secondary)' }}>
             We’ll email a confirmation link to the new address. Nothing changes until you open it.
           </p>
           <Field id="new-email" label="New email" error={error ?? undefined}>
@@ -471,20 +473,20 @@ function DeleteAccountSheet({ userId, onClose, onDeleted }: { userId: string; on
           <NeonBtn type="button" size="lg" className="w-full" onClick={() => setAttempt((value) => value + 1)}>Try again</NeonBtn>
         </div>
       ) : blockers === null ? (
-        <p role="status" className="flex items-center gap-3 py-4" style={{ color: 'var(--text-secondary)', fontSize: 14 }}><span className="spinner" aria-hidden="true" />Checking your Trips…</p>
+        <p role="status" className="t-callout flex items-center gap-3 py-4" style={{ color: 'var(--text-secondary)' }}><span className="spinner" aria-hidden="true" />Checking your Trips…</p>
       ) : blockers.length > 0 ? (
         <div className="flex flex-col gap-4" data-testid="delete-account-blocked">
-          <p style={{ color: 'var(--text-primary)', fontSize: 15, lineHeight: 1.5 }}>
-            You’re the only Owner of {blockers.length === 1 ? 'this Trip' : 'these Trips'}. Make someone else an Owner in the Crew tab, or archive the Trip, before you delete your account.
+          <p className="t-callout" style={{ color: 'var(--text-primary)' }}>
+            You’re the only Owner of {blockers.length === 1 ? 'this Trip' : 'these Trips'}. Make someone else an Owner in the Trip’s Settings, under People, or archive the Trip, before you delete your account.
           </p>
           <ul className="flex flex-col gap-2" aria-label="Trips that need another Owner">
-            {blockers.map((trip) => <li key={trip.groupId} className="surface px-4 py-3" style={{ fontSize: 15 }}>{trip.tripName}</li>)}
+            {blockers.map((trip) => <li key={trip.groupId} className="t-callout surface px-4 py-3">{trip.tripName}</li>)}
           </ul>
           <NeonBtn type="button" size="lg" className="w-full" onClick={onClose}>OK</NeonBtn>
         </div>
       ) : (
         <form aria-label="Delete account" noValidate onSubmit={(event) => void confirm(event)} className="flex flex-col gap-4">
-          <p style={{ color: 'var(--text-primary)', fontSize: 15, lineHeight: 1.5 }}>
+          <p className="t-callout" style={{ color: 'var(--text-primary)' }}>
             This permanently deletes your account, profile and photo, and you leave every Trip. Plans, expenses and payments you added stay for the others and show as “a former member”. This can’t be undone.
           </p>
           <Field id="delete-confirm" label="Type DELETE to confirm">
@@ -522,18 +524,18 @@ function AiUsage() {
   const cost = state.kind === 'ready' ? formatUsd(state.totals.costMicroUsd) : '—'
   return (
     <section aria-labelledby="profile-ai-usage" className="flex flex-col gap-3" data-testid="profile-ai-usage">
-      <h2 id="profile-ai-usage" className="section-title">AI usage</h2>
+      <h2 id="profile-ai-usage" className="t-eyebrow">AI usage</h2>
       <div className="surface grid grid-cols-2 px-4 py-3" aria-busy={state.kind === 'loading'}>
         <div className="min-w-0">
-          <p className="field-label">Tokens used</p>
-          <p className="mt-0.5 truncate font-mono" style={{ color: 'var(--text-primary)', fontSize: 17 }} data-testid="ai-usage-tokens">{tokens}</p>
+          <p className="field-label t-footnote t-medium">Tokens used</p>
+          <p className="t-headline t-num mt-0.5 truncate" style={{ color: 'var(--text-primary)' }} data-testid="ai-usage-tokens">{tokens}</p>
         </div>
         <div className="min-w-0 border-l pl-4" style={{ borderColor: 'var(--border)' }}>
-          <p className="field-label">Cost</p>
-          <p className="mt-0.5 truncate font-mono" style={{ color: 'var(--text-primary)', fontSize: 17 }} data-testid="ai-usage-cost">{cost}</p>
+          <p className="field-label t-footnote t-medium">Cost</p>
+          <p className="t-headline t-num mt-0.5 truncate" style={{ color: 'var(--text-primary)' }} data-testid="ai-usage-cost">{cost}</p>
         </div>
       </div>
-      <p style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
+      <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>
         {state.kind === 'error' ? 'Couldn’t load your AI usage just now.' : 'Everything AI has done for you so far, like reading scanned tickets and bills, across all your Trips.'}
       </p>
     </section>

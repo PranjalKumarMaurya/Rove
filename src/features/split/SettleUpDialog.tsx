@@ -106,11 +106,11 @@ export function SettleUpDialog({ groupId, tripName, currency, me, isOwner, membe
       <Swap id={pending ? 'confirm' : 'list'}>
       {pending ? (
         <section aria-labelledby="settle-confirm-heading" className="flex flex-col gap-4">
-          <h3 id="settle-confirm-heading" ref={confirmRef} tabIndex={-1} className="serif-display outline-none"
-            style={{ color: 'var(--text-primary)', fontSize: 19 }}>
+          <h3 id="settle-confirm-heading" ref={confirmRef} tabIndex={-1} className="t-title3 outline-none"
+            style={{ color: 'var(--text-primary)' }}>
             Record that {nameOf(pending.from)} paid {nameOf(pending.to)} {money(pending.amount)}?
           </h3>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <p className="t-callout" style={{ color: 'var(--text-secondary)' }}>
             This only records a payment you made outside the app; no money moves. Everyone’s balances update, and it
             stays in the payment history.
           </p>
@@ -119,7 +119,7 @@ export function SettleUpDialog({ groupId, tripName, currency, me, isOwner, membe
               placeholder="UPI, cash…" disabled={recording} onChange={(event) => setNote(event.target.value)} />}
           </Field>
           <Collapse open={Boolean(error)} gap={16}>
-            <p role="alert" className="surface px-3.5 py-3 text-sm" style={{ color: 'var(--text-primary)' }}>{error}</p>
+            <p role="alert" className="surface px-3.5 py-3 t-callout" style={{ color: 'var(--text-primary)' }}>{error}</p>
           </Collapse>
           <div className="flex gap-2">
             <AsyncButton type="button" onClick={() => void confirm()} status={action.status} busyLabel="Recording…" doneLabel="Recorded"
@@ -132,16 +132,16 @@ export function SettleUpDialog({ groupId, tripName, currency, me, isOwner, membe
       ) : (
         <div className="flex flex-col gap-4">
           <Collapse open={Boolean(done)} gap={16} appear>
-            <p role="status" className="surface px-3.5 py-3 text-sm" style={{ color: 'var(--text-primary)' }}>{done}</p>
+            <p role="status" className="surface px-3.5 py-3 t-callout" style={{ color: 'var(--text-primary)' }}>{done}</p>
           </Collapse>
           {suggestions.length === 0 ? (
             <div className="py-6 text-center" data-testid="all-settled">
-              <p className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 22 }}>All settled up.</p>
-              <p className="mt-2 text-sm" style={{ color: 'var(--text-tertiary)' }}>Nobody owes anyone. Pour another round.</p>
+              <p className="t-title3 t-voice" style={{ color: 'var(--text-primary)' }}>All settled up.</p>
+              <p className="mt-2 t-callout" style={{ color: 'var(--text-tertiary)' }}>Nobody owes anyone. Pour another round.</p>
             </div>
           ) : (
             <>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <p className="t-callout" style={{ color: 'var(--text-secondary)' }}>
                 {suggestions.length} payment{suggestions.length === 1 ? '' : 's'} would settle everyone up.
               </p>
               <ul aria-label="Suggested payments" className="flex flex-col gap-2">
@@ -160,12 +160,12 @@ export function SettleUpDialog({ groupId, tripName, currency, me, isOwner, membe
                       style={{ border: `1px solid ${mine ? 'rgba(255,139,77,0.3)' : 'var(--border)'}`, background: mine ? 'rgba(255,139,77,0.07)' : 'var(--bg-card)' }}>
                       <div className="flex items-center gap-3">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm" style={{ color: 'var(--text-primary)' }}>
+                          <p className="truncate t-callout" style={{ color: 'var(--text-primary)' }}>
                             {nameOf(suggestion.from)} pays {nameOf(suggestion.to)}
                           </p>
-                          <p className="serif-display whitespace-nowrap" style={{ color: 'var(--text-primary)', fontSize: 16 }}>{money(suggestion.amount)}</p>
+                          <p className="t-headline t-num whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>{money(suggestion.amount)}</p>
                           {!(active.has(suggestion.from) && active.has(suggestion.to)) && (
-                            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Includes a former member, so it can’t be recorded.</p>
+                            <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>Includes a former member, so it can’t be recorded.</p>
                           )}
                         </div>
                         {recordable && !recordBelow && (
@@ -185,7 +185,7 @@ export function SettleUpDialog({ groupId, tripName, currency, me, isOwner, membe
                             onOpened={() => setUpiAsked({ key, amount: suggestion.amount })} onRecord={() => review(suggestion.from, suggestion.to, suggestion.amount)} />
                         )
                       ) : (
-                        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{nameOf(suggestion.to)} hasn’t added a UPI ID.</p>
+                        <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>{nameOf(suggestion.to)} hasn’t added a UPI ID.</p>
                       ))}
                     </li>
                   )
@@ -225,7 +225,7 @@ export function SettleUpDialog({ groupId, tripName, currency, me, isOwner, membe
             </form>
           ) : (
             members.length > 1 && (
-              <button type="button" onClick={() => setCustom(true)} className="min-h-11 self-start text-sm" style={{ color: 'var(--accent)' }}>
+              <button type="button" onClick={() => setCustom(true)} className="min-h-11 self-start t-callout" style={{ color: 'var(--accent)' }}>
                 Record another payment
               </button>
             )
@@ -261,25 +261,25 @@ function UpiPay({ upiId, name, amount, money, href, onOpened, onRecord }: {
   return (
     <div className="flex flex-col gap-2">
       <a href={href} onClick={onOpened} rel="noopener"
-        className="font-ui inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm transition-all duration-200 hover:brightness-110 active:scale-[0.985]"
-        style={{ background: 'var(--accent)', border: '1px solid var(--accent)', color: '#1A0A03', fontWeight: 500, letterSpacing: 0.2 }}>
+        className="font-ui inline-flex min-h-11 items-center justify-center rounded-full px-4 t-callout transition-all duration-200 hover:brightness-110 active:scale-[0.985]"
+        style={{ background: 'var(--accent)', border: '1px solid var(--accent)', color: '#1A0A03', fontWeight: 'var(--w-medium)', letterSpacing: 0.2 }}>
         Pay {money(amount)} via UPI
       </a>
       <NeonBtn type="button" variant="outline" className="min-h-11 w-full" onClick={onRecord}>Record payment</NeonBtn>
-      <div className="flex items-center justify-between gap-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+      <div className="flex items-center justify-between gap-2 t-footnote" style={{ color: 'var(--text-tertiary)' }}>
         <p className="min-w-0">
           No UPI app here? Pay {name} at{' '}
-          <span className="font-mono select-all" style={{ color: 'var(--text-secondary)', overflowWrap: 'anywhere' }} data-testid="upi-id">{upiId}</span>
+          <span className="t-code select-all" style={{ color: 'var(--text-secondary)', overflowWrap: 'anywhere' }} data-testid="upi-id">{upiId}</span>
         </p>
         <button type="button" onClick={() => void copyId()} aria-label={`Copy ${name}’s UPI ID`}
           className="min-h-11 shrink-0 rounded-md border px-3" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
           {copy === 'copied' ? 'Copied' : 'Copy'}
         </button>
       </div>
-      <span aria-live="polite" className={copy === 'failed' ? 'text-xs' : 'sr-only'} style={{ color: 'var(--accent)' }}>
+      <span aria-live="polite" className={copy === 'failed' ? 't-footnote' : 'sr-only'} style={{ color: 'var(--accent)' }}>
         {copy === 'copied' ? 'UPI ID copied.' : copy === 'failed' ? 'Couldn’t copy. Select the UPI ID to copy it.' : ''}
       </span>
-      <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+      <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>
         Opens your UPI app. The payment happens there, not in this app.
       </p>
     </div>
@@ -292,8 +292,8 @@ function UpiCheck({ text, onRecord, onNotYet }: { text: string; onRecord: () => 
   return (
     <div role="group" aria-labelledby={headingId} className="flex flex-col gap-2 rounded-lg px-3 py-2.5"
       style={{ border: '1px solid var(--border)' }}>
-      <p id={headingId} className="text-sm" style={{ color: 'var(--text-primary)' }}>Did the payment go through?</p>
-      <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+      <p id={headingId} className="t-callout" style={{ color: 'var(--text-primary)' }}>Did the payment go through?</p>
+      <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>
         {text} Check your UPI app, and record it only once the money has been sent.
       </p>
       <div className="flex gap-2">

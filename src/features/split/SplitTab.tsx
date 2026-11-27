@@ -25,7 +25,6 @@ import './splitTimeline.css'
 // The edit dialog keeps the Expense as it was when opened, so a concurrent edit is detected as stale.
 type Dialog = { kind: 'add' } | { kind: 'edit'; expense: LedgerExpense } | { kind: 'settle' } | null
 
-const eyebrow = { color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.22em' } as const
 
 const METHOD_TEXT: Record<SplitMethod, string> = {
   equal: 'split equally',
@@ -101,13 +100,13 @@ export function SplitTab({ trip, roster, reloadRoster }: TripTabProps) {
 
   return (
     <section data-testid="split-tab" className="flex flex-col gap-6" aria-labelledby="split-heading">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 id="split-heading" className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 25 }}>Split</h2>
-        <p className="font-mono" style={eyebrow} data-testid="split-currency">AMOUNTS IN {currency}</p>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 id="split-heading" className="t-title2" style={{ color: 'var(--text-primary)' }}>Split</h2>
+        <p className="t-eyebrow" style={{ color: 'var(--text-tertiary)' }} data-testid="split-currency">AMOUNTS IN {currency}</p>
       </div>
 
       {state.status === 'error' && (
-        <div role="alert" className="surface flex items-center justify-between gap-3 px-4 py-3 text-sm" style={{ color: 'var(--text-primary)' }}>
+        <div role="alert" className="surface flex items-center justify-between gap-3 px-4 py-3 t-callout" style={{ color: 'var(--text-primary)' }}>
           <span>
             {state.code === 'split_not_a_member'
               ? 'You no longer have access to this Trip’s expenses.'
@@ -133,7 +132,7 @@ export function SplitTab({ trip, roster, reloadRoster }: TripTabProps) {
           </div>
 
           {ledger.heldOut.length > 0 && (
-            <p role="alert" className="surface px-4 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            <p role="alert" className="surface px-4 py-3 t-callout" style={{ color: 'var(--text-secondary)' }}>
               {ledger.heldOut.length} record{ledger.heldOut.length === 1 ? ' doesn’t' : 's don’t'} add up in {currency} and
               {ledger.heldOut.length === 1 ? ' is' : ' are'} left out of every balance. A Trip Owner should review
               {ledger.heldOut.length === 1 ? ' it' : ' them'}.
@@ -177,11 +176,10 @@ function BalanceSummary({ me, balances, activeIds, nameOf, money }: {
   const others = [...balances].filter(([id, value]) => id !== me && (value !== 0n || activeIds.has(id)))
   return (
     <section aria-labelledby="split-balance-heading" className="surface m-appear px-4 py-5" data-testid="split-balance">
-      <h3 id="split-balance-heading" className="serif-eyebrow" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+      <h3 id="split-balance-heading" className="t-eyebrow">
         {mine > 0n ? 'You’re owed' : mine < 0n ? 'You owe' : 'All settled up'}
       </h3>
-      <p className="serif-display mt-1 whitespace-nowrap" data-testid="split-my-balance"
-        style={{ color: 'var(--text-primary)', fontSize: 38, fontWeight: 300, lineHeight: 1.1 }}>
+      <p className="t-title1 t-num mt-1 whitespace-nowrap" data-testid="split-my-balance" style={{ color: 'var(--text-primary)' }}>
         {/* Keyed by the amount: a new balance fades in over the old (no count-up). */}
         <span key={money(abs(mine))} className="m-swap">{money(abs(mine))}</span>
       </p>
@@ -190,9 +188,9 @@ function BalanceSummary({ me, balances, activeIds, nameOf, money }: {
           {others.map(([id, value]) => {
             const name = nameOf(id)
             return (
-              <li key={id} className="flex justify-between gap-3 text-sm">
-                <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{name}</span>
-                <span className="font-mono whitespace-nowrap" style={{ color: value === 0n ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
+              <li key={id} className="flex justify-between gap-3 t-callout">
+                <span className="min-w-0 truncate" style={{ color: 'var(--text-secondary)' }}>{name}</span>
+                <span className="t-num shrink-0 whitespace-nowrap" style={{ color: value === 0n ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
                   {value > 0n ? `is owed ${money(value)}` : value < 0n ? `owes ${money(-value)}` : 'settled up'}
                 </span>
               </li>
@@ -212,34 +210,48 @@ function GroupTotals({ totals, nameOf, money, me }: {
 }) {
   const rows = [...totals.members]
   return (
-    <section className="surface m-appear overflow-x-auto" aria-labelledby="split-totals-heading">
-      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
-        <h3 id="split-totals-heading" className="serif-eyebrow" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Group totals</h3>
-        <p className="font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 11 }} data-testid="split-total-spend"><span key={money(totals.total)} className="m-swap">{money(totals.total)}</span> spent</p>
+    <section className="split-totals surface m-appear" aria-labelledby="split-totals-heading">
+      <div className="flex items-center justify-between gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+        <h3 id="split-totals-heading" className="t-eyebrow min-w-0 truncate">Group totals</h3>
+        <p className="t-footnote t-num shrink-0 whitespace-nowrap" style={{ color: 'var(--text-tertiary)' }} data-testid="split-total-spend"><span key={money(totals.total)} className="m-swap">{money(totals.total)}</span> spent</p>
       </div>
-      <table className="w-full text-xs" aria-labelledby="split-totals-heading">
+      {/* Names keep one line and truncate (the column gives way first); amounts never wrap or shrink.
+          When four columns no longer fit (larger text, narrow phones), each name moves onto its own
+          line above that person's amounts (splitTimeline.css, container query). */}
+      <table className="split-totals__table t-footnote w-full" aria-labelledby="split-totals-heading">
         <thead>
           <tr style={{ color: 'var(--text-tertiary)' }}>
-            <th scope="col" className="px-4 py-1.5 text-left font-normal">Person</th>
+            <th scope="col" className="split-totals__name-col px-4 py-1.5 text-left font-normal" style={{ width: '100%' }}>Person</th>
             <th scope="col" className="px-2 py-1.5 text-right font-normal">Paid</th>
             <th scope="col" className="px-2 py-1.5 text-right font-normal">Share</th>
             <th scope="col" className="px-4 py-1.5 text-right font-normal">Net</th>
           </tr>
         </thead>
-        <tbody>
-          {rows.map(([id, entry]) => (
-            <tr key={id} style={{ borderTop: '1px solid var(--border)' }}>
-              <th scope="row" className="px-4 py-2 text-left font-normal" style={{ color: 'var(--text-secondary)', overflowWrap: 'anywhere' }}>
-                {nameOf(id)}{id === me ? ' (you)' : ''}
+        {rows.map(([id, entry]) => {
+          const name = (
+            <span className="flex min-w-0" title={nameOf(id)}>
+              <span className="min-w-0 truncate">{nameOf(id)}</span>
+              {id === me && <span className="shrink-0 whitespace-pre"> (you)</span>}
+            </span>
+          )
+          return (
+          <tbody key={id} style={{ borderTop: '1px solid var(--border)' }}>
+            <tr className="split-totals__name-row">
+              <th scope="rowgroup" colSpan={4} className="px-4 pt-2 text-left font-normal" style={{ color: 'var(--text-secondary)', maxWidth: 0 }}>{name}</th>
+            </tr>
+            <tr>
+              <th scope="row" className="split-totals__name-cell px-4 py-2 text-left font-normal" style={{ color: 'var(--text-secondary)', maxWidth: 0, width: '100%' }}>
+                {name}
               </th>
-              <td className="font-mono whitespace-nowrap px-2 py-2 text-right" style={{ color: 'var(--text-secondary)' }}>{money(entry.paid)}</td>
-              <td className="font-mono whitespace-nowrap px-2 py-2 text-right" style={{ color: 'var(--text-tertiary)' }}>{money(entry.share)}</td>
-              <td className="font-mono whitespace-nowrap px-4 py-2 text-right" style={{ color: entry.net === 0n ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
+              <td className="t-num whitespace-nowrap px-2 py-2 text-right" style={{ color: 'var(--text-secondary)' }}>{money(entry.paid)}</td>
+              <td className="t-num whitespace-nowrap px-2 py-2 text-right" style={{ color: 'var(--text-tertiary)' }}>{money(entry.share)}</td>
+              <td className="t-num whitespace-nowrap px-4 py-2 text-right" style={{ color: entry.net === 0n ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
                 {entry.net > 0n ? '+' : entry.net < 0n ? '−' : ''}{money(entry.net < 0n ? -entry.net : entry.net)}
               </td>
             </tr>
-          ))}
-        </tbody>
+          </tbody>
+          )
+        })}
       </table>
     </section>
   )
@@ -341,13 +353,13 @@ function ExpenseLog({ expenses: allExpenses, me, isOwner, activeIds, nameOf, mon
 
   return (
     <section ref={logRef} aria-labelledby="split-log-heading" className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <h3 id="split-log-heading" className="serif-eyebrow" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Expenses</h3>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <h3 id="split-log-heading" className="t-eyebrow">Expenses</h3>
         {allExpenses.length > 0 && (
-          <div role="group" aria-label="Show expenses" className="flex rounded-full border p-0.5 text-xs" style={{ borderColor: 'var(--border)' }}>
+          <div role="group" aria-label="Show expenses" className="flex rounded-full border p-0.5 t-footnote" style={{ borderColor: 'var(--border)' }}>
             {([['all', 'All'], ['mine', `Only mine · ${mineCount}`]] as const).map(([value, label]) => (
               <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}
-                className="m-press min-h-9 rounded-full px-3"
+                className="m-press t-num min-h-9 whitespace-nowrap rounded-full px-3"
                 style={{ background: filter === value ? 'var(--accent-soft)' : 'transparent', color: filter === value ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
                 {label}
               </button>
@@ -357,7 +369,7 @@ function ExpenseLog({ expenses: allExpenses, me, isOwner, activeIds, nameOf, mon
       </div>
       {todayShown && (
         <button type="button" onClick={jumpToToday} data-testid="expenses-jump-today"
-          className="m-press m-appear min-h-9 self-start rounded-full border px-3 text-xs"
+          className="m-press m-appear min-h-9 self-start rounded-full border px-3 t-footnote"
           style={{ borderColor: 'rgba(255,139,77,0.38)', color: 'var(--accent)' }}>
           Jump to today
         </button>
@@ -365,7 +377,7 @@ function ExpenseLog({ expenses: allExpenses, me, isOwner, activeIds, nameOf, mon
       <div className="flex flex-col">
         {beforeDays.length > 0 && (
           <section aria-labelledby="split-before-heading" className="flex flex-col" data-testid="expenses-before-trip">
-            <h4 id="split-before-heading" className="pb-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            <h4 id="split-before-heading" className="pb-1 t-footnote" style={{ color: 'var(--text-tertiary)' }}>
               Before the trip · {countText(beforeCount)}
             </h4>
             <ul aria-label="Expenses before the trip" className="flex flex-col">{beforeDays}</ul>
@@ -376,7 +388,7 @@ function ExpenseLog({ expenses: allExpenses, me, isOwner, activeIds, nameOf, mon
             {duringDays}
             {afterDays.length > 0 && (
               <li data-testid="expenses-after-trip" aria-labelledby="split-after-heading" className="flex flex-col">
-                <h4 id="split-after-heading" className="pb-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                <h4 id="split-after-heading" className="pb-1 t-footnote" style={{ color: 'var(--text-tertiary)' }}>
                   After the trip · {countText(afterCount)}
                 </h4>
                 <ul aria-label="After the trip" className="flex flex-col">{afterDays}</ul>
@@ -386,11 +398,11 @@ function ExpenseLog({ expenses: allExpenses, me, isOwner, activeIds, nameOf, mon
         )}
       </div>
       {withGhosts.length === 0 ? (
-        <p className="m-appear py-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }} data-testid="expenses-empty">
+        <p className="m-appear py-8 text-center t-callout" style={{ color: 'var(--text-tertiary)' }} data-testid="expenses-empty">
           No expenses yet. Tap “Add expense” to log the first one.
         </p>
       ) : shown.length === 0 ? (
-        <p className="py-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }} data-testid="expenses-mine-empty">
+        <p className="py-8 text-center t-callout" style={{ color: 'var(--text-tertiary)' }} data-testid="expenses-mine-empty">
           You’re not on any expenses yet. Switch to All to see the whole Trip’s.
         </p>
       ) : null}
@@ -422,15 +434,15 @@ function DayGroup({ day, level: Heading, index, filter, today, leaving, money, c
             <Heading id={id} className="flex min-w-0 items-baseline gap-1.5 truncate">
               {day.dayNumber !== null ? (
                 <>
-                  <span className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 17 }}>Day {day.dayNumber}</span>
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>· {dateLabel(day.date)}</span>
+                  <span className="t-headline t-num shrink-0" style={{ color: 'var(--text-primary)' }}>Day {day.dayNumber}</span>
+                  <span className="t-footnote t-num min-w-0 truncate" style={{ color: 'var(--text-secondary)' }}>· {dateLabel(day.date)}</span>
                 </>
               ) : (
-                <span className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 15 }}>{label}</span>
+                <span className="t-headline min-w-0 truncate" style={{ color: 'var(--text-primary)' }}>{label}</span>
               )}
-              {today && <span className="font-mono" style={{ color: 'var(--accent)', fontSize: 10, letterSpacing: '0.16em' }}>TODAY</span>}
+              {today && <span className="t-eyebrow shrink-0" style={{ color: 'var(--accent)' }}>TODAY</span>}
             </Heading>
-            <p className="font-mono shrink-0 whitespace-nowrap text-xs" data-testid="expense-day-total" style={{ color: 'var(--text-primary)' }}>
+            <p className="t-footnote t-num t-medium shrink-0 whitespace-nowrap" data-testid="expense-day-total" style={{ color: 'var(--text-primary)' }}>
               <span key={money(amount)} className="m-swap">{money(amount)}</span>
               {yourShare && <span style={{ color: 'var(--text-tertiary)' }}> your share</span>}
             </p>
@@ -491,36 +503,37 @@ function ExpenseCard({ expense, time, me, mine, source, canChange, involvesForme
             data-mine={mine ? 'true' : undefined} style={mine ? { borderColor: 'rgba(255,139,77,0.38)' } : undefined}>
             {/* The whole row toggles the details for touch; the Breakdown button below is the accessible control. */}
             <div className="grid cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3" onClick={() => setOpen((value) => !value)}>
-              <p className="font-mono pt-0.5" style={{ color: 'var(--text-tertiary)', fontSize: 11 }}>
+              <p className="t-footnote t-num whitespace-nowrap pt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                 <time dateTime={expenseMoment(expense)}>{time || '—'}</time>
               </p>
               <div className="min-w-0">
-                <p className="serif-display truncate" style={{ color: 'var(--text-primary)', fontSize: 16, lineHeight: 1.25 }}>{expense.description}</p>
-                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                <p className="t-headline truncate" style={{ color: 'var(--text-primary)' }}>{expense.description}</p>
+                <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>
                   Paid by {listNames([...expense.payers].sort((a, b) => (a.amount === b.amount ? 0 : a.amount > b.amount ? -1 : 1)).map((payer) => nameOf(payer.memberId)))}
                   {' · '}{people === 1 ? '1 person' : `${people} people`}
                   {category ? ` · ${category}` : ''}
                 </p>
+                {/* Under the title rather than under the amount, so the title keeps its width. */}
+                {myShare !== undefined && (
+                  <p className="t-footnote t-num" style={{ color: 'var(--text-secondary)' }}>Your share {money(myShare)}</p>
+                )}
                 {source && (
-                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }} data-testid="expense-source">
+                  <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }} data-testid="expense-source">
                     {source.kind === 'booking' ? `From booking${source.title ? `: ${source.title}` : ''} · In itinerary` : 'From a scanned bill'}
                   </p>
                 )}
               </div>
-              <div className="text-right">
-                <p className="serif-display whitespace-nowrap" style={{ color: 'var(--text-primary)', fontSize: 16, lineHeight: 1.25 }}>{money(expense.accountingAmount)}</p>
+              <div className="t-num text-right">
+                <p className="t-headline t-num whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>{money(expense.accountingAmount)}</p>
                 {converted && (
-                  <p className="font-mono whitespace-nowrap" style={{ color: 'var(--text-tertiary)', fontSize: 11 }}>
+                  <p className="t-footnote t-num whitespace-nowrap" style={{ color: 'var(--text-tertiary)' }}>
                     {formatMoney(expense.originalAmount, expense.originalCurrency)}
                   </p>
-                )}
-                {myShare !== undefined && (
-                  <p className="whitespace-nowrap text-xs" style={{ color: 'var(--text-secondary)' }}>Your share {money(myShare)}</p>
                 )}
               </div>
             </div>
 
-            <div id={moreId} hidden={!open} className="split-row__more flex flex-col gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <div id={moreId} hidden={!open} className="split-row__more flex flex-col gap-1.5 t-footnote" style={{ color: 'var(--text-secondary)' }}>
               <p style={{ color: 'var(--text-tertiary)' }}>{METHOD_TEXT[expense.splitMethod]} between {people}</p>
               {converted && expense.fxRate && (
                 <p style={{ color: 'var(--text-tertiary)' }}>
@@ -529,15 +542,15 @@ function ExpenseCard({ expense, time, me, mine, source, canChange, involvesForme
                   {expense.fxCapturedAt ? `, captured ${formatWhen(expense.fxCapturedAt, timezone)}` : ''}
                 </p>
               )}
-              <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5">
+              <dl className="t-num grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5">
                 {expense.payers.map((payer) => (
                   <div key={`p-${payer.memberId}`} className="contents">
-                    <dt>{nameOf(payer.memberId)} paid</dt><dd className="font-mono text-right">{money(payer.amount)}</dd>
+                    <dt>{nameOf(payer.memberId)} paid</dt><dd className="t-num whitespace-nowrap text-right">{money(payer.amount)}</dd>
                   </div>
                 ))}
                 {expense.shares.map((share) => (
                   <div key={`s-${share.memberId}`} className="contents">
-                    <dt>{nameOf(share.memberId)}’s share{weightText(expense.splitMethod, share)}</dt><dd className="font-mono text-right">{money(share.amount)}</dd>
+                    <dt>{nameOf(share.memberId)}’s share{weightText(expense.splitMethod, share)}</dt><dd className="t-num whitespace-nowrap text-right">{money(share.amount)}</dd>
                   </div>
                 ))}
               </dl>
@@ -548,26 +561,26 @@ function ExpenseCard({ expense, time, me, mine, source, canChange, involvesForme
             </div>
 
             {canChange && involvesFormer && (
-              <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Includes someone who has left the Trip, so it can’t be edited. It can still be deleted.</p>
+              <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>Includes someone who has left the Trip, so it can’t be edited. It can still be deleted.</p>
             )}
-            {error && <p role="alert" className="text-xs" style={{ color: 'var(--accent)' }}>{error}</p>}
+            {error && <p role="alert" className="t-footnote" style={{ color: 'var(--accent)' }}>{error}</p>}
             {canChange && confirming ? (
               <div className="flex flex-wrap items-center gap-2 pb-1.5" role="group" aria-label={`Confirm deleting ${expense.description}`}>
-                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Delete for everyone? Balances will update.</span>
+                <span className="t-footnote" style={{ color: 'var(--text-secondary)' }}>Delete for everyone? Balances will update.</span>
                 <NeonBtn type="button" disabled={busy} onClick={() => void remove()} className="min-h-11">{busy ? 'Deleting…' : 'Delete expense'}</NeonBtn>
                 <NeonBtn type="button" variant="ghost" disabled={busy} onClick={() => setConfirming(false)} className="min-h-11">Keep</NeonBtn>
               </div>
             ) : (
               <div className="flex items-center gap-1">
                 <button type="button" aria-expanded={open} aria-controls={moreId} onClick={() => setOpen((value) => !value)}
-                  className="m-press -ml-1 min-h-10 flex-1 px-1 text-left text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                  className="m-press -ml-1 min-h-10 flex-1 px-1 text-left t-footnote" style={{ color: 'var(--text-tertiary)' }}>
                   {open ? '▾' : '▸'} Breakdown
                 </button>
                 {canChange && !involvesFormer && (
-                  <button type="button" onClick={onEdit} aria-label={`Edit ${expense.description}`} className="m-press min-h-10 rounded-md border px-3 text-xs" style={quiet}>Edit</button>
+                  <button type="button" onClick={onEdit} aria-label={`Edit ${expense.description}`} className="m-press min-h-10 rounded-md border px-3 t-footnote" style={quiet}>Edit</button>
                 )}
                 {canChange && (
-                  <button type="button" onClick={() => setConfirming(true)} aria-label={`Delete ${expense.description}`} className="m-press min-h-10 rounded-md border px-3 text-xs" style={quiet}>Delete</button>
+                  <button type="button" onClick={() => setConfirming(true)} aria-label={`Delete ${expense.description}`} className="m-press min-h-10 rounded-md border px-3 t-footnote" style={quiet}>Delete</button>
                 )}
               </div>
             )}
@@ -589,10 +602,10 @@ function PaymentHistory({ settlements, me, isOwner, nameOf, money, timezone, onC
 }) {
   return (
     <section aria-labelledby="split-payments-heading" className="flex flex-col gap-3">
-      <h3 id="split-payments-heading" className="serif-eyebrow" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+      <h3 id="split-payments-heading" className="t-eyebrow t-num">
         Payments recorded · {settlements.length}
       </h3>
-      <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Records of payments made outside the app. No money moves here.</p>
+      <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>Records of payments made outside the app. No money moves here.</p>
       <ul aria-label="Payments" className="m-list flex flex-col gap-1.5">
         {settlements.map((settlement) => (
           <PaymentRow key={settlement.id} settlement={settlement} me={me} canDelete={settlement.recordedBy === me || isOwner}
@@ -632,23 +645,23 @@ function PaymentRow({ settlement, me, canDelete, nameOf, money, timezone, onChan
   return (
     <li className="flex flex-col gap-1 rounded-md px-3 py-2" aria-label={label} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
       <div className="flex items-center justify-between gap-3">
-        <p className="truncate text-sm" style={{ color: 'var(--text-secondary)' }}>{label}</p>
-        <p className="serif-display whitespace-nowrap" style={{ color: 'var(--text-primary)', fontSize: 14 }}>{money(settlement.amount)}</p>
+        <p className="t-callout min-w-0 truncate" style={{ color: 'var(--text-secondary)' }}>{label}</p>
+        <p className="t-headline t-num shrink-0 whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>{money(settlement.amount)}</p>
       </div>
-      <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+      <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>
         {settlement.note ? `${settlement.note} · ` : ''}Recorded by {nameOf(settlement.recordedBy)}{settlement.recordedBy === me ? ' (you)' : ''}
         {' · '}{formatWhen(settlement.createdAt, timezone)}
       </p>
-      {error && <p role="alert" className="text-xs" style={{ color: 'var(--accent)' }}>{error}</p>}
+      {error && <p role="alert" className="t-footnote" style={{ color: 'var(--accent)' }}>{error}</p>}
       {canDelete && (confirming ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Delete this payment record?</span>
+          <span className="t-footnote" style={{ color: 'var(--text-secondary)' }}>Delete this payment record?</span>
           <NeonBtn type="button" disabled={busy} onClick={() => void remove()} className="min-h-11">{busy ? 'Deleting…' : 'Delete payment'}</NeonBtn>
           <NeonBtn type="button" variant="ghost" disabled={busy} onClick={() => setConfirming(false)} className="min-h-11">Keep</NeonBtn>
         </div>
       ) : (
         <button type="button" onClick={() => setConfirming(true)} aria-label={`Delete payment: ${label}`}
-          className="m-press min-h-11 self-start text-xs" style={{ color: 'var(--text-tertiary)' }}>Delete</button>
+          className="m-press min-h-11 self-start t-footnote" style={{ color: 'var(--text-tertiary)' }}>Delete</button>
       ))}
     </li>
   )

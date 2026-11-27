@@ -251,11 +251,11 @@ export function ExpenseForm({
                 </Field>
                 <div className="flex items-center justify-between gap-3">
                   <button type="button" onClick={() => void fetchRate()} disabled={rateState.kind === 'loading'}
-                    className="min-h-11 text-sm" style={{ color: 'var(--accent)' }}>
+                    className="t-callout t-medium min-h-11 text-left" style={{ color: 'var(--accent)' }}>
                     {rateState.kind === 'loading' ? 'Fetching rate…' : 'Use live rate'}
                   </button>
                   {evaluation.accountingMinor !== null && (
-                    <p className="font-mono" style={{ color: 'var(--text-secondary)', fontSize: 12 }} data-testid="converted-amount">
+                    <p className="t-footnote t-num whitespace-nowrap" style={{ color: 'var(--text-secondary)' }} data-testid="converted-amount">
                       = {money(evaluation.accountingMinor, accountingCurrency)}
                     </p>
                   )}
@@ -313,9 +313,9 @@ export function ExpenseForm({
               </Collapse>
               <Collapse open={draft.splitMode === 'equal'} gap={12}>
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Split between</span>
-                    <span className="flex gap-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>Split between</span>
+                    <span className="flex gap-3 t-callout">
                       <button type="button" className="min-h-11" style={{ color: 'var(--accent)' }}
                         onClick={() => chooseIncluded(members.map((member) => member.id))}>Everyone</button>
                       <button type="button" className="min-h-11" style={{ color: 'var(--text-secondary)' }}
@@ -335,17 +335,17 @@ export function ExpenseForm({
                                 ? [...draft.included, member.id]
                                 : draft.included.filter((id) => id !== member.id))} />
                             <span className="min-w-0 flex-1 truncate">{member.name}</span>
-                            {reason && <span className="shrink-0 text-xs" data-testid="split-away-reason" style={{ color: 'var(--text-tertiary)' }}>{reason}</span>}
+                            {reason && <span className="shrink-0 t-footnote" data-testid="split-away-reason" style={{ color: 'var(--text-tertiary)' }}>{reason}</span>}
                           </label>
                         </li>
                       )
                     })}
                   </ul>
                   <Collapse open={Boolean(show('shares'))} gap={12}>
-                    <p role="alert" style={{ color: 'var(--accent)', fontSize: 12 }}>{show('shares')}</p>
+                    <p role="alert" className="t-footnote" style={{ color: 'var(--accent)' }}>{show('shares')}</p>
                   </Collapse>
                   {perHead && (
-                    <p role="status" className="font-mono" style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+                    <p role="status" className="t-footnote t-num" style={{ color: 'var(--text-secondary)' }}>
                       {rangeText(perHead, (minor) => money(minor, accountingCurrency))} each
                       {originalPerHead ? ` (${rangeText(originalPerHead, money)})` : ''}
                     </p>
@@ -364,17 +364,17 @@ export function ExpenseForm({
           </fieldset>
 
           <Collapse open={Boolean(similar)} gap={16}>
-            {similar && <p role="status" data-testid="similar-expense" className="rounded-lg px-3 py-2 text-xs"
+            {similar && <p role="status" data-testid="similar-expense" className="rounded-lg px-3 py-2 t-footnote"
               style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-strong)' }}>
               {similar.createdBy === me ? 'You' : memberName(similar.createdBy)} already added {money(similar.originalAmount, similar.originalCurrency)} for
               “{similar.description}” on {formatDay(similar.spentAt ?? similar.createdAt, timezone)}. Check it isn’t the same cost before saving.
             </p>}
           </Collapse>
           <Collapse open={Boolean(serverError)} gap={16}>
-            <p role="alert" className="surface px-3.5 py-3 text-sm" style={{ color: 'var(--text-primary)' }}>{serverError}</p>
+            <p role="alert" className="surface px-3.5 py-3 t-callout" style={{ color: 'var(--text-primary)' }}>{serverError}</p>
           </Collapse>
           <Collapse open={attempted && !evaluation.request && !serverError} gap={16}>
-            <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>Check the highlighted fields.</p>
+            <p role="alert" className="t-callout" style={{ color: 'var(--accent)' }}>Check the highlighted fields.</p>
           </Collapse>
           <div className="flex gap-2">
             <AsyncButton type="submit" status={action.status} busyLabel="Saving…" doneLabel="Saved" className="min-h-11 flex-1">
@@ -434,12 +434,12 @@ function Choice<T extends string>({ legend, name, value, options, onChange, chil
   return (
     <fieldset className="surface flex flex-col gap-3 px-3.5 py-3">
       <legend className="sr-only">{legend}</legend>
-      <span aria-hidden="true" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{legend}</span>
+      <span aria-hidden="true" className="t-callout" style={{ color: 'var(--text-secondary)' }}>{legend}</span>
       <div className="grid grid-cols-2 gap-2">
         {options.map((option) => {
           const checked = value === option.value
           return (
-            <label key={option.value} className="m-toggle flex min-h-11 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-2 text-[13px]"
+            <label key={option.value} className="m-toggle flex min-h-11 cursor-pointer items-center justify-center gap-1.5 rounded-full border px-2 py-1 text-center t-footnote"
               style={{
                 borderColor: checked ? 'var(--accent)' : 'var(--border)',
                 background: checked ? 'var(--accent-soft)' : 'transparent',
@@ -467,12 +467,12 @@ function AmountList({ label, members, currency, values, onChange }: {
   return (
     <ul className="flex flex-col gap-2">
       {members.map((member) => (
-        <li key={member.id} className="grid grid-cols-[1fr_120px_36px] items-center gap-2">
-          <span aria-hidden="true" className="truncate text-sm" style={{ color: 'var(--text-primary)' }}>{member.name}</span>
+        <li key={member.id} className="grid grid-cols-[minmax(0,1fr)_120px_auto] items-center gap-2">
+          <span aria-hidden="true" className="min-w-0 truncate t-callout" style={{ color: 'var(--text-primary)' }}>{member.name}</span>
           <input aria-label={`${label} ${member.name}`} className={inputClass} style={inputStyle}
             inputMode="decimal" autoComplete="off" placeholder="0" value={values[member.id] ?? ''}
             onChange={(event) => onChange({ ...values, [member.id]: event.target.value })} />
-          <span className="font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 11 }}>{currency}</span>
+          <span className="t-caption" style={{ color: 'var(--text-tertiary)' }}>{currency}</span>
         </li>
       ))}
     </ul>
@@ -496,7 +496,7 @@ function TotalStrip({ check, what, matchText, money, error }: {
         : `${money(check.entered - check.required)} too much`}`
   if (!text) return null
   return (
-    <p role="status" className="m-toggle rounded-lg px-3 py-2 text-xs"
+    <p role="status" className="m-toggle rounded-lg px-3 py-2 t-footnote"
       style={{
         color: matches ? 'var(--text-primary)' : 'var(--accent)',
         border: `1px solid ${matches ? 'var(--border-strong)' : 'rgba(255,139,77,0.4)'}`,

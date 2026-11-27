@@ -6,7 +6,7 @@ export function BrandMark() {
 
 /**
  * One full-height column for every screen outside the workspace (auth, onboarding,
- * invitations, interstitials): brand mark or eyebrow, serif title, lede, content.
+ * invitations, interstitials): brand mark or eyebrow, display title (t-display), lede (t-body), content.
  */
 export function ScreenFrame({ testId, eyebrow = <BrandMark />, title, lede, top, centered = true, busy, className, children }: {
   /** Extra classes on the screen, e.g. room for a bottom nav. */
@@ -27,8 +27,8 @@ export function ScreenFrame({ testId, eyebrow = <BrandMark />, title, lede, top,
       {top && <div className="flex min-h-11 items-center justify-between gap-3">{top}</div>}
       <div className={centered ? 'my-auto py-8' : 'pb-4 pt-6'}>
         {eyebrow}
-        <h1 className="screen-title mt-4">{title}</h1>
-        {lede && <p className="screen-lede mt-3">{lede}</p>}
+        <h1 className="t-display mt-4" style={{ color: 'var(--text-primary)', overflowWrap: 'break-word' }}>{title}</h1>
+        {lede && <p className="t-body mt-3" style={{ color: 'var(--text-secondary)', overflowWrap: 'anywhere' }}>{lede}</p>}
         {children && <div className="mt-8">{children}</div>}
       </div>
     </main>

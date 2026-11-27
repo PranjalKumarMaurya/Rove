@@ -1224,6 +1224,90 @@ export type Database = {
           },
         ]
       }
+      trip_join_links: {
+        Row: {
+          created_at: string
+          created_by: string
+          group_id: string
+          id: string
+          proof_verifier: string
+          revoked_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          group_id: string
+          id?: string
+          proof_verifier: string
+          revoked_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          group_id?: string
+          id?: string
+          proof_verifier?: string
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_join_links_group_id_created_by_fkey"
+            columns: ["group_id", "created_by"]
+            isOneToOne: false
+            referencedRelation: "group_members"
+            referencedColumns: ["group_id", "id"]
+          },
+          {
+            foreignKeyName: "trip_join_links_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_messages: {
+        Row: {
+          body: string
+          client_id: string
+          created_at: string
+          group_id: string
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          client_id: string
+          created_at?: string
+          group_id: string
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          client_id?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_messages_sender_same_group"
+            columns: ["group_id", "sender_id"]
+            isOneToOne: false
+            referencedRelation: "group_members"
+            referencedColumns: ["group_id", "id"]
+          },
+        ]
+      }
       trip_todos: {
         Row: {
           completed_at: string | null
@@ -1488,6 +1572,7 @@ export type Database = {
         }[]
       }
       get_split_ledger: { Args: { p_group_id: string }; Returns: Json }
+      get_trip_join_link: { Args: { group_id: string }; Returns: Json }
       get_trip_member_profiles: {
         Args: { p_group_id: string }
         Returns: {
@@ -1502,6 +1587,7 @@ export type Database = {
         }[]
       }
       inspect_invitation: { Args: { invitation_proof: string }; Returns: Json }
+      inspect_trip_join_link: { Args: { proof: string }; Returns: Json }
       ir003_bootstrap_group_impl: {
         Args: {
           p_configuration_request: Json
@@ -1588,6 +1674,10 @@ export type Database = {
         Returns: Json
       }
       is_valid_iana_timezone: { Args: { candidate: string }; Returns: boolean }
+      join_trip_with_link: {
+        Args: { proof: string; request_id: string }
+        Returns: Json
+      }
       list_group_invitations: {
         Args: {
           before_created_at: string
@@ -1623,6 +1713,10 @@ export type Database = {
         Args: { p_event_id: string; p_group_id: string; p_member_ids: string[] }
         Returns: undefined
       }
+      set_trip_join_link: {
+        Args: { enabled: boolean; group_id: string; rotate?: boolean }
+        Returns: Json
+      }
       transfer_ownership: {
         Args: {
           group_id: string
@@ -1630,6 +1724,16 @@ export type Database = {
           request_id: string
           successor_membership_id: string
         }
+        Returns: Json
+      }
+      trip_join_link_get_impl: { Args: { p_group_id: string }; Returns: Json }
+      trip_join_link_inspect_impl: { Args: { p_proof: string }; Returns: Json }
+      trip_join_link_join_impl: {
+        Args: { p_proof: string; p_request_id: string }
+        Returns: Json
+      }
+      trip_join_link_set_impl: {
+        Args: { p_enabled: boolean; p_group_id: string; p_rotate: boolean }
         Returns: Json
       }
       update_expense: {

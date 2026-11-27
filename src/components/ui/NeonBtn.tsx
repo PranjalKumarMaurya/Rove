@@ -28,8 +28,8 @@ export const NeonBtn = forwardRef<HTMLButtonElement, Props>(function NeonBtn({
     return { background: 'rgba(245,241,235,0.04)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }
   })()
   const sizing = size === 'lg'
-    ? 'inline-flex min-h-12 items-center justify-center gap-2 px-5 text-[15px]'
-    : 'px-4 py-2.5 text-sm'
+    ? 'inline-flex min-h-12 items-center justify-center gap-2 px-5 t-callout'
+    : 'px-4 py-2.5 t-callout'
 
   return (
     <button
@@ -37,7 +37,7 @@ export const NeonBtn = forwardRef<HTMLButtonElement, Props>(function NeonBtn({
       // m-press: transform-only press feedback (motion.css) instead of transition-all, which also eased layout.
       className={`${sizing} m-press font-ui hover:brightness-110 rounded-full disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100 ${className}`}
       style={{
-        fontWeight: size === 'lg' && variant === 'solid' ? 600 : 500,
+        fontWeight: size === 'lg' && variant === 'solid' ? 'var(--w-semibold)' : 'var(--w-medium)',
         letterSpacing: 0.2,
         ...base,
         ...externalStyle,

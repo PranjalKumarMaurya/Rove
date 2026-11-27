@@ -36,36 +36,36 @@ export function InvitationList({ groupId, reloadKey }: { groupId: string; reload
   const pendingRows = useExitList(pending, (item) => item.invitationId)
 
   return (
-    <section data-testid="invitation-list" aria-label="Invitations" className="surface px-4 py-5">
-      <h2 className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 25 }}>Invitations</h2>
-      {state.kind === 'loading' && <p className="mt-3" style={{ color: 'var(--text-secondary)' }}>Loading invitations…</p>}
-      {state.kind === 'error' && <div className="mt-3">
+    <section data-testid="invitation-list" aria-labelledby="invitation-list-heading" className="surface settings-card">
+      <h3 id="invitation-list-heading" className="t-headline" style={{ color: 'var(--text-primary)' }}>Email invitations</h3>
+      {state.kind === 'loading' && <p className="t-callout" style={{ color: 'var(--text-secondary)' }}>Loading invitations…</p>}
+      {state.kind === 'error' && <div>
         <p role="alert" style={{ color: 'var(--text-secondary)' }}>We could not load invitations.</p>
         <button type="button" onClick={reload} className={`${buttonClass} mt-3`} style={quietButtonStyle}>Try again</button>
       </div>}
       {state.kind === 'ready' && <>
-        <p className="mt-2" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+        <p className="t-callout" style={{ color: 'var(--text-secondary)' }}>
           {state.liveCount === 1 ? '1 live link' : `${state.liveCount} live links`}. Links are shown only once, when you create them.
         </p>
         {pendingRows.entries.length === 0
-          ? <p className="m-appear mt-4" style={{ color: 'var(--text-secondary)' }}>No pending invitations.</p>
-          : <ul aria-label="Pending invitations" className="mt-4 flex flex-col gap-3" style={{ '--fold-gap': '12px' } as CSSProperties}>
+          ? <p className="m-appear t-callout" style={{ color: 'var(--text-secondary)' }}>No pending invitations.</p>
+          : <ul aria-label="Pending invitations" className="flex flex-col gap-3" style={{ '--fold-gap': '12px' } as CSSProperties}>
             {pendingRows.entries.map(({ item, leaving }) => (
               <li key={item.invitationId} {...foldProps(leaving)}><div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate" style={{ color: 'var(--text-primary)' }}>{item.recipientEmail}</p>
-                  <p style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>{invitationStatusLabel(item.status)} · Expires {formatInstant(item.expiresAt)}</p>
+                  <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>{invitationStatusLabel(item.status)} · Expires {formatInstant(item.expiresAt)}</p>
                 </div>
                 <button type="button" aria-label={`Revoke invitation for ${item.recipientEmail}`} onClick={() => setRevoking(item)}
                   className={buttonClass} style={{ ...quietButtonStyle, color: 'var(--neon-pink)' }}>Revoke</button>
               </div></li>
             ))}
           </ul>}
-        {past.length > 0 && <Details className="mt-4" summaryStyle={{ color: 'var(--text-secondary)', cursor: 'pointer' }}
+        {past.length > 0 && <Details summaryStyle={{ color: 'var(--text-secondary)', cursor: 'pointer' }}
           summary={`Past invitations (${past.length})`}>
           <ul aria-label="Past invitations" className="mt-3 flex flex-col gap-2">
             {past.map((item) => (
-              <li key={item.invitationId} className="flex justify-between gap-3" style={{ fontSize: 14 }}>
+              <li key={item.invitationId} className="t-callout flex justify-between gap-3">
                 <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{item.recipientEmail}</span>
                 <span style={{ color: 'var(--text-tertiary)' }}>{invitationStatusLabel(item.status)} · {formatDay(item.createdAt)}</span>
               </li>

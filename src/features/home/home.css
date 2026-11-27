@@ -32,13 +32,16 @@
   background: none;
   color: var(--text-tertiary);
   font-family: var(--font-ui);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 14px;
+  /* Icons keep their size; the label grows with Text size up to a cap and never wraps. */
+  font-size: var(--type-nav);
+  font-weight: var(--w-medium);
+  line-height: var(--lh-nav);
   letter-spacing: 0.01em;
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
 }
+.home-nav__item > span:last-child { display: block; max-width: calc(100% - 4px); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.home-nav__icon { flex-shrink: 0; }
 .home-nav__icon svg { transition: color var(--dur-fast) var(--ease-out); }
 .home-nav__item:hover { color: var(--text-secondary); }
 .home-nav__item.is-active, .home-nav__item.is-active:hover { color: var(--text-primary); }
@@ -115,10 +118,12 @@
 .invite-dialog.is-shown .invite-dialog__card { transform: scale(1); transition-duration: 240ms; }
 
 .invite-dialog__title {
+  /* title2 (src/styles/type.css). */
   font-family: var(--font-display);
-  font-variation-settings: "opsz" 48, "SOFT" 30, "wght" 400;
-  font-size: 24px;
-  line-height: 1.2;
+  font-variation-settings: "SOFT" 50;
+  font-weight: var(--w-medium);
+  font-size: var(--type-title2);
+  line-height: var(--lh-title2);
   letter-spacing: -0.015em;
   color: var(--text-primary);
 }
@@ -153,8 +158,8 @@
   background: rgba(245, 241, 235, 0.05);
   color: var(--text-secondary);
   font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--type-footnote);
+  font-weight: var(--w-medium);
   cursor: pointer;
   transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
 }

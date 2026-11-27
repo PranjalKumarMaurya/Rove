@@ -1,0 +1,242 @@
+/* ─── Trip chat (ChatTab.tsx) ────────────────────────────────
+   iMessage's patterns in Rove's dark theme: the accent is the "mine" colour.
+   A column the height of the visible screen (set by useChatViewport): the
+   message list scrolls, the composer stays at the bottom. Type comes from the
+   .t-* roles; spacing, radii and sizes from the design-system tokens (with
+   their values as fallbacks while the tokens land in global.css). */
+
+.chat {
+  /* Room left for the bottom bar under the composer. The navigation can override it. */
+  --chat-bottom-clear: calc(var(--tab-bar-height, 56px) + var(--tab-bar-bottom, 6px) + var(--space-2, 8px));
+  --chat-bg: var(--bg-base);
+  --chat-mine: var(--accent);
+  --chat-mine-text: #1A0A03;
+  --chat-other: #2A2420;
+  /* iMessage's "Not Delivered" red, warmed to sit with the accent. */
+  --chat-danger: #FF6B5E;
+  --chat-radius: 18px;
+  --chat-radius-tight: 6px;
+  --chat-avatar: var(--avatar-sm, 28px);
+  --chat-send-scale: 0.96;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--chat-bg);
+}
+.chat__probe { position: absolute; top: 0; left: 0; width: 0; height: var(--chat-bottom-clear); visibility: hidden; pointer-events: none; }
+
+.chat__list { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.chat__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  /* Inline room for the bubble tails. */
+  padding: var(--space-3, 12px) var(--space-2, 8px);
+  display: flex;
+  flex-direction: column;
+  /* Messages fade out under the header instead of being cut off. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+}
+.chat__scroll::-webkit-scrollbar { display: none; }
+/* Few messages sit at the bottom, next to the composer, as in every messenger. */
+.chat__log { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-2, 8px); }
+
+.chat__earlier { display: flex; justify-content: center; padding-bottom: var(--space-3, 12px); }
+.chat__earlier-btn {
+  min-height: var(--tap, 44px);
+  padding: 0 var(--space-4, 16px);
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+}
+.chat__earlier-btn:disabled { opacity: 0.6; }
+.chat__note { margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-3, 12px); color: var(--text-secondary); text-align: center; }
+.chat__empty { margin: auto 0; text-align: center; color: var(--text-secondary); animation: m-fade 180ms var(--ease-out) backwards; }
+
+/* ─── Timestamps: "Today 09:41", centred, only after a quiet spell ─── */
+.chat__stamp { text-align: center; color: var(--text-tertiary); margin: var(--space-2, 8px) 0 0; }
+.chat__stamp > .t-semibold { color: var(--text-secondary); }
+
+/* ─── Runs ─── */
+.chat-run { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
+.chat-run__name {
+  color: var(--text-tertiary);
+  /* Over the first bubble's text: past the avatar column and the bubble's padding. */
+  padding: 0 0 1px calc(var(--chat-avatar) + var(--space-2, 8px) + 12px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.chat-run__line { display: flex; align-items: flex-end; gap: var(--space-2, 8px); }
+.chat-run--mine .chat-run__line { justify-content: flex-end; }
+.chat-run__avatar { width: var(--chat-avatar); height: var(--chat-avatar); }
+.chat-run__avatar-space { flex-shrink: 0; width: var(--chat-avatar); }
+.chat-run__status { align-self: flex-end; color: var(--text-tertiary); padding: 1px 4px 0 0; animation: m-fade 180ms var(--ease-out) backwards; }
+
+.chat-row { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: 75%; }
+.chat-run--mine .chat-row { align-items: flex-end; }
+
+/* ─── Bubbles ─── */
+.chat-bubble {
+  position: relative;
+  isolation: isolate;
+  max-width: 100%;
+  padding: 7px 12px;
+  border-radius: var(--chat-radius);
+  background: var(--chat-other);
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.chat-bubble--mine { background: var(--chat-mine); color: var(--chat-mine-text); }
+
+/* Corners on the sender's side tighten inside a run (data-pos from ChatTab). */
+.chat-row:is([data-pos="first"], [data-pos="middle"]) .chat-bubble:not(.chat-bubble--mine) { border-bottom-left-radius: var(--chat-radius-tight); }
+.chat-row:is([data-pos="middle"], [data-pos="last"]) .chat-bubble:not(.chat-bubble--mine) { border-top-left-radius: var(--chat-radius-tight); }
+.chat-row:is([data-pos="first"], [data-pos="middle"]) .chat-bubble--mine { border-bottom-right-radius: var(--chat-radius-tight); }
+.chat-row:is([data-pos="middle"], [data-pos="last"]) .chat-bubble--mine { border-top-right-radius: var(--chat-radius-tight); }
+
+/* The tail on the last bubble of a run: a curl of bubble colour, cut by a
+   page-coloured curve just outside it (kept narrow so it never covers the
+   avatar). Both sit under the text (isolation + z-index -1). */
+.chat-bubble--tail::before,
+.chat-bubble--tail::after { content: ''; position: absolute; bottom: 0; height: 20px; z-index: -1; }
+.chat-bubble--tail:not(.chat-bubble--mine)::before { left: -7px; width: 20px; background: var(--chat-other); border-bottom-right-radius: 16px 14px; }
+.chat-bubble--tail:not(.chat-bubble--mine)::after { left: -10px; width: 10px; background: var(--chat-bg); border-bottom-right-radius: 10px; }
+.chat-bubble--tail.chat-bubble--mine::before { right: -7px; width: 20px; background: var(--chat-mine); border-bottom-left-radius: 16px 14px; }
+.chat-bubble--tail.chat-bubble--mine::after { right: -10px; width: 10px; background: var(--chat-bg); border-bottom-left-radius: 10px; }
+
+.chat-bubble a { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.chat-bubble:not(.chat-bubble--mine) a { color: #FFB58C; }
+
+.chat-row[data-status="sending"] .chat-bubble { opacity: 0.7; }
+.chat-row[data-status="failed"] .chat-bubble { opacity: 0.7; cursor: pointer; }
+.chat-row__retry {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  min-height: 32px;
+  padding: 2px 4px 0;
+  color: var(--chat-danger);
+  background: none;
+  border: 0;
+  animation: m-fade 180ms var(--ease-out) backwards;
+}
+
+/* ─── Motion ───
+   Mine rises out of the composer (8px, from 0.96); others' fade and rise in.
+   Only messages that arrive while the chat is open; never on load. */
+.chat-row--sent { transform-origin: 100% 100%; animation: chat-send 220ms var(--ease-out) backwards; }
+.chat-row--arrived { transform-origin: 0 100%; animation: chat-arrive 220ms var(--ease-out) backwards; }
+@keyframes chat-send { from { opacity: 0; transform: translateY(var(--m-rise)) scale(var(--chat-send-scale)); } }
+@keyframes chat-arrive { from { opacity: 0; transform: translateY(var(--m-rise-sm)); } }
+
+/* ─── New messages pill ─── */
+.chat__pill {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-3, 12px);
+  transform: translateX(-50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 var(--space-4, 16px);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 139, 77, 0.45);
+  background: #2A1A10;
+  color: var(--text-primary);
+  font-weight: var(--w-medium, 500);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out), visibility 0s linear var(--dur-fast);
+}
+/* A bigger invisible hit area than the pill itself. */
+.chat__pill::before { content: ''; position: absolute; inset: -4px -6px; }
+.chat__pill[data-show="true"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity var(--dur-base) var(--ease-out), visibility 0s;
+}
+
+/* ─── Composer: a pill field with the send button inside it ─── */
+.chat__composer { display: flex; flex-direction: column; padding: var(--space-2, 8px) 0; background: var(--chat-bg); }
+.chat__pill-field {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 40px;
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  background: transparent;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.chat__pill-field:focus-within { border-color: rgba(245, 241, 235, 0.28); }
+.chat__field {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  /* Never below 16px, so iPhone Safari does not zoom in on focus; 1 to 5 lines. */
+  font-size: var(--type-field);
+  line-height: max(24px, var(--lh-body));
+  min-height: 38px;
+  max-height: calc(5 * max(24px, var(--lh-body)) + 14px);
+  padding: 7px 4px 7px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  outline: none;
+  overflow-y: hidden;
+}
+.chat__field[aria-invalid="true"] { color: var(--text-primary); }
+.chat__pill-field:has(.chat__field[aria-invalid="true"]) { border-color: var(--chat-danger); }
+.chat__count { align-self: flex-end; padding: var(--space-1, 4px) var(--space-2, 8px) 0; color: var(--text-tertiary); }
+.chat__count.is-over { color: var(--chat-danger); }
+
+/* 44px wide target; the visible dot is 30px, sitting in the pill's bottom-right corner. */
+.chat__send {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: var(--tap, 44px);
+  height: 38px;
+  margin-left: -4px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.chat__send-dot {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--chat-mine);
+  color: var(--chat-mine-text);
+  transition: transform var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+}
+.chat__send:disabled { cursor: default; }
+.chat__send:disabled .chat__send-dot { opacity: 0; transform: scale(var(--m-icon-scale, 0.8)); }
+.chat__send:active:not(:disabled) .chat__send-dot { transform: scale(var(--m-press-deep, 0.94)); }
+.chat__send:focus-visible { outline: none; }
+.chat__send:focus-visible .chat__send-dot { box-shadow: var(--focus-ring); }
+
+@media (prefers-reduced-motion: reduce) {
+  /* The rise tokens are already zero here; drop the scale too, leaving fades. */
+  .chat { --chat-send-scale: 1; }
+}

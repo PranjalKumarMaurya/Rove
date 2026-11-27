@@ -94,3 +94,18 @@ export function inviteProofFromInput(input: string): string | null {
   const match = /(?:^|[#&?])invite=([0-9a-f]{64})(?:$|[&\s])/u.exec(text)
   return match ? match[1] : null
 }
+
+export type PastedTripLink = { kind: 'invite' | 'join'; proof: string }
+
+/**
+ * A pasted Trip link: an email invitation (`#invite=`) or a Trip's open join link
+ * (`#join=`), as a whole URL, inside a message, or a bare proof (read as an invitation,
+ * as before join links existed).
+ */
+export function tripLinkFromInput(input: string): PastedTripLink | null {
+  const text = input.trim()
+  const join = /(?:^|[#&?])join=([0-9a-f]{64})(?:$|[&\s])/u.exec(text)
+  if (join) return { kind: 'join', proof: join[1] }
+  const invite = inviteProofFromInput(text)
+  return invite ? { kind: 'invite', proof: invite } : null
+}

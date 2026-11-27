@@ -57,8 +57,9 @@
   animation: rove-tick-draw 300ms var(--ease-out) 120ms forwards;
 }
 .rove-tick__label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--type-footnote);
+  line-height: var(--lh-footnote);
+  font-weight: var(--w-semibold);
   letter-spacing: 0.01em;
   color: #F5F1EB;
   white-space: nowrap;

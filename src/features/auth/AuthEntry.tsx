@@ -19,7 +19,7 @@ interface AuthEntryProps {
 type Message = { text: string; tone: 'info' | 'error' }
 
 // 16px text keeps phones from zooming into the field on focus.
-const inputStyle = { fontSize: 16, minHeight: 48 } as const
+const inputStyle = { fontSize: 'var(--type-field)', minHeight: 48 } as const
 
 const titles: Record<'sign-in' | 'sign-up' | 'recovery' | 'reset', { title: string; lede: string }> = {
   'sign-in': { title: 'Sign in', lede: 'Plan, split and share your group trip.' },
@@ -98,7 +98,7 @@ export function AuthEntry({ mode: initialMode, onRetry, contextMessage, onBack }
   if (mode === 'restoring') {
     return (
       <ScreenFrame testId="auth-loading" title="Just a moment" lede="Getting your Trips ready…" busy>
-        <div role="status" className="flex items-center gap-3" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+        <div role="status" className="t-callout flex items-center gap-3" style={{ color: 'var(--text-secondary)' }}>
           <span className="spinner" aria-hidden="true" />Loading
         </div>
       </ScreenFrame>
@@ -153,11 +153,11 @@ export function AuthEntry({ mode: initialMode, onRetry, contextMessage, onBack }
           <button type="button" className="text-link" onClick={() => switchMode('recovery')}>Forgot password?</button>
         </div>
         <div className="mt-6 flex items-center gap-3" aria-hidden="true">
-          <span className="divider flex-1" /><span className="eyebrow">New here?</span><span className="divider flex-1" />
+          <span className="divider flex-1" /><span className="t-eyebrow">New here?</span><span className="divider flex-1" />
         </div>
         <NeonBtn type="button" variant="outline" size="lg" className="mt-5 w-full" onClick={() => switchMode('sign-up')}>Create an account</NeonBtn>
       </>}
-      {isSignup && <p className="mt-4 flex flex-wrap items-center justify-center gap-x-1.5 text-sm" style={{ color: 'var(--text-tertiary)' }}>
+      {isSignup && <p className="mt-4 flex flex-wrap items-center justify-center gap-x-1.5 t-callout" style={{ color: 'var(--text-tertiary)' }}>
         Already have an account?<button type="button" className="text-link" onClick={() => switchMode('sign-in')}>Sign in</button>
       </p>}
       {isRecovery && <div className="mt-2 flex justify-center">

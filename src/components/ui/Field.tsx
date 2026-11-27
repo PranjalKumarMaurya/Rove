@@ -16,12 +16,12 @@ export function Field({ id, label, hint, error, optional, className = '', childr
   const messageId = error || hint ? `${id}-message` : undefined
   return (
     <div className={`field flex flex-col gap-1.5 ${className}`}>
-      <label htmlFor={id} className="field-label">
-        {label}{optional && <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}> (optional)</span>}
+      <label htmlFor={id} className="field-label t-footnote t-medium">
+        {label}{optional && <span style={{ color: 'var(--text-tertiary)', fontWeight: 'var(--w-regular)' }}> (optional)</span>}
       </label>
       {cloneElement(children, { id, 'aria-describedby': messageId, 'aria-invalid': error ? true : undefined })}
-      {error ? <p id={messageId} className="field-error">{error}</p>
-        : hint ? <p id={messageId} className="field-hint">{hint}</p> : null}
+      {error ? <p id={messageId} className="field-error t-footnote">{error}</p>
+        : hint ? <p id={messageId} className="field-hint t-footnote">{hint}</p> : null}
     </div>
   )
 }

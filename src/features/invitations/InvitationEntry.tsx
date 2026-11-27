@@ -132,14 +132,14 @@ export function InvitationEntry({ proof, auth, onSignOut, onClose, onAccepted, o
     body = 'Confirm your email address first: open the link we emailed you, then come back here and check again.'
     actions = <><NeonBtn type="button" size="lg" className="w-full" onClick={retryInspection}>Check again</NeonBtn>{leave('Not now')}</>
   } else if (outcome === 'switch_account') {
-    body = <>This invite was sent to a different email address. You’re signed in as <strong style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{signedInEmail ?? 'another account'}</strong>. Switch to the invited account to join.</>
+    body = <>This invite was sent to a different email address. You’re signed in as <strong style={{ color: 'var(--text-primary)', fontWeight: 'var(--w-medium)' }}>{signedInEmail ?? 'another account'}</strong>. Switch to the invited account to join.</>
     actions = <>
       {signOutError && <p role="alert" className="notice notice--error">{signOutError}</p>}
       <NeonBtn type="button" size="lg" className="w-full" onClick={onSignOut}>Switch account</NeonBtn>
       {leave('Not now')}
     </>
   } else if (outcome === 'ready') {
-    body = <>Join <strong style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{tripName}</strong> as a member? Everyone in the Trip will see you in the Crew.</>
+    body = <>Join <strong style={{ color: 'var(--text-primary)', fontWeight: 'var(--w-medium)' }}>{tripName}</strong> as a member? Everyone in the Trip will see you in its People list.</>
     actions = <><AsyncButton type="button" size="lg" className="w-full" status="idle" onClick={() => void accept()}>Confirm and join</AsyncButton>{leave('Not now')}</>
   } else if (view.kind === 'accepting') {
     body = `Joining ${tripName}…`
@@ -157,7 +157,7 @@ export function InvitationEntry({ proof, auth, onSignOut, onClose, onAccepted, o
     actions = <><AsyncButton type="button" size="lg" className="w-full" status={joinAction.status} onClick={() => void accept()}>Try again</AsyncButton>{leave('Not now')}</>
   } else if (view.kind === 'accepted') {
     title = 'You’re in!'
-    body = `You joined ${tripName}. Everyone in the Trip is in the Crew tab.`
+    body = `You joined ${tripName}. You’ll find everyone in the Trip’s Settings, under People.`
     const joined = view.groupId
     actions = <NeonBtn type="button" size="lg" className="w-full" onClick={() => (onOpenTrip ? onOpenTrip(joined) : onClose())}>Open Trip</NeonBtn>
   }
@@ -166,11 +166,11 @@ export function InvitationEntry({ proof, auth, onSignOut, onClose, onAccepted, o
 
   return (
     <ScreenFrame testId="invitation-entry" title={title}
-      eyebrow={<p className="eyebrow">Trip invitation</p>}
+      eyebrow={<p className="t-eyebrow">Trip invitation</p>}
       lede={showTripDetails && dates ? dates : undefined}>
       <div aria-live="polite" className="flex flex-col gap-6">
         {/* Each state's sentence fades in as it replaces the last. */}
-        {body && <p key={`${view.kind}:${outcome ?? ''}`} className="m-text-swap" style={{ color: 'var(--text-secondary)', fontSize: 15, lineHeight: 1.5 }}>{body}</p>}
+        {body && <p key={`${view.kind}:${outcome ?? ''}`} className="t-callout m-text-swap" style={{ color: 'var(--text-secondary)' }}>{body}</p>}
         {actions && <div className="flex flex-col gap-3">{actions}</div>}
       </div>
     </ScreenFrame>

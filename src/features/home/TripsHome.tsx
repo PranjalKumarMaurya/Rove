@@ -10,7 +10,7 @@ import { formatTripDates } from '../onboarding/tripSettings'
 import type { MyProfile } from '../profile/profileApi'
 import { HomeNav } from './HomeNav'
 import { InviteDialog } from './InviteDialog'
-import { type TripPhase, groupTrips, relativeTripLine } from './tripGrouping'
+import { type PastedTripLink, type TripPhase, groupTrips, relativeTripLine } from './tripGrouping'
 import './home.css'
 
 const sectionTitles: Record<TripPhase, string> = { ongoing: 'Ongoing', upcoming: 'Upcoming', past: 'Past' }
@@ -69,7 +69,8 @@ export function TripsHome({ trips, profile, accountName, onCreate, onOpenTrip, o
   onOpenTrip: (groupId: string, options?: { reload?: boolean }) => void
   onOpenProfile: () => void
   /** A pasted invite link: open the invitation screen for it. */
-  onInvite: (proof: string) => void
+  /** A pasted email invitation (`#invite=`) or Trip join link (`#join=`). */
+  onInvite: (link: PastedTripLink) => void
 }) {
   const now = useNow()
   const refreshKey = trips.map((trip) => `${trip.groupId}:${trip.role}`).join(',')
@@ -93,19 +94,19 @@ export function TripsHome({ trips, profile, accountName, onCreate, onOpenTrip, o
 
       <div className="pb-2 pt-5">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="screen-title">Your Trips</h1>
+          <h1 className="t-display min-w-0" style={{ color: 'var(--text-primary)' }}>Your Trips</h1>
           <button ref={inviteButton} type="button" className="round-btn" aria-label="Join with an invite link"
             aria-haspopup="dialog" aria-expanded={inviteOpen} onClick={() => setInviteOpen(true)}>
             <IconLinkPlus size={22} />
           </button>
         </div>
-        <p className="screen-lede mt-2">{name ? `Hi ${name}. ` : ''}{trips.length ? 'Where to next?' : 'Plan, split and share a group trip.'}</p>
+        <p className="t-body t-voice mt-2" style={{ color: 'var(--text-secondary)' }}>{name ? `Hi ${name}. ` : ''}{trips.length ? 'Where to next?' : 'Plan, split and share a group trip.'}</p>
       </div>
 
       {trips.length === 0 ? (
         <section data-testid="trips-empty" aria-label="No Trips yet" className="surface m-appear mt-6 px-5 py-7 text-center">
-          <p className="serif-display" style={{ fontSize: 24, color: 'var(--text-primary)' }}>No Trips yet</p>
-          <p className="mx-auto mt-2 max-w-[300px]" style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.5 }}>
+          <p className="t-title3 t-voice" style={{ color: 'var(--text-primary)' }}>No Trips yet</p>
+          <p className="t-callout mx-auto mt-2 max-w-[300px]" style={{ color: 'var(--text-secondary)' }}>
             Create a Trip and invite your friends, or join one with the link a friend sent you.
           </p>
           <NeonBtn type="button" size="lg" className="mt-6 w-full" onClick={onCreate}><IconPlus size={18} />Create your first Trip</NeonBtn>
@@ -114,7 +115,7 @@ export function TripsHome({ trips, profile, accountName, onCreate, onOpenTrip, o
         <div className="mt-4 flex flex-col gap-7">
           {(['ongoing', 'upcoming', 'past'] as const).filter((phase) => grouped[phase].length > 0).map((phase) => (
             <section key={phase} aria-labelledby={`trips-${phase}`}>
-              <h2 id={`trips-${phase}`} className="section-title mb-3">{sectionTitles[phase]}</h2>
+              <h2 id={`trips-${phase}`} className="t-eyebrow mb-3">{sectionTitles[phase]}</h2>
               <ul className="flex flex-col gap-3">
                 {grouped[phase].map((trip) => (
                   <li key={trip.groupId} className={fresh.has(trip.groupId) ? 'm-enter' : undefined}
@@ -132,7 +133,7 @@ export function TripsHome({ trips, profile, accountName, onCreate, onOpenTrip, o
 
       <HomeNav active="trips" onTrips={() => window.scrollTo({ top: 0, behavior: 'smooth' })} onCreate={onCreate}
         onProfile={onOpenProfile} profile={profile} accountName={accountName} />
-      <InviteDialog open={inviteOpen} triggerRef={inviteButton} onClose={closeInvite} onInvite={(proof) => { setInviteOpen(false); onInvite(proof) }} />
+      <InviteDialog open={inviteOpen} triggerRef={inviteButton} onClose={closeInvite} onInvite={(link) => { setInviteOpen(false); onInvite(link) }} />
     </main>
   )
 }
@@ -150,8 +151,8 @@ function TripCard({ trip, phase, now, members, onOpen }: {
     <button type="button" className={`trip-card${phase === 'ongoing' ? ' trip-card--ongoing' : ''}`} data-testid="trip-card"
       aria-label={trip.tripName} aria-describedby={detailsId} onClick={onOpen}>
       <span className="min-w-0 flex-1">
-        <span className="block truncate" style={{ fontSize: 17, fontWeight: 500 }}>{trip.tripName}</span>
-        <span id={detailsId} className="mt-1 block" style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.45 }}>
+        <span className="t-headline block truncate">{trip.tripName}</span>
+        <span id={detailsId} className="t-footnote t-num mt-1 block" style={{ color: 'var(--text-secondary)' }}>
           <span className="block truncate">{trip.destination} · {formatTripDates(trip.startDate, trip.endDate)}</span>
           <span className="block truncate">
             <span className="trip-card__when">{relativeTripLine(trip, now)}</span>

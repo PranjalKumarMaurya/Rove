@@ -321,38 +321,38 @@ export function ScanTab({ trip, roster }: TripTabProps) {
   return (
     <section data-testid="scan-tab" className="flex flex-col gap-6">
       <div className="surface px-4 py-5">
-        <h2 className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 25 }}>Scan</h2>
-        <p className="mt-2" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+        <h2 className="t-title2" style={{ color: 'var(--text-primary)' }}>Scan</h2>
+        <p className="t-callout mt-2" style={{ color: 'var(--text-secondary)' }}>
           Add a ticket, hotel voucher, or booking for the itinerary, or a bill to split. You review the details before anything is saved. A booking stays private to you until you pick who’s on it; bills are shared with the Trip.
         </p>
         <label className="mt-5 flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed px-4 py-7 text-center focus-within:ring-2 focus-within:ring-[#FF8B4D]"
           style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)', opacity: busy ? 0.5 : 1 }}>
-          <span style={{ color: 'var(--text-primary)' }}>{files.length ? 'Choose different files' : 'Choose tickets, bookings, or bills'}</span>
-          <span className="font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.12em' }}>ONE OR MANY · PDF · JPG · PNG · WEBP · HEIC</span>
+          <span className="t-body t-medium" style={{ color: 'var(--text-primary)' }}>{files.length ? 'Choose different files' : 'Choose tickets, bookings, or bills'}</span>
+          <span className="t-eyebrow" style={{ color: 'var(--text-tertiary)' }}>ONE OR MANY · PDF · JPG · PNG · WEBP · HEIC</span>
           <input ref={inputRef} type="file" accept={ACCEPT} multiple onChange={choose} disabled={busy} className="sr-only" aria-label="Ticket, booking, or bill file" />
         </label>
         <Collapse open={Boolean(file)}>
-          {file && <div data-testid="scan-selected-file" className="mt-3 flex items-center justify-between gap-3 text-sm" style={{ color: 'var(--text-primary)' }}>
+          {file && <div data-testid="scan-selected-file" className="mt-3 flex items-center justify-between gap-3 t-callout" style={{ color: 'var(--text-primary)' }}>
             <span className="min-w-0 truncate">{file.name}</span>
-            <span className="flex shrink-0 items-center gap-3" style={{ color: 'var(--text-secondary)' }}>
-              <span>{fileKindLabel(file.type)} · {formatBytes(file.size)}</span>
+            <span className="t-num flex shrink-0 items-center gap-3" style={{ color: 'var(--text-secondary)' }}>
+              <span className="whitespace-nowrap">{fileKindLabel(file.type)} · {formatBytes(file.size)}</span>
               <button type="button" onClick={clearFile} disabled={busy} style={{ color: 'var(--text-secondary)' }}>Remove</button>
             </span>
           </div>}
         </Collapse>
         <Collapse open={files.length > 1}>
-          <div data-testid="scan-selected-files" className="mt-3 flex flex-col gap-1 text-sm" style={{ color: 'var(--text-primary)' }}>
+          <div data-testid="scan-selected-files" className="mt-3 flex flex-col gap-1 t-callout" style={{ color: 'var(--text-primary)' }}>
             <ul className="flex flex-col gap-0.5">
               {files.map((picked) => <li key={`${picked.name}-${picked.size}`} className="truncate" style={{ color: 'var(--text-secondary)' }}>{picked.name}</li>)}
             </ul>
             <Collapse open={Boolean(batchNote)}>
-              <p data-testid="scan-batch-note" style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>{batchNote}</p>
+              <p data-testid="scan-batch-note" className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>{batchNote}</p>
             </Collapse>
             <button type="button" onClick={clearFile} disabled={busy} className="self-start" style={{ color: 'var(--text-secondary)' }}>Clear</button>
           </div>
         </Collapse>
         <Collapse open={Boolean(fileError)}>
-          <p role="alert" className="mt-3 text-sm" style={{ color: 'var(--accent)' }}>{fileError}</p>
+          <p role="alert" className="mt-3 t-callout" style={{ color: 'var(--accent)' }}>{fileError}</p>
         </Collapse>
         <AsyncButton type="button" onClick={() => void uploadAndRead()} disabled={!files.length} className="mt-4 w-full"
           status={busy ? 'busy' : uploadFailed ? 'error' : 'idle'}
@@ -363,12 +363,12 @@ export function ScanTab({ trip, roster }: TripTabProps) {
           {files.length > 1 ? `Upload ${files.length} files` : 'Upload and read'}
         </AsyncButton>
         <Collapse open={busy}>
-          <p role="status" className="mt-3 text-center font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.12em' }}>
+          <p role="status" className="t-eyebrow mt-3 text-center" style={{ color: 'var(--text-tertiary)' }}>
             <span key={phase.kind} className="m-text-swap inline-block">{phase.kind === 'uploading' ? 'UPLOADING PRIVATELY' : 'READING THE DOCUMENT'}</span>
           </p>
         </Collapse>
         <Collapse open={Boolean(message)}>
-          <p role="status" className="mt-3 text-sm" style={{ color: 'var(--accent)' }}>{message}</p>
+          <p role="status" className="mt-3 t-callout" style={{ color: 'var(--accent)' }}>{message}</p>
         </Collapse>
         <Collapse open={!walk && phase.kind === 'idle' && queue.length > 0}>
           <NeonBtn type="button" variant="outline" color="#FF8B4D" onClick={startWalk} className="mt-4 w-full" data-testid="scan-review-next">
@@ -378,11 +378,11 @@ export function ScanTab({ trip, roster }: TripTabProps) {
       </div>
 
       {walk && phase.kind !== 'idle' && (
-        <div data-testid="scan-walk" className="-mb-3 flex items-center justify-between gap-3 px-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          <span className="font-mono" style={{ fontSize: 11, letterSpacing: '0.08em' }}>
+        <div data-testid="scan-walk" className="-mb-3 flex items-center justify-between gap-3 px-1 t-callout" style={{ color: 'var(--text-secondary)' }}>
+          <span className="t-eyebrow t-num min-w-0">
             REVIEWING {walk.handled.size} OF {walk.handled.size + queue.length}
           </span>
-          <button type="button" onClick={stopWalk} disabled={saving} style={{ color: 'var(--text-secondary)' }}>Stop reviewing</button>
+          <button type="button" onClick={stopWalk} disabled={saving} className="min-h-11 shrink-0" style={{ color: 'var(--text-secondary)' }}>Stop reviewing</button>
         </div>
       )}
 
@@ -409,7 +409,7 @@ export function ScanTab({ trip, roster }: TripTabProps) {
         <ExpenseForm key={`cost-${phase.document.id}`} groupId={trip.groupId} accountingCurrency={trip.accountingCurrency}
           timezone={trip.timezone} international={trip.isInternational} me={trip.groupMemberId} members={members} expense={null}
           prefill={phase.prefill} requestId={phase.document.id} heading="Split this booking" existing={existing}
-          notice={<p className="text-sm" data-testid="scan-cost-notice" style={{ color: 'var(--text-secondary)' }}>
+          notice={<p className="t-callout" data-testid="scan-cost-notice" style={{ color: 'var(--text-secondary)' }}>
             {phase.justAdded ? `${phase.title} is in the itinerary. ` : ''}Split the cost between the people on this booking, or change who shares it.
           </p>}
           onClose={() => {
@@ -432,7 +432,7 @@ export function ScanTab({ trip, roster }: TripTabProps) {
 
 function BillNotice({ fileName, draft, onSwitchToBooking }: { fileName: string; draft: BillDraft; onSwitchToBooking: () => void }) {
   return (
-    <div className="flex flex-col gap-2 text-sm" data-testid="scan-bill-notice">
+    <div className="flex flex-col gap-2 t-callout" data-testid="scan-bill-notice">
       <p className="truncate" style={{ color: 'var(--text-secondary)' }}>From {fileName}</p>
       <KindRow kind="bill" onChange={onSwitchToBooking} />
       <p style={{ color: 'var(--text-secondary)' }}>Pick who paid and how to split it.</p>
@@ -441,7 +441,7 @@ function BillNotice({ fileName, draft, onSwitchToBooking }: { fileName: string; 
           {draft.warnings.map((warning) => <li key={warning}>{BILL_WARNING_MESSAGES[warning]}</li>)}
         </ul>
       )}
-      <p style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Not ready? Cancel, and the bill waits in Trip documents until you split it.</p>
+      <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>Not ready? Cancel, and the bill waits in Trip documents until you split it.</p>
     </div>
   )
 }
@@ -464,17 +464,17 @@ function DocumentList({ state, names, trip, tripContext, disabled, reading, onRe
   const dateFormat = useMemo(() => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: trip.timezone }), [trip.timezone])
   return (
     <section aria-labelledby="scan-documents-heading" className="surface px-4 py-5">
-      <h2 id="scan-documents-heading" className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 22 }}>Trip documents</h2>
+      <h2 id="scan-documents-heading" className="t-title3" style={{ color: 'var(--text-primary)' }}>Trip documents</h2>
       <Swap id={state.kind === 'ready' ? (rows.entries.length ? 'list' : 'empty') : state.kind}>
-      {state.kind === 'loading' && <p role="status" className="mt-3 text-sm" style={{ color: 'var(--text-tertiary)' }}>Loading documents…</p>}
+      {state.kind === 'loading' && <p role="status" className="mt-3 t-callout" style={{ color: 'var(--text-tertiary)' }}>Loading documents…</p>}
       {state.kind === 'error' && (
-        <div className="mt-3 flex items-center justify-between gap-3 text-sm">
+        <div className="mt-3 flex items-center justify-between gap-3 t-callout">
           <p role="alert" style={{ color: 'var(--text-secondary)' }}>We could not load this Trip’s documents.</p>
-          <button type="button" onClick={onRetry} style={{ color: 'var(--accent)' }}>Retry</button>
+          <button type="button" onClick={onRetry} className="min-h-11 shrink-0" style={{ color: 'var(--accent)' }}>Retry</button>
         </div>
       )}
       {state.kind === 'ready' && rows.entries.length === 0 && (
-        <p className="mt-3 text-sm" style={{ color: 'var(--text-secondary)' }}>No documents yet. Bills you add show to the whole Trip; a booking shows only to the people on it.</p>
+        <p className="mt-3 t-callout" style={{ color: 'var(--text-secondary)' }}>No documents yet. Bills you add show to the whole Trip; a booking shows only to the people on it.</p>
       )}
       {state.kind === 'ready' && rows.entries.length > 0 && (
         <ul aria-label="Trip documents" className="m-list mt-3 flex flex-col gap-2" style={{ '--fold-gap': '8px' } as CSSProperties}>
@@ -558,12 +558,12 @@ function DocumentRow({ document, uploader, date, canDelete, disabled, reading, u
   return (
     <li data-testid="scan-document" {...foldProps(leaving)}>
     <div><div className="rounded-md border px-3 py-3" style={{ borderColor: 'var(--border)' }}>
-      <p className="truncate" style={{ color: 'var(--text-primary)' }} title={document.fileName}>{document.fileName}</p>
-      <p className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>{fileKindLabel(document.mimeType)} · {formatBytes(document.sizeBytes)} · {uploader} · {date}</p>
-      <p className="mt-1 text-xs" style={{ color: done || unsplitBill ? 'var(--accent)' : 'var(--text-secondary)' }}>{status}</p>
+      <p className="t-headline truncate" style={{ color: 'var(--text-primary)' }} title={document.fileName}>{document.fileName}</p>
+      <p className="mt-0.5 t-footnote t-num" style={{ color: 'var(--text-tertiary)' }}>{fileKindLabel(document.mimeType)} · {formatBytes(document.sizeBytes)} · {uploader} · {date}</p>
+      <p className="mt-1 t-footnote" style={{ color: done || unsplitBill ? 'var(--accent)' : 'var(--text-secondary)' }}>{status}</p>
       <Swap id={confirming ? 'confirm' : 'actions'}>
       {confirming ? (
-        <div role="group" aria-label={`Delete ${document.fileName}?`} className="mt-3 flex flex-col gap-2 text-sm">
+        <div role="group" aria-label={`Delete ${document.fileName}?`} className="mt-3 flex flex-col gap-2 t-callout">
           <p style={{ color: 'var(--text-secondary)' }}>Delete this document for everyone in the Trip? Itinerary entries and expenses made from it stay.</p>
           <div className="flex gap-4">
             <button type="button" onClick={() => void remove()} disabled={working !== null} aria-busy={working === 'delete' || undefined} style={{ color: 'var(--accent)' }}>
@@ -573,7 +573,7 @@ function DocumentRow({ document, uploader, date, canDelete, disabled, reading, u
           </div>
         </div>
       ) : (
-        <div className="mt-2 flex flex-wrap gap-4 text-sm">
+        <div className="mt-2 flex flex-wrap gap-4 t-callout">
           <button type="button" onClick={() => void view()} disabled={working !== null} aria-label={`View ${document.fileName}`} style={{ color: 'var(--accent)' }}>{working === 'view' ? 'Opening…' : 'View'}</button>
           {!done && <button type="button" onClick={onReview} disabled={disabled} aria-label={`${unsplitBill ? 'Split' : 'Review'} ${document.fileName}`} style={{ color: 'var(--text-primary)' }}>{unsplitBill ? 'Split bill' : 'Review'}</button>}
           {document.eventId && !document.expenseId && <button type="button" onClick={onSplitCost} disabled={disabled} aria-label={`Split cost of ${document.fileName}`} style={{ color: 'var(--text-primary)' }}>Split cost</button>}
@@ -581,9 +581,9 @@ function DocumentRow({ document, uploader, date, canDelete, disabled, reading, u
         </div>
       )}
       </Swap>
-      {fallbackUrl && <a href={fallbackUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm" style={{ color: 'var(--accent)' }}>Open {document.fileName} (link expires in a minute)</a>}
+      {fallbackUrl && <a href={fallbackUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block t-callout" style={{ color: 'var(--accent)', overflowWrap: 'anywhere' }}>Open {document.fileName} (link expires in a minute)</a>}
       <Collapse open={Boolean(error)}>
-        <p role="alert" className="mt-2 text-sm" style={{ color: 'var(--accent)' }}>{error}</p>
+        <p role="alert" className="mt-2 t-callout" style={{ color: 'var(--accent)' }}>{error}</p>
       </Collapse>
     </div></div>
     </li>

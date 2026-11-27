@@ -15,7 +15,8 @@ export function NeonInput({ color = 'var(--accent)', className = '', style: exte
     outline: 'none',
     // Focus and error borders ease in (motion.css tokens).
     transition: 'border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out)',
-    fontSize: 14,
+    // Never under 16px, so iPhone Safari does not zoom on focus; grows with Text size.
+    fontSize: 'var(--type-field)',
   }
 
   return (

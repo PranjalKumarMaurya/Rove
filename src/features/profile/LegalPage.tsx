@@ -29,7 +29,7 @@ const pages = {
 export function LegalPage({ kind, onBack }: { kind: keyof typeof pages; onBack: () => void }) {
   const page = pages[kind]
   return (
-    <ScreenFrame testId={`legal-${kind}`} centered={false} eyebrow={<p className="eyebrow">Profile</p>} title={page.title}
+    <ScreenFrame testId={`legal-${kind}`} centered={false} eyebrow={<p className="t-eyebrow">Profile</p>} title={page.title}
       top={<button type="button" className="topbar-btn topbar-btn--back" onClick={onBack}><IconBack size={18} />Profile</button>}>
       <p role="note" className="notice notice--error mb-6" data-testid="legal-placeholder">
         Placeholder text — the owner will replace this page with the final {page.title.toLowerCase()} before launch.
@@ -37,8 +37,8 @@ export function LegalPage({ kind, onBack }: { kind: keyof typeof pages; onBack: 
       <div className="flex flex-col gap-6">
         {page.sections.map(([heading, body]) => (
           <section key={heading}>
-            <h2 className="serif-display" style={{ fontSize: 20, color: 'var(--text-primary)' }}>{heading}</h2>
-            <p className="mt-2" style={{ color: 'var(--text-secondary)', fontSize: 15, lineHeight: 1.55 }}>{body}</p>
+            <h2 className="t-title3" style={{ color: 'var(--text-primary)' }}>{heading}</h2>
+            <p className="t-body mt-2" style={{ color: 'var(--text-secondary)' }}>{body}</p>
           </section>
         ))}
       </div>

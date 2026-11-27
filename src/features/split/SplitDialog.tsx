@@ -44,8 +44,8 @@ export function SplitDialog({ title, onClose, locked = false, testId, children }
         className="m-dialog my-auto w-full max-w-[480px]" onClick={(event) => event.stopPropagation()}
         style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 20, padding: 22 }}>
         <div className="mb-4 flex items-start justify-between gap-3">
-          <h2 id={headingId} ref={heading} tabIndex={-1} className="serif-display outline-none"
-            style={{ color: 'var(--text-primary)', fontSize: 24, fontWeight: 400 }}>{title}</h2>
+          <h2 id={headingId} ref={heading} tabIndex={-1} className="t-title2 min-w-0 outline-none"
+            style={{ color: 'var(--text-primary)' }}>{title}</h2>
           <button type="button" onClick={() => close.current()} disabled={locked} aria-label="Close"
             className="close-x"><IconClose /></button>
         </div>
@@ -73,12 +73,12 @@ export function Field({ label, error, hint, children }: {
   const noteId = `${id}-note`
   const note = error ?? hint
   return (
-    <div className="m-field flex flex-col gap-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
+    <div className="m-field flex flex-col gap-1.5 t-callout" style={{ color: 'var(--text-secondary)' }}>
       <label htmlFor={id}>{label}</label>
       {children({ id, 'aria-describedby': note ? noteId : undefined, 'aria-invalid': error ? true : undefined })}
       {error
-        ? <span id={noteId} role="alert" className="m-field-error" style={{ color: 'var(--accent)', fontSize: 12 }}>{error}</span>
-        : hint ? <span id={noteId} style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>{hint}</span> : null}
+        ? <span id={noteId} role="alert" className="m-field-error t-footnote" style={{ color: 'var(--accent)' }}>{error}</span>
+        : hint ? <span id={noteId} className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>{hint}</span> : null}
     </div>
   )
 }
@@ -86,7 +86,8 @@ export function Field({ label, error, hint, children }: {
 /** Colour and size; the border and background live on `.m-input` (motion.css) so focus can ease them. */
 export const inputStyle = {
   color: 'var(--text-primary)',
-  fontSize: 14,
+  // Never under 16px (no iOS zoom on focus); grows with Text size.
+  fontSize: 'var(--type-field)',
 } as const
 
 export const inputClass = 'm-input w-full rounded-md px-3.5 py-2.5 outline-none'

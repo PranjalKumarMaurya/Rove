@@ -1,6 +1,6 @@
 import zlib from 'node:zlib'
 import { expect, test, type BrowserContext, type Page } from '@playwright/test'
-import { createTrip, signUp } from '../support/trip-frame'
+import { createTrip, openTripTab, signUp } from '../support/trip-frame'
 
 // Real local stack (Auth, PostgREST, Storage, Edge runtime with the stub
 // extractor); only the public FX rates endpoint is mocked.
@@ -61,7 +61,7 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
   try {
     const owner = await ownerContext.newPage()
     await signUpWithTrip(owner, 'Scan Owner', 'scan-owner@example.test', { name: 'Bali crew', destination: 'Seminyak, Bali' })
-    await owner.getByRole('tab', { name: 'Scan' }).click()
+    await openTripTab(owner, 'Scan')
     const scan = owner.getByTestId('scan-tab')
     await expect(scan).toContainText('No documents yet')
     const fileInput = owner.getByLabel('Ticket, booking, or bill file')
@@ -141,7 +141,7 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
     await expect(scan).toContainText('Added to Split: Curlies by the Sea: food and drinks')
     await expect(billRow).toContainText('In Split: Curlies by the Sea: food and drinks')
     await expect(billRow.getByRole('button', { name: 'Split dinner-bill.png' })).toHaveCount(0)
-    await owner.getByRole('tab', { name: 'Split' }).click()
+    await openTripTab(owner, 'Split')
     await expect(owner.getByTestId('expense-card').filter({ hasText: 'Curlies by the Sea' })).toBeVisible()
     // Labels say where each came from; expenses I'm on carry the quiet highlight.
     const flightCard = owner.getByTestId('expense-card').filter({ hasText: 'Flight to Goa' })
@@ -159,7 +159,7 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
     await expect(manual.getByTestId('similar-expense')).toContainText('Flight to Goa')
     await manual.getByRole('button', { name: 'Cancel' }).click()
     await manual.getByRole('button', { name: 'Discard' }).click()
-    await owner.getByRole('tab', { name: 'Scan' }).click()
+    await openTripTab(owner, 'Scan')
 
     // A parse failure still allows manual entry.
     await fileInput.setInputFiles({ name: 'unreadable-voucher.pdf', mimeType: 'application/pdf', buffer: pdf })
@@ -191,7 +191,7 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
     // Someone in another Trip sees nothing and cannot fetch the object directly.
     const stranger = await strangerContext.newPage()
     await signUpWithTrip(stranger, 'Other Person', 'scan-other@example.test', { name: 'Jaipur', destination: 'Jaipur' })
-    await stranger.getByRole('tab', { name: 'Scan' }).click()
+    await openTripTab(stranger, 'Scan')
     await expect(stranger.getByTestId('scan-tab')).toContainText('No documents yet')
     const strangerToken = await accessToken(stranger)
     expect(strangerToken).not.toBe('')
@@ -201,7 +201,7 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
     expect(download.ok()).toBe(false)
     const listed = await strangerContext.request.get(`${apiUrl}/rest/v1/trip_documents?select=id`, { headers })
     expect(await listed.json()).toEqual([])
-    await stranger.getByRole('tab', { name: 'FX' }).click()
+    await openTripTab(stranger, 'FX')
     await expect(stranger.getByTestId('fx-tab')).toBeVisible()
     await expect(stranger.getByTestId('fx-bali-guide')).toHaveCount(0)
 
@@ -248,7 +248,7 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
     await expect(next).toContainText('1 waiting')
 
     // FX: accounting currency against IDR (a Bali Trip), mocked live rates, two-way input.
-    await owner.getByRole('tab', { name: 'FX' }).click()
+    await openTripTab(owner, 'FX')
     const fx = owner.getByTestId('fx-tab')
     await expect(owner.getByTestId('fx-status')).toContainText('Live rates')
     await expect(owner.getByLabel('Other currency')).toHaveValue('IDR')
@@ -269,7 +269,7 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
     await owner.getByRole('button', { name: 'Refresh rates' }).click()
     await expect(owner.getByTestId('fx-status')).toContainText('Offline. Showing saved rates')
     await owner.reload()
-    await owner.getByRole('tab', { name: 'FX' }).click()
+    await openTripTab(owner, 'FX')
     await expect(owner.getByTestId('fx-status')).toContainText('Saved rates')
     await expect(owner.getByLabel('Other currency')).toHaveValue('USD')
     await owner.getByLabel('Amount in INR').fill('500')

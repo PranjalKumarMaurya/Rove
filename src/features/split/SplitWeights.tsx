@@ -39,9 +39,9 @@ export function WeightFields({ mode, members, values, onChange, evaluation, curr
           return (
             <li key={member.id} className="grid grid-cols-[minmax(0,1fr)_76px_auto] items-center gap-2">
               <span className="min-w-0">
-                <span aria-hidden="true" className="block truncate text-sm" style={{ color: 'var(--text-primary)' }}>{member.name}</span>
+                <span aria-hidden="true" className="block truncate t-callout" style={{ color: 'var(--text-primary)' }}>{member.name}</span>
                 {amount !== undefined && (
-                  <span id={amountId} className="block font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 11, overflowWrap: 'anywhere' }}>
+                  <span id={amountId} className="block truncate t-footnote t-num" style={{ color: 'var(--text-tertiary)' }}>
                     {money(amount, accountingCurrency)}
                   </span>
                 )}
@@ -50,7 +50,7 @@ export function WeightFields({ mode, members, values, onChange, evaluation, curr
                 inputMode={percent ? 'decimal' : 'numeric'} autoComplete="off" placeholder="0" value={values[member.id] ?? ''}
                 aria-describedby={amount !== undefined ? amountId : undefined}
                 onChange={(event) => onChange({ ...values, [member.id]: event.target.value })} />
-              <span className="font-mono" style={{ color: 'var(--text-tertiary)', fontSize: percent ? 13 : 11 }}>{percent ? '%' : 'shares'}</span>
+              <span className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>{percent ? '%' : 'shares'}</span>
             </li>
           )
         })}
@@ -64,7 +64,7 @@ export function WeightFields({ mode, members, values, onChange, evaluation, curr
 
 function Strip({ ok, children }: { ok: boolean; children: string }) {
   return (
-    <p role="status" className="m-toggle rounded-lg px-3 py-2 text-xs" data-testid="split-weight-summary"
+    <p role="status" className="m-toggle rounded-lg px-3 py-2 t-footnote" data-testid="split-weight-summary"
       style={{
         color: ok ? 'var(--text-primary)' : 'var(--accent)',
         border: `1px solid ${ok ? 'var(--border-strong)' : 'rgba(255,139,77,0.4)'}`,

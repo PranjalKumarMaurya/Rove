@@ -58,7 +58,7 @@ export function LiveBadge({ status }: { status: LiveStatus }) {
   const live = status === 'live'
   return (
     <span role="status" aria-label={live ? 'Live updates on' : 'Live updates paused, reconnecting'} data-live-status={status}
-      className="inline-flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+      className="inline-flex items-center gap-1.5 t-footnote" style={{ color: 'var(--text-tertiary)' }}>
       <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: 999, background: live ? '#4ADE80' : 'var(--text-quaternary)' }} />
       {live ? 'Live' : 'Reconnecting…'}
     </span>

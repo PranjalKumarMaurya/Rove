@@ -46,6 +46,29 @@ export function useTripTodos(groupId: string) {
   return { todos, loading, error, live, reload, patchLocal }
 }
 
+/**
+ * How many to-dos are still open, for the badge on the Trip header's To-dos button.
+ * Null until known (and when it can't be read: no badge rather than a wrong one).
+ */
+export function useOpenTodoCount(groupId: string): number | null {
+  const [count, setCount] = useState<number | null>(null)
+  const sequence = useRef(0)
+  const reload = useCallback(async () => {
+    const mine = ++sequence.current
+    const { count: open, error } = await supabase.from('trip_todos').select('id', { count: 'exact', head: true })
+      .eq('group_id', groupId).eq('done', false)
+    if (mine !== sequence.current) return
+    setCount(error || typeof open !== 'number' ? null : open)
+  }, [groupId])
+  useEffect(() => {
+    void reload()
+    // A late answer after unmount is ignored.
+    return () => { sequence.current += 1 }
+  }, [reload])
+  useLiveRefetch(groupId, LIVE_TABLES, () => { void reload() })
+  return count
+}
+
 export async function addTodo(groupId: string, createdBy: string, title: string) {
   const { error } = await supabase.from('trip_todos').insert({ group_id: groupId, created_by: createdBy, title })
   if (error) throw new TodoError()

@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { createTrip as createTripFromHome, signUp } from '../support/trip-frame'
+import { createTrip as createTripFromHome, openSettings, openTripTab, signUp } from '../support/trip-frame'
 
 test.skip(process.env.TRIP_SPLIT_LIVE !== '1', 'requires disposable local Supabase stack (npm run test:split:live)')
 test.use({ locale: 'en-US', timezoneId: 'Asia/Kolkata' })
@@ -29,7 +29,7 @@ test('two members add, settle, edit and delete expenses and see each other’s c
     await owner.goto('/')
     await signUp(owner, 'Owner One', 'split-owner@example.test')
     await createTrip(owner, 'Goa weekend')
-    await owner.getByRole('tab', { name: 'Crew' }).click()
+    await openSettings(owner)
     await owner.getByLabel('Friend’s email').fill('split-friend@example.test')
     await owner.getByRole('button', { name: 'Create link' }).click()
     const link = await owner.getByLabel('Invitation link').inputValue()
@@ -43,7 +43,7 @@ test('two members add, settle, edit and delete expenses and see each other’s c
     await friend.getByRole('button', { name: 'Open Trip' }).click()
 
     for (const page of [owner, friend]) {
-      await page.getByRole('tab', { name: 'Split' }).click()
+      await openTripTab(page, 'Split')
       await expect(page.getByTestId('split-currency')).toHaveText('AMOUNTS IN INR')
       await expectBalance(page, 'All settled up', '₹0.00')
       await expect(page.getByTestId('expenses-empty')).toBeVisible()

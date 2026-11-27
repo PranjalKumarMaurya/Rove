@@ -38,7 +38,7 @@ export function CrewStatusStrip({ trip, roster, events, audience, tripTimeZone }
 
   return (
     <section aria-labelledby="crew-status-heading" data-testid="crew-status">
-      <p id="crew-status-heading" className="serif-eyebrow" style={{ color: 'var(--text-secondary)', fontSize: 13 }}>the crew, right now</p>
+      <p id="crew-status-heading" className="t-callout t-voice" style={{ color: 'var(--text-secondary)' }}>the crew, right now</p>
       <ul className="-mx-5 mt-2 flex gap-2 overflow-x-auto px-5 pb-1" style={{ scrollSnapType: 'x proximity', scrollPaddingInline: 20 }}>
         {members.map((member) => {
           const status = statuses.get(member.groupMemberId)
@@ -47,24 +47,25 @@ export function CrewStatusStrip({ trip, roster, events, audience, tripTimeZone }
           const firstName = member.displayName.trim().split(/\s+/u)[0] || member.displayName
           return (
             <li key={member.groupMemberId} data-testid="crew-status-member" data-phase={status.phase}
-              className="surface relative flex w-[120px] shrink-0 flex-col items-center gap-1 px-2 pb-2.5 pt-3 text-center"
-              style={{ scrollSnapAlign: 'start', borderColor: isMe ? 'rgba(255,139,77,0.4)' : undefined, opacity: RESTING.has(status.phase) ? 0.6 : 1 }}>
+              className="surface relative flex shrink-0 flex-col items-center gap-1 px-2 pb-2.5 pt-3 text-center"
+              // At least 120px; a little wider with larger text. Status wraps to two lines, then truncates.
+              style={{ minWidth: 120, width: 'clamp(120px, calc(120px * var(--text-scale)), 150px)', scrollSnapAlign: 'start', borderColor: isMe ? 'rgba(255,139,77,0.4)' : undefined, opacity: RESTING.has(status.phase) ? 0.6 : 1 }}>
               {MOVING.has(status.phase) && <span aria-hidden="true" className="animate-pulse-soft absolute right-2 top-2"
                 style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }} />}
               <span aria-hidden="true" className="flex items-center justify-center" style={{
                 width: 34, height: 34, borderRadius: '50%', background: 'var(--accent-soft)', border: '1px solid var(--border-strong)',
-                color: 'var(--text-primary)', fontSize: emoji.get(member.groupMemberId) ? 18 : 14, fontWeight: 600,
+                color: 'var(--text-primary)', fontSize: emoji.get(member.groupMemberId) ? 18 : 14, fontWeight: 'var(--w-semibold)',
               }}>
                 {emoji.get(member.groupMemberId) || firstName.charAt(0).toUpperCase()}
               </span>
-              <span className="w-full truncate" style={{ color: 'var(--text-secondary)', fontSize: 12 }} title={member.displayName}>
+              <span className="t-caption w-full truncate" style={{ color: 'var(--text-secondary)' }} title={member.displayName}>
                 {firstName}{isMe ? ' (you)' : ''}
               </span>
               <span className="sr-only">: </span>
-              <span className="w-full truncate" style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 500 }} title={status.label}>{status.label}</span>
+              <span className="t-footnote t-medium line-clamp-2 w-full" style={{ color: 'var(--text-primary)' }} title={status.label}>{status.label}</span>
               {status.detail && <>
                 <span className="sr-only">, </span>
-                <span className="font-mono line-clamp-2 w-full" style={{ color: 'var(--text-tertiary)', fontSize: 10.5, lineHeight: 1.35 }}>{status.detail}</span>
+                <span className="t-caption t-num line-clamp-2 w-full" style={{ color: 'var(--text-tertiary)', fontWeight: 'var(--w-regular)' }}>{status.detail}</span>
               </>}
             </li>
           )

@@ -4,7 +4,8 @@
  * screens instead of leaving the app.
  *
  * Each screen has a depth: the Trips home is 0, a Trip, Create and Profile-from-home are 1,
- * Profile opened from a Trip is 2. The history holds one entry per depth level, each
+ * a Trip's To-dos and Settings screens (pushed from its header) and Profile opened from a
+ * Trip are 2. The history holds one entry per depth level, each
  * tagged `{ rove, roveDepth }`. Going deeper pushes entries, going shallower goes back
  * through them, and moving sideways (Create → the new Trip) replaces the current entry.
  */
@@ -14,6 +15,10 @@ export type View =
   | { kind: 'trip'; groupId: string }
   | { kind: 'create' }
   | { kind: 'profile'; from: { kind: 'home' } | { kind: 'trip'; groupId: string } }
+  /** A Trip's shared to-do list, full screen above the Trip. */
+  | { kind: 'todos'; groupId: string }
+  /** A Trip's settings: details, people, invite and danger zone, full screen above the Trip. */
+  | { kind: 'settings'; groupId: string }
 
 export interface RoveHistoryState {
   rove: View
@@ -29,7 +34,15 @@ export type HistoryPlan =
 export function viewDepth(view: View): number {
   if (view.kind === 'home') return 0
   if (view.kind === 'profile' && view.from.kind === 'trip') return 2
+  if (view.kind === 'todos' || view.kind === 'settings') return 2
   return 1
+}
+
+/** The Trip a screen belongs to (the Trip itself, or a screen pushed above it), if any. */
+export function tripOf(view: View): string | null {
+  if (view.kind === 'trip' || view.kind === 'todos' || view.kind === 'settings') return view.groupId
+  if (view.kind === 'profile' && view.from.kind === 'trip') return view.from.groupId
+  return null
 }
 
 /** A stable identity for a view, so the same screen is not recorded twice. */
@@ -38,6 +51,8 @@ export function viewKey(view: View): string {
     case 'home': return 'home'
     case 'create': return 'create'
     case 'trip': return `trip:${view.groupId}`
+    case 'todos': return `todos:${view.groupId}`
+    case 'settings': return `settings:${view.groupId}`
     case 'profile': return view.from.kind === 'trip' ? `profile:trip:${view.from.groupId}` : 'profile:home'
   }
 }
@@ -59,7 +74,9 @@ function readView(value: unknown): View | null {
   if (!value || typeof value !== 'object') return null
   const view = value as Record<string, unknown>
   if (view.kind === 'home' || view.kind === 'create') return { kind: view.kind }
-  if (view.kind === 'trip') return isId(view.groupId) ? { kind: 'trip', groupId: view.groupId } : null
+  if (view.kind === 'trip' || view.kind === 'todos' || view.kind === 'settings') {
+    return isId(view.groupId) ? { kind: view.kind, groupId: view.groupId } : null
+  }
   if (view.kind === 'profile') {
     const from = view.from as Record<string, unknown> | null | undefined
     if (from?.kind === 'home') return { kind: 'profile', from: { kind: 'home' } }
@@ -92,10 +109,12 @@ export function withRoveState(state: unknown, view: View, depth = viewDepth(view
 /**
  * The screen one level back in the history stack: what the iOS edge swipe shows
  * beneath the current screen. A Trip, Create and Profile-from-home sit on the Trips
- * home; Profile opened from a Trip sits on that Trip. The Trips home has nothing below.
+ * home; Profile opened from a Trip, and the Trip's To-dos and Settings, sit on that Trip.
+ * The Trips home has nothing below.
  */
 export function previousView(view: View): View | null {
   if (view.kind === 'home') return null
+  if (view.kind === 'todos' || view.kind === 'settings') return { kind: 'trip', groupId: view.groupId }
   if (view.kind === 'profile' && view.from.kind === 'trip') return { kind: 'trip', groupId: view.from.groupId }
   return { kind: 'home' }
 }

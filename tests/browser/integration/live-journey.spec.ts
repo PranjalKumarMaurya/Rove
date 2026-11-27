@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { createTrip as createTripFromHome, expectTripCount, refreshTrips, signUp, switchTrip } from '../support/trip-frame'
+import { createTrip as createTripFromHome, expectTripCount, openSettings, refreshTrips, signUp, switchTrip } from '../support/trip-frame'
 
 test.skip(process.env.TRIP_LIVE_JOURNEY !== '1', 'requires disposable local Supabase stack')
 
@@ -15,7 +15,7 @@ test('two real Auth accounts create, invite, join, and stay in their own Groups'
     await signUp(owner, 'Owner One', 'owner-live@example.test')
     await expect(owner.getByTestId('trips-empty')).toBeVisible()
     await createTrip(owner, 'Goa weekend', 'Goa')
-    await owner.getByRole('tab', { name: 'Crew' }).click()
+    await openSettings(owner)
     await owner.getByLabel('Friend’s email').fill('friend-live@example.test')
     await owner.getByRole('button', { name: 'Create link' }).click()
     const link = await owner.getByLabel('Invitation link').inputValue()
@@ -31,7 +31,7 @@ test('two real Auth accounts create, invite, join, and stay in their own Groups'
     await expect(friend.getByTestId('invitation-entry')).toContainText('You joined Goa weekend.')
     await friend.getByRole('button', { name: 'Open Trip' }).click()
     await expect(friend.getByTestId('group-workspace')).toContainText('Goa weekend')
-    await friend.getByRole('tab', { name: 'Crew' }).click()
+    await openSettings(friend)
     await expect(friend.getByTestId('invite-member')).toHaveCount(0)
 
     await createTrip(owner, 'Jaipur weekend', 'Jaipur')

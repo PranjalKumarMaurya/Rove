@@ -52,5 +52,71 @@ Based on Apple's text styles (Large Title 34 and Title 28, from the [HIG](https:
 
 ## How it's built
 
-- Tokens live in `src/styles/global.css` (`--type-*` and `.t-*` classes). Components use the classes instead of inline font sizes.
-- Fonts load from Google Fonts with `display=swap`; only the needed axes and weights are requested.
+### Files
+
+- `src/styles/type.css`: every token and role class. It is imported in `src/main.tsx` right after `fonts.css` (whose remote `@import` must lead the bundle) and before `global.css`.
+- `src/styles/fonts.css`: one Google Fonts request with `display=swap`:
+  - Fraunces with `ital,opsz,wght,SOFT` (weights 400–700, upright and italic);
+  - Inter with `opsz,wght` (400–700);
+  - JetBrains Mono at 400–600.
+  
+  Share Tech Mono is gone. The ranges reach 700 only so that Bold text can add 100 to 600.
+- `tailwind.config.ts`: Tailwind's `text-xs`/`text-sm`… sizes are replaced by role aliases (`text-caption`, `text-footnote`, `text-callout`, `text-body`, `text-headline`). `font-normal`/`font-medium`/`font-semibold` (and `font-bold`, which equals semibold) follow the weight tokens.
+- `src/lib/textSize.ts`: reads, saves and applies the Text size and Bold text choices. `src/features/profile/TextSizeSettings.tsx` is the Profile control.
+
+### Tokens (on `:root`)
+
+| Token | Value |
+|---|---|
+| `--text-scale` | 1 by default; set on `<html>` by Text size |
+| `--weight-boost` | 0, or 100 with Bold text |
+| `--font-display`, `--font-ui`, `--font-mono` | Fraunces, Inter, JetBrains Mono (with system fallbacks) |
+| `--w-regular`, `--w-medium`, `--w-semibold` | `calc(400 / 500 / 600 + var(--weight-boost))` |
+| `--type-display` / `--lh-display` | `min(40px, 34px × scale)` / `min(46px, 40px × scale)` |
+| `--type-title1` / `--lh-title1` | `min(33px, 28px × scale)` / `min(39px, 34px × scale)` |
+| `--type-title2` / `--lh-title2` | 22 / 28 × scale |
+| `--type-title3` / `--lh-title3` | 19 / 25 × scale |
+| `--type-headline` / `--lh-headline` | 17 / 22 × scale |
+| `--type-body` / `--lh-body` | 16 / 24 × scale (also the `body` default) |
+| `--type-callout` / `--lh-callout` | 15 / 21 × scale |
+| `--type-footnote` / `--lh-footnote` | `max(12px, 13px × scale)` / `max(17px, 18px × scale)` |
+| `--type-caption`, `--type-eyebrow` (+ `--lh-*`) | `max(11px, 12px × scale)` / `max(15px, 16px × scale)` |
+| `--type-field` | `max(16px, var(--type-body))`: every input, select and textarea, so iPhone Safari never zooms |
+| `--type-nav` / `--lh-nav` | `min(13px, var(--type-caption))` / `min(16px, …)`: bottom nav and tab bar labels |
+
+Component CSS uses these tokens directly (for example `.pill`, `.chip`, `.notice`, `.row-btn`, `.topbar-btn`, `.nav-tab` and `.home-nav__item`). It never uses pixel font sizes.
+
+### Classes
+
+- **Roles:** `.t-display`, `.t-title1`, `.t-title2`, `.t-title3` (Fraunces 500, optical size from the font size, `SOFT` 50) and `.t-headline`, `.t-body`, `.t-callout`, `.t-footnote`, `.t-caption`, `.t-eyebrow` (Inter). `.t-eyebrow` is uppercase with 0.08em tracking and defaults to `--text-secondary`.
+- **Modifiers** (they keep the role's size):
+  - `.t-num`: tabular figures, for money, times, dates in lists and counts;
+  - `.t-code`: JetBrains Mono at 0.93em with a slashed zero, for PNRs, booking references, flight numbers and UPI IDs;
+  - `.t-voice`: Fraunces italic, for the friendly voice only;
+  - `.t-medium` and `.t-semibold`;
+  - `.t-link`: underline 1px, offset 3px, for inline links only.
+- **How screens use them:**
+  - Screen titles (Your Trips, the trip name, Profile) use `t-display`.
+  - Tab and sheet headings (Itinerary, Split, Crew, dialog titles) use `t-title2`.
+  - Sub-section and event titles use `t-title3`.
+  - Section labels (UPCOMING, GROUP TOTALS, TO DO) use `t-eyebrow`.
+  - List-row titles and amounts use `t-headline` (amounts add `t-num`).
+  - Secondary lines and notices use `t-callout`.
+  - Meta lines, hints, field labels and errors use `t-footnote`.
+  - Field components keep `.field-label`/`.field-hint`/`.field-error` for colour only.
+  - Empty states and greetings use a size role with `t-voice`.
+
+### Text size and Bold text (Profile › Text size)
+
+- **The slider.** It is an `<input type="range">` with 0–4 stops. They map `--text-scale` to **0.9, 0.95, 1 (default), 1.12 and 1.25**. Tick marks sit under the track, with a small "Aa" at one end and a large "Aa" at the other. A preview ("Day 2 · Mon 16 Nov" and "Dinner at Ganga View · ₹1,350") is the only element that animates between sizes (`.text-size-preview`, 160ms, off under reduced motion). The rest of the app changes in one step, so nothing re-lays out frame by frame.
+- **Bold text.** This is a `Switch` that sets `--weight-boost` to 100, so 400 → 500, 500 → 600 and 600 → 700. The fonts are variable, so these are true weights. `<strong>` follows `--w-semibold`.
+- **Saving and applying.** The choice is saved per device in `localStorage` under `rove.textSize` as `{ step, bold }`, with every access wrapped in try/catch. It is applied to `<html>` (`--text-scale`, `--weight-boost`, `data-text-step`, `data-bold-text`) in `src/main.tsx` before React renders, so the app never shows a flash of the default size.
+- **Floors and caps.**
+  - At the smallest step, captions and eyebrows stay at 11px or more, and footnotes at 12px or more.
+  - Fields never drop below 16px.
+  - At the largest step, display stops at 40px and title1 at 33px.
+  - Nav and tab bar labels stop at 13px. They never wrap: they truncate with an ellipsis, and their icons keep a fixed size.
+- **Layout.** Containers that hold text grow: they use `min-height` and wrap or truncate as in docs/DESIGN-SYSTEM.md §5.
+  - Crew status tiles are 120–150px wide and follow the scale; the status wraps to two lines.
+  - In Split's Group totals, names truncate and amounts never wrap. Below about 31em of footnote text, each name moves to its own line above that person's amounts (a container query in `splitTimeline.css`).
+  - Each step was checked at 390×844, with Bold text on and off, on the Trips home, a Trip's Trip, Split, Scan and Crew tabs, Add expense, Trip settings and Profile. Nothing scrolled sideways or overflowed.

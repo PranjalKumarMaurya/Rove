@@ -1,1 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..700,0..100&family=Inter:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
+/* Google Fonts, variable axes only (docs/TYPOGRAPHY.md):
+   Fraunces  — display: optical size, weight 400–700 (Bold text reaches 700), softness, upright + italic;
+   Inter     — text and interface: optical size, weight 400–700;
+   JetBrains Mono — codes only (PNR, booking refs, flight numbers): weight 400–600.
+   display=swap keeps text visible with the fallback face while the fonts load. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,400..700,0..100;1,9..144,400..700,0..100&family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400..600&display=swap');

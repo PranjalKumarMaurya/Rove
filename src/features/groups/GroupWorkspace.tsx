@@ -1,42 +1,49 @@
-import { type CSSProperties, type KeyboardEvent, useRef, useState } from 'react'
-import { IconBack, IconCrew, IconExchange, IconMap, IconReceipt, IconScan, IconSettings, IconTodos } from '../../components/ui/icons'
-import { CrewTab } from '../crew/CrewTab'
+import { type CSSProperties, type KeyboardEvent, useRef } from 'react'
+import { IconBack, IconChat, IconChecklist, IconExchange, IconMap, IconReceipt, IconScan, IconSettings } from '../../components/ui/icons'
+import { ChatTab } from '../chat/ChatTab'
 import { FxTab } from '../fx/FxTab'
 import { ScanTab } from '../scan/ScanTab'
-import { TripSettingsSheet } from '../settings/TripSettingsSheet'
 import { SplitTab } from '../split/SplitTab'
-import { TodosTab } from '../todos/TodosTab'
+import { useOpenTodoCount } from '../todos/tripTodosApi'
 import { TripTab } from '../trip/TripTab'
 import type { MyGroupAccess } from './myGroupAccess'
 import { useGroupRoster } from './useGroupRoster'
 
 const ALL_TABS = [
   { id: 'trip', label: 'Trip', Icon: IconMap, Component: TripTab },
-  { id: 'todos', label: 'Todos', Icon: IconTodos, Component: TodosTab },
   { id: 'split', label: 'Split', Icon: IconReceipt, Component: SplitTab },
   { id: 'scan', label: 'Scan', Icon: IconScan, Component: ScanTab },
+  { id: 'chat', label: 'Chat', Icon: IconChat, Component: ChatTab },
   { id: 'fx', label: 'FX', Icon: IconExchange, Component: FxTab },
-  { id: 'crew', label: 'Crew', Icon: IconCrew, Component: CrewTab },
 ] as const
 
-type TabId = (typeof ALL_TABS)[number]['id']
+export type TripSectionId = (typeof ALL_TABS)[number]['id']
 
 /** Domestic Trips have no currency features, so no FX tab. */
 const tabsFor = (trip: MyGroupAccess) => ALL_TABS.filter((entry) => entry.id !== 'fx' || trip.isInternational)
 
 /**
- * One Trip: a header with the way back to the Trips home, Trip settings and the
- * person's avatar, the selected tab, and the bottom tab bar.
+ * One Trip: a header with the way back to the Trips home and two round buttons on
+ * the right, To-dos and Settings (each opens a full screen pushed above the Trip,
+ * see navigationHistory.ts), then the selected tab and the bottom tab bar
+ * (Trip · Split · Scan · Chat · FX). The chosen tab is held by the caller, so coming
+ * back from To-dos or Settings (or seeing the Trip beneath an edge swipe) shows the
+ * same tab.
  */
-export function GroupWorkspace({ trip, onBack, onRefresh }: {
+export function GroupWorkspace({ trip, tab, onTabChange, onBack, onRefresh, onOpenTodos, onOpenSettings }: {
   trip: MyGroupAccess
+  /** The selected tab (falls back to the first when it isn't offered). */
+  tab: string
+  onTabChange: (tab: TripSectionId) => void
   /** Back to the Trips home. */
   onBack: () => void
   /** Re-read the Trip list in the background (role, settings, membership, archive state). */
   onRefresh: () => void
+  onOpenTodos: () => void
+  onOpenSettings: () => void
 }) {
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const owner = trip.role === 'owner'
+  const openTodos = useOpenTodoCount(trip.groupId)
 
   return (
     <main data-testid="group-workspace" className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col">
@@ -47,36 +54,42 @@ export function GroupWorkspace({ trip, onBack, onRefresh }: {
             <IconBack size={20} />
           </button>
           <span className="flex-1" />
-          <button type="button" className="round-btn" aria-label={owner ? 'Trip settings' : 'Trip details'} aria-haspopup="dialog"
-            aria-expanded={settingsOpen} onClick={() => setSettingsOpen(true)}>
+          <button type="button" className="round-btn" onClick={onOpenTodos}
+            aria-label={openTodos ? `To-dos, ${openTodos} open` : 'To-dos'}>
+            <IconChecklist size={20} />
+            {openTodos ? <span className="round-btn__badge" aria-hidden="true">{openTodos > 99 ? '99+' : openTodos}</span> : null}
+          </button>
+          <button type="button" className="round-btn" aria-label="Trip settings" onClick={onOpenSettings}>
             <IconSettings size={20} />
           </button>
         </div>
         <div className="min-w-0">
-          <h1 className="serif-display line-clamp-2" style={{ color: 'var(--text-primary)', fontSize: 26, lineHeight: 1.15 }}>{trip.tripName}</h1>
-          <p className="mt-0.5 truncate" style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{trip.destination} · {owner ? 'Owner' : 'Member'}</p>
+          <h1 className="t-display line-clamp-2" style={{ color: 'var(--text-primary)'}}>{trip.tripName}</h1>
+          <p className="t-footnote mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>{trip.destination} · {owner ? 'Owner' : 'Member'}</p>
         </div>
       </header>
 
       {/* Keyed by Trip so opening another Trip remounts every tab with fresh state. */}
-      <TripSections key={trip.groupId} trip={trip} onTripsChanged={onRefresh} />
-
-      {settingsOpen && <TripSettingsSheet trip={trip} onClose={() => setSettingsOpen(false)} onSaved={onRefresh} />}
+      <TripSections key={trip.groupId} trip={trip} tab={tab} onTabChange={onTabChange} onTripsChanged={onRefresh} />
     </main>
   )
 }
 
-function TripSections({ trip, onTripsChanged }: { trip: MyGroupAccess; onTripsChanged: () => void }) {
-  const [tab, setTab] = useState<TabId>('trip')
-  const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({})
+function TripSections({ trip, tab, onTabChange, onTripsChanged }: {
+  trip: MyGroupAccess
+  tab: string
+  onTabChange: (tab: TripSectionId) => void
+  onTripsChanged: () => void
+}) {
+  const tabRefs = useRef<Partial<Record<TripSectionId, HTMLButtonElement | null>>>({})
   const { roster, reload } = useGroupRoster(trip.groupId)
   const TABS = tabsFor(trip)
   // A tab that disappears (e.g. FX after a Trip becomes domestic) falls back to the first.
   const current = TABS.find((entry) => entry.id === tab) ?? TABS[0]
   const currentIndex = TABS.findIndex((entry) => entry.id === current.id)
 
-  const choose = (id: TabId, focus = false) => {
-    setTab(id)
+  const choose = (id: TripSectionId, focus = false) => {
+    onTabChange(id)
     if (focus) tabRefs.current[id]?.focus()
     // A new section starts at its top, like a native tab bar.
     window.scrollTo({ top: 0 })
@@ -96,7 +109,8 @@ function TripSections({ trip, onTripsChanged }: { trip: MyGroupAccess; onTripsCh
   return (
     <>
       {/* Keyed by tab so each section settles in once when chosen (m-tab-enter); no exit. */}
-      <div key={current.id} role="tabpanel" id="trip-tab-panel" aria-labelledby={`trip-tab-${current.id}`} className="app-content m-tab-enter flex-1">
+      <div key={current.id} role="tabpanel" id="trip-tab-panel" aria-labelledby={`trip-tab-${current.id}`}
+        className={`app-content trip-panel--${current.id} m-tab-enter flex-1`}>
         <current.Component trip={trip} roster={roster} reloadRoster={reload} onTripsChanged={onTripsChanged} />
       </div>
       <div className="tab-bar">

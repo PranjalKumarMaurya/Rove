@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { fillAndCreateTrip } from '../support/trip-frame'
+import { fillAndCreateTrip, openSettings } from '../support/trip-frame'
 
 const ownerId = 'a5000000-0000-4000-8000-000000000001'
 const friendId = 'a5000000-0000-4000-8000-000000000002'
@@ -67,7 +67,7 @@ test('staged owner creates Trip and link; recipient joins after confirmation', a
     await expect(owner.getByTestId('trips-empty')).toBeVisible()
     await owner.getByRole('button', { name: 'Create your first Trip' }).click()
     await fillAndCreateTrip(owner, { name: 'Goa weekend', destination: 'Goa' })
-    await owner.getByRole('tab', { name: 'Crew' }).click()
+    await openSettings(owner)
     await owner.getByLabel('Friend’s email').fill('friend@example.test')
     await owner.getByRole('button', { name: 'Create link' }).click()
     const invitationLink = await owner.getByLabel('Invitation link').inputValue()
@@ -95,7 +95,7 @@ test('staged owner creates Trip and link; recipient joins after confirmation', a
     await expect(friend.getByTestId('invitation-entry')).toContainText('You joined Goa weekend.')
     await friend.getByRole('button', { name: 'Open Trip' }).click()
     await expect(friend.getByTestId('group-workspace')).toContainText('Goa weekend')
-    await friend.getByRole('tab', { name: 'Crew' }).click()
+    await openSettings(friend)
     await expect(friend.getByTestId('invite-member')).toHaveCount(0)
   } finally {
     await ownerContext.close()

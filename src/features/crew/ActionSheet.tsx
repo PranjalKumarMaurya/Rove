@@ -39,10 +39,10 @@ const sheetStyle: CSSProperties = {
   color: 'var(--text-primary)',
 }
 
-export const buttonClass = 'rounded-full px-4 py-2 text-sm disabled:opacity-60'
+export const buttonClass = 'rounded-full px-4 py-2 t-callout disabled:opacity-60'
 export const quietButtonStyle: CSSProperties = { border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }
-export const accentButtonStyle: CSSProperties = { background: 'var(--accent)', border: '1px solid var(--accent)', color: '#1A0A03', fontWeight: 500 }
-export const dangerButtonStyle: CSSProperties = { background: 'var(--neon-pink)', border: '1px solid var(--neon-pink)', color: '#1A0A03', fontWeight: 500 }
+export const accentButtonStyle: CSSProperties = { background: 'var(--accent)', border: '1px solid var(--accent)', color: '#1A0A03', fontWeight: 'var(--w-medium)' }
+export const dangerButtonStyle: CSSProperties = { background: 'var(--neon-pink)', border: '1px solid var(--neon-pink)', color: '#1A0A03', fontWeight: 'var(--w-medium)' }
 
 /**
  * A modal sheet (native <dialog>: focus is trapped, Escape dismisses) that walks
@@ -108,10 +108,10 @@ export function ActionSheet({ title, intro, actions, onClose, testId = 'crew-act
       className="backdrop:bg-black/70 backdrop:backdrop-blur-sm" style={sheetStyle}
       onCancel={(event) => { event.preventDefault(); finish() }}
       onClose={() => { if (mountedRef.current && busyRef.current) dialogRef.current?.showModal() }}>
-      <h2 id={titleId} className="serif-display" style={{ fontSize: 23, color: 'var(--text-primary)' }}>{heading}</h2>
+      <h2 id={titleId} className="t-title2" style={{ color: 'var(--text-primary)' }}>{heading}</h2>
 
       {phase.kind === 'menu' && <>
-        {intro && <div className="mt-2" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{intro}</div>}
+        {intro && <div className="t-callout mt-2" style={{ color: 'var(--text-secondary)' }}>{intro}</div>}
         <div className="mt-5 flex flex-col gap-2">
           {actions.map((action, index) => (
             <button key={action.id} type="button" data-autofocus={index === 0 ? '' : undefined}
@@ -127,7 +127,7 @@ export function ActionSheet({ title, intro, actions, onClose, testId = 'crew-act
       </>}
 
       {spec && phase.kind !== 'menu' && <>
-        <div className="mt-2" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+        <div className="t-callout mt-2" style={{ color: 'var(--text-secondary)' }}>
           {phase.kind === 'success' ? null : spec.blocked ?? spec.body}
         </div>
         {phase.kind === 'working' && <p role="status" className="mt-4" style={{ color: 'var(--text-secondary)' }}>{spec.busyLabel}</p>}

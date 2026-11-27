@@ -26,7 +26,7 @@ type FormState = Omit<BootstrapFormValues, 'displayCurrencies'> & { extraCurrenc
 type ConfirmedTrip = { groupId: string; tripName: string; destination: string; startDate: string; endDate: string }
 
 const allFields: BootstrapFieldName[] = ['tripName', 'destination', 'startDate', 'endDate', 'timezone', 'accountingCurrency', 'displayCurrencies']
-const inputStyle = { fontSize: 16, minHeight: 44 } as const
+const inputStyle = { fontSize: 'var(--type-field)', minHeight: 44 } as const
 
 let timezoneChoices: { value: string; label: string }[] | null = null
 function timezoneOptions() {
@@ -175,7 +175,7 @@ export function BootstrapOnboarding({ onContinue, onBack, homeCurrency }: {
 
   return (
     <ScreenFrame testId="bootstrap-onboarding" centered={false}
-      eyebrow={<p className="eyebrow">New Trip</p>}
+      eyebrow={<p className="t-eyebrow">New Trip</p>}
       title="Create your Trip"
       lede="Add the basics. You can invite friends once it’s created."
       top={onBack ? <button type="button" className="round-btn" aria-label="Back to Trips" onClick={onBack}><IconBack size={20} /></button> : undefined}>
@@ -234,9 +234,9 @@ export function BootstrapOnboarding({ onContinue, onBack, homeCurrency }: {
 
 function BootstrapSuccess({ trip, onContinue }: { trip: ConfirmedTrip; onContinue?: () => void }) {
   return (
-    <ScreenFrame testId="bootstrap-success-state-a" eyebrow={<p className="eyebrow" style={{ color: 'var(--accent)' }}>Trip created</p>}
+    <ScreenFrame testId="bootstrap-success-state-a" eyebrow={<p className="t-eyebrow" style={{ color: 'var(--accent)' }}>Trip created</p>}
       title={trip.tripName} lede={<>{trip.destination} · {formatTripDates(trip.startDate, trip.endDate)}</>}>
-      <p className="notice">You’re the Owner. Invite friends from the Crew tab when you’re ready.</p>
+      <p className="notice">You’re the Owner. Invite friends from the Trip’s Settings when you’re ready.</p>
       {onContinue && <NeonBtn type="button" size="lg" onClick={onContinue} className="mt-6 w-full">Open Trip</NeonBtn>}
     </ScreenFrame>
   )

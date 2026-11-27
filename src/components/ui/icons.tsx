@@ -14,6 +14,10 @@ type IconProps = { size?: number }
 
 export const IconMap = ({ size }: IconProps) => <Icon size={size}><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4z" /><path d="M9 4v14M15 6v14" /></Icon>
 export const IconTodos = ({ size }: IconProps) => <Icon size={size}><rect x="4" y="4" width="16" height="16" rx="4" /><path d="m8.5 12.2 2.4 2.4 4.6-5" /></Icon>
+/** A checklist: two ticked rows and an open one (the Trip's To-dos). */
+export const IconChecklist = ({ size }: IconProps) => <Icon size={size}><path d="m4 6.5 1.6 1.6L8.5 5" /><path d="m4 12.5 1.6 1.6 2.9-3.1" /><circle cx="6" cy="18.5" r="1.6" /><path d="M11.5 6.5h8.5M11.5 12.5h8.5M11.5 18.5h8.5" /></Icon>
+/** A speech bubble with a tail at the lower left (the Trip chat). */
+export const IconChat = ({ size }: IconProps) => <Icon size={size}><path d="M12 4c4.7 0 8.5 3.1 8.5 7s-3.8 7-8.5 7c-1 0-2-.1-2.9-.4L5 19.5l1.1-3.5C4.6 14.7 3.5 13 3.5 11c0-3.9 3.8-7 8.5-7z" /></Icon>
 export const IconReceipt = ({ size }: IconProps) => <Icon size={size}><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2v-17z" /><path d="M9 8.5h6M9 12.5h6" /></Icon>
 export const IconScan = ({ size }: IconProps) => <Icon size={size}><path d="M4 8V6.5A2.5 2.5 0 0 1 6.5 4H8M16 4h1.5A2.5 2.5 0 0 1 20 6.5V8M20 16v1.5a2.5 2.5 0 0 1-2.5 2.5H16M8 20H6.5A2.5 2.5 0 0 1 4 17.5V16" /><path d="M7.5 12h9" /></Icon>
 export const IconExchange = ({ size }: IconProps) => <Icon size={size}><path d="M5 8h13.5L15 4.5M19 16H5.5L9 19.5" /></Icon>

@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test'
-import { createTrip as createSharedTrip, signUp as sharedSignUp } from '../support/trip-frame'
+import { createTrip as createSharedTrip, openSettings, openTripTab, signUp as sharedSignUp } from '../support/trip-frame'
 
 test.skip(process.env.TRIP_SPLIT_MODES_LIVE !== '1', 'requires disposable local Supabase stack (npm run test:split:modes:live)')
 test.use({ locale: 'en-US', timezoneId: 'Asia/Kolkata' })
@@ -25,7 +25,7 @@ async function createTrip(page: Page, name: string) {
 
 /** The owner invites `email`; a new browser context signs up through the link and opens the Trip. */
 async function inviteAndJoin(browser: Browser, owner: Page, tripName: string, name: string, email: string) {
-  await owner.getByRole('tab', { name: 'Crew' }).click()
+  await openSettings(owner)
   await owner.getByLabel('Friend’s email').fill(email)
   await owner.getByRole('button', { name: 'Create link' }).click()
   const link = await owner.getByLabel('Invitation link').inputValue()
@@ -74,7 +74,7 @@ test('percent and shares splits, edits, and paying back via a UPI link', async (
     friendContext = joined.context
     const friend = joined.friend
     for (const page of [owner, friend]) {
-      await page.getByRole('tab', { name: 'Split' }).click()
+      await openTripTab(page, 'Split')
       await expectBalance(page, 'All settled up', '₹0.00')
     }
 

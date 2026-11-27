@@ -93,37 +93,37 @@ export function FxTab({ trip }: TripTabProps) {
   return (
     <section data-testid="fx-tab" className="flex flex-col gap-6">
       <div className="surface px-4 py-5">
-        <h2 className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 25 }}>FX</h2>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>Quick reference conversions for {trip.tripName}. Split keeps its own exchange rates.</p>
+        <h2 className="t-title2" style={{ color: 'var(--text-primary)' }}>FX</h2>
+        <p className="mt-1 t-callout" style={{ color: 'var(--text-secondary)' }}>Quick reference conversions for {trip.tripName}. Split keeps its own exchange rates.</p>
 
         <div className="mt-5 flex flex-col gap-3">
-          <label className="flex flex-col gap-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex flex-col gap-1.5 t-callout" style={{ color: 'var(--text-secondary)' }}>
             <span>{accounting} · Trip currency</span>
             <NeonInput aria-label={`Amount in ${accounting}`} inputMode="decimal" autoComplete="off" value={shown.accounting}
               onChange={(event) => setAmounts({ accounting: event.target.value, counter: shown.counter, edited: 'accounting' })}
-              style={{ fontSize: 20, fontFamily: 'var(--font-display)' }} />
+              className="t-num" style={{ fontSize: 'max(var(--type-field), var(--type-title3))', fontWeight: 'var(--w-medium)' }} />
           </label>
-          <label className="flex flex-col gap-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex flex-col gap-1.5 t-callout" style={{ color: 'var(--text-secondary)' }}>
             <span>Convert to</span>
             <select aria-label="Other currency" value={counter} onChange={(event) => pick(event.target.value)}
               className="w-full rounded-md px-3 py-2.5" style={{ background: 'rgba(245,241,235,0.035)', border: '1px solid var(--border)', color: 'var(--text-primary)', colorScheme: 'dark' }}>
               {options.map((code) => <option key={code} value={code}>{code}</option>)}
             </select>
           </label>
-          <label className="flex flex-col gap-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex flex-col gap-1.5 t-callout" style={{ color: 'var(--text-secondary)' }}>
             <span>{counter}</span>
             <NeonInput aria-label={`Amount in ${counter}`} inputMode="decimal" autoComplete="off" value={shown.counter}
               onChange={(event) => setAmounts({ accounting: shown.accounting, counter: event.target.value, edited: 'counter' })}
-              disabled={!rate} style={{ fontSize: 20, fontFamily: 'var(--font-display)' }} />
+              disabled={!rate} className="t-num" style={{ fontSize: 'max(var(--type-field), var(--type-title3))', fontWeight: 'var(--w-medium)' }} />
           </label>
         </div>
 
-        <p data-testid="fx-rate" className="mt-4 font-mono" style={{ color: 'var(--text-primary)', fontSize: 12 }}>
+        <p data-testid="fx-rate" className="t-footnote t-num mt-4" style={{ color: 'var(--text-primary)' }}>
           {rate ? `1 ${accounting} = ${formatRate(rate)} ${counter} · 1 ${counter} = ${formatRate(1 / rate)} ${accounting}` : `No ${accounting} → ${counter} rate available.`}
         </p>
         <div className="mt-2 flex items-center justify-between gap-3">
-          <p role="status" data-testid="fx-status" className="text-xs" style={{ color: rates.status === 'error' ? 'var(--accent)' : 'var(--text-tertiary)' }}>{statusText}</p>
-          <button type="button" onClick={() => void refresh()} disabled={rates.status === 'loading'} className="shrink-0 text-sm" style={{ color: 'var(--accent)' }}>
+          <p role="status" data-testid="fx-status" className="t-footnote" style={{ color: rates.status === 'error' ? 'var(--accent)' : 'var(--text-tertiary)' }}>{statusText}</p>
+          <button type="button" onClick={() => void refresh()} disabled={rates.status === 'loading'} className="t-callout t-medium min-h-11 shrink-0" style={{ color: 'var(--accent)' }}>
             {rates.status === 'loading' ? 'Refreshing…' : 'Refresh rates'}
           </button>
         </div>
@@ -136,27 +136,27 @@ export function FxTab({ trip }: TripTabProps) {
 
       {showsBaliGuide(trip.destination) && (
         <section data-testid="fx-bali-guide" aria-labelledby="fx-bali-heading" className="surface px-4 py-5">
-          <h2 id="fx-bali-heading" className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 22 }}>Bali price guide</h2>
+          <h2 id="fx-bali-heading" className="t-title3" style={{ color: 'var(--text-primary)' }}>Bali price guide</h2>
           <ul className="mt-3 flex flex-col gap-2">
             {BALI_PRICE_GUIDE.map((item) => (
-              <li key={item.label} className="flex items-center justify-between gap-3 text-sm">
+              <li key={item.label} className="flex items-center justify-between gap-3 t-callout">
                 <span className="min-w-0">
                   <span style={{ color: 'var(--text-primary)' }}>{item.label}</span>
-                  {item.note && <span className="block text-xs" style={{ color: 'var(--text-tertiary)' }}>{item.note}</span>}
+                  {item.note && <span className="block t-footnote" style={{ color: 'var(--text-tertiary)' }}>{item.note}</span>}
                 </span>
-                <span className="shrink-0 text-right">
+                <span className="t-num shrink-0 text-right">
                   <span className="block" style={{ color: 'var(--text-primary)' }}>{formatMoney(item.idr, 'IDR')}</span>
-                  {guideRate && guideTarget !== 'IDR' && <span className="block font-mono text-xs" style={{ color: 'var(--text-tertiary)' }}>≈ {formatMoney(Math.round(item.idr * guideRate), guideTarget)}</span>}
+                  {guideRate && guideTarget !== 'IDR' && <span className="block t-footnote" style={{ color: 'var(--text-tertiary)' }}>≈ {formatMoney(Math.round(item.idr * guideRate), guideTarget)}</span>}
                 </span>
               </li>
             ))}
           </ul>
-          <p className="mt-3 font-mono text-xs" style={{ color: 'var(--text-tertiary)' }}>Indicative prices. Tip around 10%.</p>
+          <p className="mt-3 t-footnote" style={{ color: 'var(--text-tertiary)' }}>Indicative prices. Tip around 10%.</p>
         </section>
       )}
 
-      <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-        <a href={RATES_PROVIDER_URL} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-secondary)' }}>Rates by Exchange Rate API</a>. Mid-market reference rates, not a quote.
+      <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>
+        <a href={RATES_PROVIDER_URL} target="_blank" rel="noopener noreferrer" className="t-link" style={{ color: 'var(--text-secondary)' }}>Rates by Exchange Rate API</a>. Mid-market reference rates, not a quote.
       </p>
     </section>
   )
@@ -165,11 +165,11 @@ export function FxTab({ trip }: TripTabProps) {
 function QuickChips({ label, amounts, onPick }: { label: string; amounts: number[]; onPick: (value: number) => void }) {
   return (
     <div>
-      <p className="mb-2 font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.16em' }}>QUICK · {label}</p>
+      <p className="t-eyebrow mb-2" style={{ color: 'var(--text-tertiary)' }}>QUICK · {label}</p>
       <div className="flex flex-wrap gap-2">
         {amounts.map((value) => (
           <button key={value} type="button" onClick={() => onPick(value)} aria-label={`Convert ${formatMoney(value, label)}`}
-            className="m-press rounded-full border px-3 py-1.5 text-sm" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+            className="m-press t-callout t-num rounded-full border px-3 py-1.5" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
             {formatMoney(value, label)}
           </button>
         ))}

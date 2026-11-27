@@ -31,8 +31,8 @@ export function ArchivedTrips({ refreshKey, onRestored, className = '' }: {
 
   return (
     <section data-testid="archived-trips" aria-label="Archived Trips" className={`surface px-4 py-5 ${className}`}>
-      <h2 className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 20 }}>Archived Trips</h2>
-      <p className="mt-1.5" style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+      <h2 className="t-title3" style={{ color: 'var(--text-primary)' }}>Archived Trips</h2>
+      <p className="t-footnote mt-1.5" style={{ color: 'var(--text-secondary)' }}>
         Closed for everyone until an Owner restores them. Nothing in them was deleted.
       </p>
       <ul className="mt-4 flex flex-col gap-3">
@@ -40,7 +40,7 @@ export function ArchivedTrips({ refreshKey, onRestored, className = '' }: {
           <li key={trip.groupId} className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate" style={{ color: 'var(--text-primary)' }}>{trip.tripName}</p>
-              <p style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>
+              <p className="t-footnote" style={{ color: 'var(--text-tertiary)' }}>
                 {trip.destination} · {formatCalendarDate(trip.startDate)} · Archived {formatDay(trip.archivedAt)}
               </p>
             </div>

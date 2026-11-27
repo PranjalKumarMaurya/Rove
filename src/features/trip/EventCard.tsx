@@ -10,7 +10,8 @@ import { terminalLabel } from './NextFlight'
 const STATUS_LABEL: Record<EventStatus, string> = { past: 'Past', live: 'Live now', next: 'Next', upcoming: 'Upcoming' }
 
 const smallButton: CSSProperties = {
-  fontSize: 12, color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px',
+  fontSize: 'var(--type-footnote)', lineHeight: 'var(--lh-footnote)', fontWeight: 'var(--w-medium)',
+  color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px',
 }
 
 export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZone, audienceNames, onEdit, onDelete, leaving = false }: {
@@ -40,7 +41,13 @@ export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZon
   const mapUrl = safeMapUrl(event.map_url)
   const highlighted = status === 'live' || status === 'next'
   const isFlight = event.event_type === 'flight'
-  const flightLine = [event.airline, event.flight_no, event.terminal && terminalLabel(event.terminal)].filter(Boolean).join(' · ')
+  // Flight numbers and airport codes are codes (JetBrains Mono); the airline and terminal are text.
+  const flightParts = [
+    event.airline && { key: 'airline', text: event.airline, code: false },
+    event.flight_no && { key: 'flight', text: event.flight_no, code: true },
+    event.terminal && { key: 'terminal', text: terminalLabel(event.terminal), code: false },
+  ].filter((part): part is { key: string; text: string; code: boolean } => Boolean(part))
+  const flightLine = flightParts.length > 0
 
   const confirmDelete = async () => {
     setDeleting(true)
@@ -67,7 +74,7 @@ export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZon
         opacity: status === 'past' ? 0.55 : 1,
       }}>
         <div className="flex items-start justify-between gap-3">
-          <h3 className="serif-display min-w-0" style={{ fontSize: 18, fontWeight: 400, color: 'var(--text-primary)', lineHeight: 1.25 }}>
+          <h3 className="t-title3 min-w-0" style={{ color: 'var(--text-primary)', overflowWrap: 'break-word' }}>
             {event.notes
               ? <button type="button" aria-expanded={expanded} aria-controls={notesId} onClick={() => setExpanded((value) => !value)} className="text-left">{event.title}</button>
               : event.title}
@@ -77,35 +84,37 @@ export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZon
           </span>
         </div>
 
-        <p className="mt-1.5 text-sm" data-testid="event-trip-time" style={{ color: 'var(--text-secondary)' }}>
+        <p className="t-callout t-num mt-1.5" data-testid="event-trip-time" style={{ color: 'var(--text-secondary)' }}>
           {formatSpan(event.starts_at, event.ends_at, tripTimeZone)}
           <span style={{ color: 'var(--text-tertiary)' }}> trip time</span>
         </p>
         {showLocal && (
-          <p className="font-mono text-xs" data-testid="event-local-time" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="t-footnote t-num" data-testid="event-local-time" style={{ color: 'var(--text-tertiary)' }}>
             {formatSpan(event.starts_at, event.ends_at, localTimeZone)} your time
           </p>
         )}
 
         {(event.location || event.location_to) && (
-          <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-2 t-callout" style={{ color: 'var(--text-secondary)' }}>
             {event.location}
             {event.location_to && <><span aria-hidden="true" style={{ color: 'var(--text-quaternary)', margin: '0 6px' }}>→</span><span className="sr-only"> to </span>{event.location_to}</>}
           </p>
         )}
         {isFlight && (event.dep_code || event.arr_code || flightLine) && (
-          <p className="font-mono mt-2 text-xs" data-testid="event-flight" style={{ color: 'var(--text-secondary)' }}>
-            {(event.dep_code || event.arr_code) && <span>{event.dep_code ?? '—'} → {event.arr_code ?? '—'}</span>}
-            {flightLine && <span>{event.dep_code || event.arr_code ? ' · ' : ''}{flightLine}</span>}
+          <p className="t-footnote mt-2" data-testid="event-flight" style={{ color: 'var(--text-secondary)' }}>
+            {(event.dep_code || event.arr_code) && <span><span className="t-code">{event.dep_code ?? '—'}</span> → <span className="t-code">{event.arr_code ?? '—'}</span></span>}
+            {flightLine && <span>{event.dep_code || event.arr_code ? ' · ' : ''}{flightParts.map((part, index) => (
+              <span key={part.key}>{index > 0 ? ' · ' : ''}{part.code ? <span className="t-code">{part.text}</span> : part.text}</span>
+            ))}</span>}
           </p>
         )}
-        {event.booking_ref && <p className="font-mono mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>Booking {event.booking_ref}</p>}
-        <p className="mt-2 text-xs" data-testid="event-audience" style={{ color: 'var(--text-tertiary)' }}>
+        {event.booking_ref && <p className="t-footnote mt-1" style={{ color: 'var(--text-tertiary)' }}>Booking <span className="t-code" style={{ color: 'var(--text-secondary)' }}>{event.booking_ref}</span></p>}
+        <p className="mt-2 t-footnote" data-testid="event-audience" style={{ color: 'var(--text-tertiary)' }}>
           {audienceNames.length ? `For ${audienceNames.join(', ')}` : 'For everyone'}
         </p>
 
         <Collapse open={expanded && Boolean(event.notes)}>
-          <p id={notesId} className="font-mono mt-2.5 whitespace-pre-wrap pt-2.5 text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+          <p id={notesId} className="t-callout mt-2.5 whitespace-pre-wrap pt-2.5" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-secondary)', overflowWrap: 'anywhere' }}>
             {event.notes}
           </p>
         </Collapse>
@@ -113,12 +122,12 @@ export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZon
         <Swap id={confirming ? 'confirm' : 'actions'}>
         {confirming ? (
           <div role="group" aria-label={`Confirm deleting ${event.title}`} className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Delete this for everyone?</span>
+            <span className="t-callout" style={{ color: 'var(--text-primary)' }}>Delete this for everyone?</span>
             <button ref={deleteButton} type="button" disabled={deleting} aria-busy={deleting || undefined} onClick={() => void confirmDelete()} className="m-press" style={{ ...smallButton, color: '#1A0A03', background: 'var(--accent)', border: '1px solid var(--accent)' }}>
               <AsyncLabel status={deleteStatus} busyLabel="Deleting…">Yes, delete</AsyncLabel>
             </button>
             <button type="button" disabled={deleting} onClick={() => setConfirming(false)} className="m-press" style={smallButton}>Keep it</button>
-            {deleteError && <p role="alert" className="m-field-error w-full text-xs" style={{ color: 'var(--accent)' }}>Could not delete. Try again.</p>}
+            {deleteError && <p role="alert" className="m-field-error w-full t-footnote" style={{ color: 'var(--accent)' }}>Could not delete. Try again.</p>}
           </div>
         ) : (
           <div className="mt-3 flex flex-wrap items-center gap-2">

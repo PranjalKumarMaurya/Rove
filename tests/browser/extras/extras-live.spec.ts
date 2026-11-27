@@ -1,5 +1,5 @@
 import { expect, test, type Browser, type Page } from '@playwright/test'
-import { openTrip } from '../support/trip-frame'
+import { openSettings, openTrip, openTripTab } from '../support/trip-frame'
 
 // Real stack seeded by tests/integration/run-extras-live.mjs: a Bali Trip that
 // is under way, flights with "who's on this", one member's shared details, and
@@ -34,7 +34,6 @@ async function signIn(page: Page, email: string) {
   await openTrip(page, TRIP)
 }
 
-const openTab = (page: Page, name: string) => page.getByRole('tab', { name }).click()
 
 /** Optional review screenshots: set TRIP_EXTRAS_SHOTS to a folder. */
 async function shot(page: Page, name: string) {
@@ -79,7 +78,7 @@ test('crew status, invite sharing, crew info and the parse limit on a real stack
     await shot(owner, 'trip-crew-status')
 
     // ---- Share an invitation -------------------------------------------------
-    await openTab(owner, 'Crew')
+    await openSettings(owner)
     const invite = owner.getByTestId('invite-member')
     await invite.getByLabel('Friend’s email').fill('new-friend@example.test')
     await invite.getByRole('button', { name: 'Create link' }).click()
@@ -101,6 +100,20 @@ test('crew status, invite sharing, crew info and the parse limit on a real stack
     await expect(invite.getByRole('status')).toHaveText('Link copied. Send it to the email address shown above.')
     expect(await owner.evaluate(() => navigator.clipboard.readText())).toBe(link)
     await shot(owner, 'crew-invite-share')
+
+    // ---- The Trip's invite link: Share and Copy ----------------------------------
+    const joinCard = owner.getByTestId('join-link-card')
+    await joinCard.getByRole('switch', { name: 'Anyone with the link can join' }).click()
+    const joinUrl = (await joinCard.getByTestId('join-link-url').innerText()).trim()
+    expect(joinUrl).toMatch(/#join=[0-9a-f]{64}$/u)
+    await joinCard.getByRole('button', { name: 'Share' }).click()
+    await expect.poll(() => owner.evaluate(() => (window as unknown as { __shared: unknown[] }).__shared.slice(-1)[0])).toEqual({
+      title: `Join ${TRIP} on Rove`, text: `Join ${TRIP} on Rove`, url: joinUrl,
+    })
+    await joinCard.getByRole('button', { name: 'Copy' }).click()
+    await expect(joinCard.getByRole('button', { name: 'Copied' })).toBeVisible()
+    expect(await owner.evaluate(() => navigator.clipboard.readText())).toBe(joinUrl)
+    await shot(owner, 'settings-invite-link')
 
     // ---- Crew info: what a co-member shared ------------------------------------
     const farah = memberRow(owner, 'Farah Friend')
@@ -134,7 +147,7 @@ test('crew status, invite sharing, crew info and the parse limit on a real stack
     // Olive's flight is marked for Olive only, so Farah can't see it (093): her chip falls back to the Trip day.
     await expect(chip(friend, 'Olive')).toContainText('On the trip')
     await expect(chip(friend, 'Olive')).not.toContainText('In the air')
-    await openTab(friend, 'Crew')
+    await openSettings(friend)
     await memberRow(friend, 'Farah Friend').getByRole('button', { name: 'Details for Farah Friend (you)' }).click()
     await expect(memberRow(friend, 'Farah Friend').getByTestId('crew-info')).toContainText('Only people in this Trip see what you share.')
     await memberRow(friend, 'Olive Owner').getByRole('button', { name: 'Details for Olive Owner' }).click()
@@ -142,7 +155,7 @@ test('crew status, invite sharing, crew info and the parse limit on a real stack
     await expect(friend.getByTestId('invite-member')).toHaveCount(0)
 
     // ---- Parse limit (one automatic read per person) ---------------------------
-    await openTab(friend, 'Scan')
+    await openTripTab(friend, 'Scan')
     const scan = friend.getByTestId('scan-tab')
     const fileInput = friend.getByLabel('Ticket, booking, or bill file')
     const review = friend.getByTestId('scan-review')

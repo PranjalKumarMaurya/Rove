@@ -34,14 +34,39 @@
   --neon-purple: #BF5FFF;
   --neon-orange: #FF6B00;
 
-  --font-display: 'Fraunces', Georgia, serif;
-  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-  --font-mono: 'Share Tech Mono', ui-monospace, monospace;
+  /* Font families, sizes and weights: src/styles/type.css. */
 
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 22px;
+  --radius-pill: 999px;
+
+  /* Spacing: one 4px grid (docs/DESIGN-SYSTEM.md §1). */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;   /* screen gutter */
+  --space-6: 24px;   /* between sections */
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Sizes (§2). */
+  --tap: 44px;
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+  --avatar-sm: 28px;
+  --avatar-md: 40px;
+  --avatar-lg: 72px;
+  --field-h: 48px;
+  --button-h: 44px;
+  --button-h-lg: 48px;
+  --button-h-sm: 36px;
+
+  /* The soft edge under the top shield while the page is scrolled (§4). */
+  --top-fade: 16px;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -56,7 +81,13 @@ body {
   background-color: var(--bg-base);
   color: var(--text-primary);
   font-family: var(--font-ui);
-  font-feature-settings: "ss01", "cv11";
+  /* Type tokens (src/styles/type.css); here, after Tailwind's base, so its
+     body { line-height: inherit } does not win. */
+  font-size: var(--type-body);
+  line-height: var(--lh-body);
+  font-weight: var(--w-regular);
+  /* Inter: unambiguous 1/l/I (cv05, cv08) and the straight-sided alternates. */
+  font-feature-settings: "ss01", "cv05", "cv08", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -90,6 +121,29 @@ html[data-ios-app="true"] { --top-clear: 36px; }
 /* Scrolled: also cover the band below the status bar that content scrolls under (src/lib/topShade.ts). */
 /* Only under a see-through status bar (inset > 0); with an opaque one there is nothing to cover. */
 html[data-scrolled="true"] .status-shield { height: calc(env(safe-area-inset-top, 0px) + max(var(--top-clear), min(28px, env(safe-area-inset-top, 0px)))); }
+/* Scrolled: a 16px fade from the page colour to clear along the shield's bottom edge
+   (index.html: .status-fade), so content slides softly under the shield instead of
+   being cut by a hard line. Its own element, below sticky headers (z 5), so a pinned
+   Split day header stays crisp; above content and below bars and dialogs. */
+.status-fade {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--safe-top);
+  height: var(--top-fade);
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(to bottom, var(--bg-base), transparent);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+html[data-scrolled="true"] .status-fade {
+  top: calc(env(safe-area-inset-top, 0px) + max(var(--top-clear), min(28px, env(safe-area-inset-top, 0px))));
+  opacity: 1;
+}
+
+/* Bold text also thickens <strong>/<b> (Tailwind's base sets a fixed "bolder"). */
+strong, b { font-weight: var(--w-semibold); }
 
 button { font-family: inherit; }
 input, textarea, select { font-family: inherit; }
@@ -111,23 +165,9 @@ input, textarea, select { font-family: inherit; }
 .animate-pulse-soft{ animation: pulseSoft 2.8s ease-in-out infinite; }
 .animate-spin-slow { animation: spin 1.6s linear infinite; }
 
-/* ─── Typography utilities ─────────────────────────────── */
-.font-display { font-family: var(--font-display); font-feature-settings: "ss01"; letter-spacing: -0.02em; }
-.font-ui      { font-family: var(--font-ui); }
-.font-mono    { font-family: var(--font-mono); letter-spacing: 0.04em; }
-
-/* Optical-size aware Fraunces */
-.serif-display {
-  font-family: var(--font-display);
-  font-variation-settings: "opsz" 96, "SOFT" 30, "wght" 400;
-  letter-spacing: -0.025em;
-}
-.serif-eyebrow {
-  font-family: var(--font-display);
-  font-variation-settings: "opsz" 14, "SOFT" 50, "wght" 400;
-  font-style: italic;
-  letter-spacing: 0;
-}
+/* ─── Typography ──────────────────────────────────────────
+   Roles and tokens live in src/styles/type.css (.t-display … .t-eyebrow, .t-code, .t-num). */
+.font-ui { font-family: var(--font-ui); }
 
 /* ─── Surface · cards ─────────────────────────────────── */
 .surface {
@@ -168,8 +208,11 @@ input, textarea, select { font-family: inherit; }
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 11px;
-  letter-spacing: 0.03em;
+  max-width: 100%;
+  font-size: var(--type-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--w-medium);
+  letter-spacing: 0.01em;
   border: 1px solid var(--border-strong);
   background: rgba(245, 241, 235, 0.02);
   color: var(--text-secondary);
@@ -256,9 +299,12 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.3em;
+  /* The wordmark: Inter, widely tracked capitals. */
+  font-family: var(--font-ui);
+  font-size: var(--type-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--w-semibold);
+  letter-spacing: 0.28em;
   color: var(--text-secondary);
 }
 .brand-mark__dot {
@@ -269,33 +315,6 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   box-shadow: 0 0 12px rgba(255, 139, 77, 0.6);
 }
 
-.eyebrow {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-
-.screen-title {
-  font-family: var(--font-display);
-  font-variation-settings: "opsz" 96, "SOFT" 30, "wght" 400;
-  letter-spacing: -0.025em;
-  font-size: 34px;
-  line-height: 1.1;
-  font-weight: 400;
-  color: var(--text-primary);
-}
-
-.screen-lede {
-  font-family: var(--font-display);
-  font-variation-settings: "opsz" 14, "SOFT" 50, "wght" 400;
-  font-style: italic;
-  font-size: 16px;
-  line-height: 1.45;
-  color: var(--text-secondary);
-}
-
 /* Small secondary link that still meets the 44px tap target. */
 .text-link {
   display: inline-flex;
@@ -303,11 +322,13 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   gap: 6px;
   min-height: 44px;
   padding: 0 2px;
-  font-size: 14px;
+  font-size: var(--type-callout);
+  line-height: var(--lh-callout);
   color: var(--text-secondary);
   text-decoration: underline;
+  text-decoration-thickness: 1px;
   text-decoration-color: var(--border-strong);
-  text-underline-offset: 4px;
+  text-underline-offset: 3px;
   background: none;
   border: none;
   cursor: pointer;
@@ -320,9 +341,10 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   border: 1px solid var(--border);
   background: var(--bg-card);
   padding: 12px 14px;
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: var(--type-callout);
+  line-height: var(--lh-callout);
   color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 .notice--error {
   border-color: rgba(255, 139, 77, 0.4);
@@ -330,10 +352,10 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   color: var(--text-primary);
 }
 
-/* Form fields */
-.field-label { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
-.field-hint { font-size: 12px; line-height: 1.4; color: var(--text-tertiary); }
-.field-error { font-size: 12px; line-height: 1.4; color: var(--accent); }
+/* Form fields: type comes from the roles (Field.tsx: t-footnote); these set colour only. */
+.field-label { color: var(--text-secondary); }
+.field-hint { color: var(--text-tertiary); }
+.field-error { color: var(--accent); }
 .field-label { transition: color var(--dur-fast) var(--ease-out); }
 .field:focus-within > .field-label { color: var(--text-primary); }
 
@@ -350,7 +372,7 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   background-position: right 14px center;
   color: var(--text-primary);
   font-family: var(--font-ui);
-  font-size: 16px;
+  font-size: var(--type-field);
   outline: none;
   transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
 }
@@ -364,11 +386,13 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   align-items: center;
   gap: 4px;
   min-height: 36px;
+  max-width: 100%;
   padding: 0 4px 0 12px;
   border-radius: 999px;
   border: 1px solid var(--border-strong);
   background: rgba(245, 241, 235, 0.04);
-  font-size: 13px;
+  font-size: var(--type-footnote);
+  line-height: var(--lh-footnote);
   color: var(--text-primary);
 }
 .chip--locked { padding-right: 12px; border-color: rgba(255, 139, 77, 0.45); background: var(--accent-soft); }
@@ -419,8 +443,9 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
   border: 1px solid var(--border-strong);
   background: rgba(245, 241, 235, 0.04);
   color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--type-footnote);
+  line-height: var(--lh-footnote);
+  font-weight: var(--w-medium);
   cursor: pointer;
   transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
@@ -428,17 +453,21 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
 .topbar-btn--icon { padding: 0; width: 44px; }
 .topbar-btn__count {
   min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
+  min-height: 18px;
+  padding: 1px 5px;
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 11px;
-  line-height: 18px;
+  font-size: var(--type-caption);
+  line-height: var(--lh-caption);
+  font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
 .app-content { padding: 20px 20px calc(var(--tab-bar-height) + 32px + var(--tab-bar-bottom)); }
+/* Chat (src/features/chat/chat.css): the composer sits just above the tab bar, which is
+   the bar's height, its bottom offset and its 1px top border, plus an 8px breath. */
+.trip-panel--chat .chat { --chat-bottom-clear: calc(var(--tab-bar-height) + var(--tab-bar-bottom) + 1px + var(--space-2)); }
 
 .tab-bar {
   position: fixed;
@@ -458,10 +487,14 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
   min-height: var(--tab-bar-height);
   padding: 6px 0;
   font-family: var(--font-ui);
-  font-size: 11px;
-  font-weight: 500;
+  /* Icons keep their size; the label grows with Text size up to a cap and never wraps. */
+  font-size: var(--type-nav);
+  line-height: var(--lh-nav);
+  font-weight: var(--w-medium);
   letter-spacing: 0.01em;
 }
+.nav-tab > span { display: block; max-width: calc(100% - 4px); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.nav-tab svg { flex-shrink: 0; }
 .nav-tab:hover { color: var(--text-secondary); }
 .nav-tab.active, .nav-tab.active:hover { color: var(--text-primary); }
 .nav-tab.active svg { color: var(--accent); }
@@ -550,7 +583,7 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
 
 /* iOS Safari zooms the page when a focused field's text is under 16px. */
 @media (max-width: 640px) {
-  input, select, textarea { font-size: 16px !important; }
+  input, select, textarea { font-size: var(--type-field) !important; }
 }
 
 /* ─── Trips home, Profile, Trip settings (additive) ───────────── */
@@ -565,7 +598,7 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
   background: var(--accent-soft);
   color: var(--accent);
   font-family: var(--font-ui);
-  font-weight: 600;
+  font-weight: var(--w-semibold);
   line-height: 1;
   user-select: none;
 }
@@ -596,14 +629,6 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
 
 .app-topbar--stacked { flex-direction: column; align-items: stretch; gap: 8px; }
 
-.section-title {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-
 .trip-card {
   display: flex;
   width: 100%;
@@ -621,7 +646,7 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
 }
 .trip-card:hover { background: var(--bg-card-hover); border-color: var(--border-strong); }
 .trip-card--ongoing { border-color: rgba(255, 139, 77, 0.45); background: linear-gradient(135deg, rgba(255, 139, 77, 0.12), rgba(255, 139, 77, 0.03)); }
-.trip-card__when { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.trip-card__when { font-size: var(--type-footnote); line-height: var(--lh-footnote); font-weight: var(--w-medium); font-variant-numeric: tabular-nums; color: var(--text-secondary); }
 .trip-card--ongoing .trip-card__when { color: var(--accent); }
 
 .switch-row {
@@ -668,12 +693,13 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
   align-items: center;
   gap: 12px;
   min-height: 52px;
-  padding: 0 14px;
+  padding: 8px 14px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--bg-card);
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: var(--type-callout);
+  line-height: var(--lh-callout);
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -705,7 +731,7 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
   background: rgba(245, 241, 235, 0.035);
   color: var(--text-primary);
   font-family: var(--font-ui);
-  font-size: 16px;
+  font-size: var(--type-field);
   line-height: 1.4;
   outline: none;
   resize: vertical;
@@ -714,7 +740,7 @@ html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border)
 .field-textarea:focus { border-color: var(--accent); background: rgba(245, 241, 235, 0.06); }
 .field-textarea[aria-invalid="true"] { border-color: rgba(255, 139, 77, 0.6); }
 
-.details-list { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr); gap: 10px 12px; font-size: 14px; }
+.details-list { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr); gap: 10px 12px; font-size: var(--type-callout); line-height: var(--lh-callout); }
 .details-list dt { color: var(--text-tertiary); }
 .details-list dd { color: var(--text-primary); overflow-wrap: anywhere; }
 
@@ -749,4 +775,136 @@ img, svg { -webkit-user-drag: none; }
    bar, where 100lvh is already the full screen. */
 @media (display-mode: standalone) {
   html { min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px))); }
+}
+
+/* ─── Profile › Text size slider ─────────────────────────────────
+   Controls keep fixed sizes (they are not text): a 44px-tall hit area, a 4px
+   track filled with the accent up to the thumb, and five tick marks. */
+.text-size-aa {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-weight: 500;
+  line-height: 1;
+  color: var(--text-secondary);
+}
+.text-size-range-wrap { position: relative; flex: 1; min-width: 0; height: 44px; }
+.text-size-range {
+  --thumb: 26px;
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+.text-size-range:focus-visible { outline: none; }
+.text-size-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) 0 var(--range-fill, 50%), var(--border-strong) var(--range-fill, 50%) 100%);
+}
+.text-size-range::-moz-range-track { height: 4px; border-radius: 2px; background: var(--border-strong); }
+.text-size-range::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--accent); }
+.text-size-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--thumb);
+  height: var(--thumb);
+  margin-top: calc((4px - var(--thumb)) / 2);
+  border-radius: 999px;
+  border: none;
+  background: var(--text-primary);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.text-size-range::-moz-range-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  border-radius: 999px;
+  border: none;
+  background: var(--text-primary);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+}
+.text-size-range:active::-webkit-slider-thumb { transform: scale(1.08); }
+.text-size-range:focus-visible::-webkit-slider-thumb { box-shadow: var(--focus-ring); }
+.text-size-range:focus-visible::-moz-range-thumb { box-shadow: var(--focus-ring); }
+/* Ticks sit on the track, inset by half a thumb so each lines up with a stop. */
+.text-size-ticks {
+  position: absolute;
+  top: 50%;
+  left: 13px;
+  right: 13px;
+  display: flex;
+  justify-content: space-between;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.text-size-tick { width: 2px; height: 10px; border-radius: 1px; background: var(--border-strong); }
+.text-size-tick.is-on { background: var(--accent); }
+.text-size-tick.is-default { height: 14px; }
+
+/* ─── Pushed screens (a Trip's To-dos and Settings) ───────
+   Full screens above a Trip: a header with the back button and a t-display title,
+   then content on the 20px gutter, sections 24px apart (docs/DESIGN-SYSTEM.md). */
+.pushed-screen {
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 480px;
+  min-height: 100dvh;
+}
+.pushed-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  /* The header (.app-topbar) ends with 12px of its own: 12 + 12 = the 24px before content. */
+  padding: var(--space-3) var(--space-5) calc(var(--space-10) + env(safe-area-inset-bottom, 0px));
+}
+/* A titled section: t-title2 heading (optional action on its baseline), 12px to the content. */
+.settings-section { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.settings-section__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.settings-card { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); min-width: 0; border-radius: var(--radius-lg); }
+.settings-card:hover { background: var(--bg-card); border-color: var(--border); }
+.settings-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.settings-actions > button { min-height: var(--tap); }
+/* A share link on one line, truncated at the end: the start (the app's address) is what people recognise. */
+.settings-link {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: rgba(245, 241, 235, 0.04);
+  color: var(--text-secondary);
+  -webkit-user-select: text;
+  user-select: text;
+}
+.danger-btn { color: var(--neon-pink); }
+
+/* Round icon button with a small count (open to-dos in the Trip header). */
+.round-btn { position: relative; }
+.round-btn__badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #1A0A03;
+  font-size: var(--type-caption);
+  line-height: 18px;
+  font-weight: var(--w-semibold);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px var(--bg-base);
 }
