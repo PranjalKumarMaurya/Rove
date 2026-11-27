@@ -34,7 +34,7 @@ export function SplitDialog({ title, onClose, locked = false, testId, children }
   return createPortal(
     // Starts below the status bar so nothing scrolls under it (iOS blurs content there).
     <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center overflow-y-auto overflow-x-hidden overscroll-none px-4 pt-6"
-      style={{ top: 'env(safe-area-inset-top, 0px)', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', background: 'rgba(15, 11, 8, 0.82)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }}
+      style={{ top: 'env(safe-area-inset-top, 0px)', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', background: 'rgba(15, 11, 8, 0.92)' }}
       onClick={() => { if (!locked) close.current() }}>
       <div role="dialog" aria-modal="true" aria-labelledby={headingId} data-testid={testId}
         className="animate-slide-up my-auto w-full max-w-[480px]" onClick={(event) => event.stopPropagation()}

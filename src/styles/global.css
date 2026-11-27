@@ -74,6 +74,8 @@ body::before {
   z-index: 10001;
   pointer-events: none;
 }
+/* Scrolled: also cover the band below the status bar that iOS blurs (src/lib/topShade.ts). */
+html[data-scrolled="true"] body::before { height: calc(env(safe-area-inset-top, 0px) + 28px); }
 
 button { font-family: inherit; }
 input, textarea, select { font-family: inherit; }
@@ -436,9 +438,7 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   max-width: 480px;
   margin: 0 auto;
   padding-bottom: var(--tab-bar-bottom);
-  background: rgba(15, 11, 8, 0.94);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
+  background: var(--bg-base);
   border-top: 1px solid var(--border);
 }
 .tab-bar__inner { display: flex; padding: 0 4px; }
@@ -476,7 +476,7 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   overscroll-behavior: none;
   touch-action: pan-y;
 }
-.sheet::backdrop { background: rgba(8, 6, 4, 0.66); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.sheet::backdrop { background: rgba(8, 6, 4, 0.8); }
 /* `backwards`, not `both`: a finished animation must not keep control of `transform`,
    or dragging the sheet down could not move it. */
 .sheet[open] { animation: sheetUp 0.26s cubic-bezier(0.22, 1, 0.36, 1) backwards; }

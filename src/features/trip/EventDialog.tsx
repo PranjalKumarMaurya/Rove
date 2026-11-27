@@ -31,7 +31,7 @@ function formFromEvent(event: TripEvent, timeZone: string): EventFormValues {
 }
 
 const overlay: CSSProperties = {
-  position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(15, 11, 8, 0.82)', backdropFilter: 'blur(14px)',
+  position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(15, 11, 8, 0.92)',
   display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'contain', padding: 16,
 }
 const sheet: CSSProperties = {

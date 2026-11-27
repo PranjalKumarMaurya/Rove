@@ -12,7 +12,6 @@ export function PersonaPicker({ onSelect }: Props) {
     inset: 0,
     zIndex: 100,
     background: 'rgba(15, 11, 8, 0.96)',
-    backdropFilter: 'blur(18px)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',

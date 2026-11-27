@@ -7,8 +7,11 @@ import { AppStatus } from './features/pwa/AppStatus'
 import { EdgeSwipeBack } from './components/EdgeSwipeBack'
 import { SuccessTick } from './components/ui/SuccessTick'
 import { startServiceWorker } from './features/pwa/serviceWorker'
+import { startTopShade } from './lib/topShade'
 
 startServiceWorker()
+
+startTopShade()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
