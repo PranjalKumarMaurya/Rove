@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { repinBottomBars } from '../lib/pinBottomBars'
 
 // While any sheet, dialog or modal is open, the page behind it must not move.
 // `overflow: hidden` alone is ignored by iPhone Safari (the page still scrolls
@@ -35,6 +36,8 @@ export function lockBodyScroll(): () => void {
     else body.setAttribute('style', style)
     delete body.dataset.scrollLocked
     window.scrollTo(0, scrollY)
+    // iPhone can leave the bottom bars too high after the page was pinned.
+    repinBottomBars()
   }
 }
 

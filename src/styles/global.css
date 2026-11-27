@@ -706,3 +706,7 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
 
 /* Back control in a top row: a pill button with a chevron. */
 .topbar-btn--back { max-width: 70%; padding: 0 16px 0 10px; }
+
+/* One frame on a fresh layer makes iPhone re-place bottom-pinned bars (src/lib/pinBottomBars.ts). */
+html[data-repin="true"] .tab-bar,
+html[data-repin="true"] .home-nav { transform: translateZ(0); }
