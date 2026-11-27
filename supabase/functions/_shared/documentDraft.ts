@@ -58,7 +58,7 @@ export interface BookingPrice {
 }
 
 /** Automatic reads per person per rolling 24 hours, unless the server is configured otherwise. */
-export const DEFAULT_MEMBER_PARSE_LIMIT = 20
+export const DEFAULT_MEMBER_PARSE_LIMIT = 50
 
 export interface TripContext {
   timezone: string

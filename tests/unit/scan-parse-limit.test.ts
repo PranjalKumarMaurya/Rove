@@ -37,8 +37,8 @@ const post = () => new Request('http://local/parse-document', {
 })
 
 test('limits come from the function env; anything but a whole number uses the default', () => {
-  assert.deepEqual(DEFAULT_PARSE_LIMITS, { member: 20, trip: 100 })
-  assert.deepEqual(parseLimitsFromEnv(() => undefined), { member: 20, trip: 100 })
+  assert.deepEqual(DEFAULT_PARSE_LIMITS, { member: 50, trip: 100 })
+  assert.deepEqual(parseLimitsFromEnv(() => undefined), { member: 50, trip: 100 })
   const env = (values: Record<string, string>) => (name: string) => values[name]
   assert.deepEqual(parseLimitsFromEnv(env({ SCAN_PARSE_DAILY_LIMIT_MEMBER: '1', SCAN_PARSE_DAILY_LIMIT_TRIP: ' 3 ' })), { member: 1, trip: 3 })
   assert.deepEqual(parseLimitsFromEnv(env({ SCAN_PARSE_DAILY_LIMIT_MEMBER: '0' })), { member: 0, trip: 100 })
