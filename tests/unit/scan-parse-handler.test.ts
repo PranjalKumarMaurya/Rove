@@ -12,6 +12,7 @@ const trip = { timezone: 'Asia/Kolkata', startDate: '2026-11-01', endDate: '2026
 
 function fakeStore(overrides: Partial<ParseStore> = {}) {
   const saved: ParseResult[] = []
+  const usage: Parameters<ParseStore['recordUsage']>[0][] = []
   const store: ParseStore = {
     currentUserId: async () => 'user-1',
     findDocument: async (id) => id === documentId
@@ -21,9 +22,10 @@ function fakeStore(overrides: Partial<ParseStore> = {}) {
     download: async () => ({ bytes: new Uint8Array([37, 80, 68, 70]), mimeType: 'application/pdf' }),
     saveResult: async (_id, result) => { saved.push(result) },
     claimParse: async () => 'claimed',
+    recordUsage: async (entry) => { usage.push(entry) },
     ...overrides,
   }
-  return { store, saved }
+  return { store, saved, usage }
 }
 
 const post = (body: unknown, authorization = 'Bearer user-jwt') => new Request('http://local/parse-document', {
@@ -108,4 +110,29 @@ test('prompt, schema, and response helpers', () => {
   const prompt = buildExtractionPrompt(trip)
   assert.match(prompt, /2026-11-01 to 2026-11-05/u)
   assert.match(prompt, /Asia\/Kolkata/u)
+})
+
+test('every model call records its tokens and cost for the caller, even when the answer is unusable', async () => {
+  const { store, usage } = fakeStore()
+  const handle = createParseHandler({ openStore: () => store, extractor: createStubExtractor() })
+  assert.equal((await handle(post({ documentId }))).status, 200)
+  assert.equal(usage.length, 1)
+  assert.equal(usage[0].userId, 'user-1')
+  assert.equal(usage[0].groupId, groupId)
+  assert.equal(usage[0].documentId, documentId)
+  assert.deepEqual([usage[0].usage.inputTokens, usage[0].usage.outputTokens], [1800, 400])
+  // 1800 × $0.10/M + 400 × $0.50/M = $0.00038 = 380 millionths of a dollar.
+  assert.equal(usage[0].costMicroUsd, 380)
+
+  // The model answered but the answer failed: the tokens were still spent and recorded.
+  const failing = fakeStore()
+  const broken = createParseHandler({
+    openStore: () => failing.store,
+    extractor: async ({ onUsage }) => { onUsage?.({ model: 'claude-haiku-5-5', inputTokens: 1000, outputTokens: 16000 }); throw new Error('extraction_incomplete') },
+  })
+  assert.equal((await broken(post({ documentId }))).status, 502)
+  assert.equal(failing.usage.length, 1)
+  // Recording failing never breaks the read itself.
+  const flaky = fakeStore({ recordUsage: async () => { throw new Error('down') } })
+  assert.equal((await createParseHandler({ openStore: () => flaky.store, extractor: createStubExtractor() })(post({ documentId }))).status, 200)
 })

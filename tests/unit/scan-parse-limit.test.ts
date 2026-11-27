@@ -26,6 +26,7 @@ function setup({ claim = async () => 'claimed', overrides = {}, extractor }: {
     download: async () => ({ bytes: new Uint8Array([37, 80, 68, 70]), mimeType: 'application/pdf' }),
     saveResult: async (_id, result) => { saved.push(result) },
     claimParse: async (id, limits) => { claims.push(limits); return claim(id, limits) },
+    recordUsage: async () => {},
     ...overrides,
   }
   const counted: Extractor = async (input) => { extracted += 1; return stub(input) }

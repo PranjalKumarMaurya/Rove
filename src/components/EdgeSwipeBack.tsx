@@ -6,7 +6,7 @@ import {
 } from '../lib/edgeSwipe'
 import {
   EASE_OUT, PUSH_EASE, beginSwipeUnderlay, cancelSwipeUnderlay, markSwipeNavigation, navTransitionRunning,
-  onSwipeSettled, prefersReducedMotion, swipeLayers, takeSwipeNavigation, type SwipeLayers,
+  onSwipeSettled, prefersReducedMotion, swipeBusy, swipeLayers, takeSwipeNavigation, type SwipeLayers,
 } from '../lib/screenTransition'
 
 /**
@@ -21,7 +21,8 @@ import {
  *
  * Active only when running standalone (in Safari the browser's own edge swipe already
  * fires popstate) and when the current history entry is one of our deeper screens.
- * Ignored while a dialog, sheet or overlay is open. Reduced motion: no drag, a
+ * Ignored while a dialog, sheet or overlay is open, and while the tab swipe (TabSwipe,
+ * which leaves this 24px edge to us) has its screens moving. Reduced motion: no drag, a
  * completed swipe just goes back (AuthBoundary crossfades).
  */
 
@@ -106,7 +107,7 @@ export function EdgeSwipeBack() {
       if (phase !== 'idle') return
       tracking = null
       if (!startsAtEdge(touch.clientX)) return
-      if (entryDepthOf(window.history.state) <= 0 || overlayOpen() || navTransitionRunning()) return
+      if (entryDepthOf(window.history.state) <= 0 || overlayOpen() || navTransitionRunning() || swipeBusy()) return
       phase = 'tracking'
       tracking = {
         startX: touch.clientX, startY: touch.clientY, intent: 'pending', dx: 0,
@@ -127,7 +128,7 @@ export function EdgeSwipeBack() {
         tracking.intent = 'horizontal'
         if (!tracking.plain) {
           // Renders the previous screen underneath, synchronously, before the first move.
-          layers = beginSwipeUnderlay() ? swipeLayers() : null
+          layers = beginSwipeUnderlay('back') ? swipeLayers() : null
           if (!layers) tracking.plain = true
         }
       }

@@ -1,13 +1,14 @@
 // parse-document: read one private Trip document and return an Event draft for
-// review. Runs entirely as the calling user (anon key + the caller's JWT), so
-// Row Level Security decides which documents and objects exist. It never uses
-// the service-role key and never creates Events.
+// review. Runs as the calling user (anon key + the caller's JWT), so Row Level
+// Security decides which documents and objects exist; it never creates Events.
+// The service-role key is used for one thing only: recording the call's AI
+// usage (tokens and cost) in `ai_usage`, which clients can read but not write.
 //
 // Secrets: ANTHROPIC_API_KEY (required for real parsing), SCAN_PARSE_MODEL
 // (optional, default claude-haiku-5-5; claude-haiku-4-5 also works),
 // SCAN_PARSE_STUB=1 (local stacks and tests only: deterministic draft),
 // SCAN_PARSE_DAILY_LIMIT_MEMBER / SCAN_PARSE_DAILY_LIMIT_TRIP (parses per person
-// and per Trip in any 24 hours; default 20 and 100). The stub counts too.
+// and per Trip in any 24 hours; default 50 and 100). The stub counts too.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import Anthropic from 'npm:@anthropic-ai/sdk@1'
 import { DOCUMENT_BUCKET } from '../_shared/documentDraft.ts'
@@ -18,6 +19,11 @@ import {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+// Only for writing AI usage rows (see the top of this file).
+const usageWriter = serviceKey ? createClient(supabaseUrl, serviceKey, {
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+}) : null
 
 function openStore(authorization: string): ParseStore {
   const client = createClient(supabaseUrl, anonKey, {
@@ -58,6 +64,18 @@ function openStore(authorization: string): ParseStore {
         : { parse_status: 'failed', parse_error: result.error }).eq('id', documentId)
       if (error) throw new Error('save_failed')
     },
+    async recordUsage({ userId, groupId, documentId, usage, costMicroUsd }) {
+      if (!usageWriter) throw new Error('usage_writer_missing')
+      const profile = await usageWriter.from('profiles').select('id').eq('auth_user_id', userId).maybeSingle()
+      if (profile.error || !profile.data) throw new Error('usage_profile_missing')
+      const { error } = await usageWriter.from('ai_usage').insert({
+        profile_id: profile.data.id, group_id: groupId, feature: 'scan', document_id: documentId, model: usage.model,
+        input_tokens: usage.inputTokens, output_tokens: usage.outputTokens,
+        cache_read_tokens: usage.cacheReadTokens ?? 0, cache_write_tokens: usage.cacheWriteTokens ?? 0,
+        cost_micro_usd: costMicroUsd,
+      })
+      if (error) throw new Error('usage_failed')
+    },
   }
 }
 
@@ -67,7 +85,7 @@ function anthropicExtractor(apiKey: string, model: string): Extractor {
   // keeps a ticket read quick and cheap, and the cap leaves room for both. Haiku 4.x
   // rejects the effort setting, so it only goes to newer models.
   const effort = /^claude-haiku-4/u.test(model) ? {} : { effort: 'low' as const }
-  return async ({ file, trip }) => {
+  return async ({ file, trip, onUsage }) => {
     const data = bytesToBase64(file.bytes)
     const source = file.mimeType === 'application/pdf'
       ? { type: 'document' as const, source: { type: 'base64' as const, media_type: 'application/pdf' as const, data } }
@@ -78,6 +96,14 @@ function anthropicExtractor(apiKey: string, model: string): Extractor {
       system: EXTRACTION_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: [source, { type: 'text', text: buildExtractionPrompt(trip) }] }],
       output_config: { ...effort, format: { type: 'json_schema', schema: EXTRACTION_SCHEMA } },
+    })
+    // Thinking tokens are billed as output and already counted in output_tokens.
+    onUsage?.({
+      model: response.model || model,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      cacheReadTokens: response.usage.cache_read_input_tokens ?? 0,
+      cacheWriteTokens: response.usage.cache_creation_input_tokens ?? 0,
     })
     if (response.stop_reason === 'refusal' || response.stop_reason === 'max_tokens') throw new Error('extraction_incomplete')
     const text = response.content.find((block) => block.type === 'text')

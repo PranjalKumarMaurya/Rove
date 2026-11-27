@@ -15,12 +15,16 @@ import { TripsHome } from '../home/TripsHome'
 import { useMyProfile } from '../profile/profileApi'
 import { ProfileScreen } from '../profile/ProfileScreen'
 import {
-  entryDepthOf, navDirection, planHistory, previousView, readRoveState, roveState, viewDepth, viewKey, withRoveState,
+  adjacentTab, entryDepthOf, navDirection, planHistory, previousView, readRoveState, roveState, viewDepth, viewKey, withRoveState,
   type View,
 } from './navigationHistory'
 import {
   clearLayerStyles, notifySwipeSettled, registerSwipeHost, runNavTransition, systemAnimatedBack, takeSwipeNavigation,
+  type SwipeMode,
 } from '../../lib/screenTransition'
+
+/** The screen shown beside the current one during a swipe: beneath it (edge swipe back) or next to it (tab swipe). */
+type SwipeLayer = { view: View; mode: SwipeMode; side?: 'left' | 'right' }
 
 /**
  * Signed-in screens (`View`, see navigationHistory.ts). After sign-in the Trips home
@@ -33,8 +37,10 @@ import {
  * slide screens with a view transition. During an edge swipe the previous screen is
  * rendered beneath the current one (`underlay`), each in its own layer keyed by the
  * screen, so when the swipe completes the screen underneath simply becomes the current
- * one (same component instance, no remount, no flash). Each screen's scroll position
- * is remembered, so going back returns to where the person was.
+ * one (same component instance, no remount, no flash). The tab swipe between the Trips
+ * home and Profile-from-home (TabSwipe) uses the same layers, with the other tab beside
+ * the current one instead of beneath it. Each screen's scroll position is remembered,
+ * so going back returns to where the person was.
  */
 
 // The Trip open in this browser tab, so a reload returns to it (cleared on sign-out).
@@ -82,8 +88,14 @@ export function AuthBoundary() {
     runNavTransition(navDirection(viewRef.current, next), () => setView(next))
   }
 
-  // The previous screen, rendered beneath the current one while an edge swipe is live.
-  const [underlay, setUnderlay] = useState<View | null>(null)
+  // The other screen of a live swipe: the previous one beneath (edge swipe), or the
+  // other home tab beside (tab swipe).
+  const [underlay, setUnderlayState] = useState<SwipeLayer | null>(null)
+  const underlayRef = useRef<SwipeLayer | null>(null)
+  const setUnderlay = (next: SwipeLayer | null) => {
+    underlayRef.current = next
+    setUnderlayState(next)
+  }
   const stackRef = useRef<HTMLDivElement>(null)
   // Where the swipe started: the screen, its scroll offset and the page height then.
   const swipeStart = useRef<{ fromKey: string; scrollY: number; pageHeight: number } | null>(null)
@@ -152,22 +164,36 @@ export function AuthBoundary() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // The edge swipe asks for the previous screen underneath (EdgeSwipeBack).
+  // The edge swipe asks for the previous screen underneath (EdgeSwipeBack), the tab
+  // swipe for the other home tab beside the current screen (TabSwipe).
   useEffect(() => registerSwipeHost({
-    begin: () => {
+    begin: (mode) => {
       const current = viewRef.current
-      const previous = previousView(current)
-      if (!previous || !stackRef.current) return false
+      const tab = mode === 'tab' ? adjacentTab(current) : null
+      const other = mode === 'tab' ? tab?.view ?? null : previousView(current)
+      if (!other || !stackRef.current || underlayRef.current) return false
       // Read before the layers change, while the page still has its normal layout.
       swipeStart.current = {
         fromKey: viewKey(current), scrollY: window.scrollY, pageHeight: document.documentElement.scrollHeight,
       }
-      flushSync(() => setUnderlay(previous))
+      flushSync(() => setUnderlay({ view: other, mode, side: tab?.side }))
       if (stackRef.current?.querySelector('[data-screen-layer="underlay"]')) return true
       flushSync(() => setUnderlay(null))
       return false
     },
     cancel: () => flushSync(() => setUnderlay(null)),
+    tabSide: () => adjacentTab(viewRef.current)?.side ?? null,
+    switchTab: () => {
+      const tab = adjacentTab(viewRef.current)
+      if (!tab) return
+      // As goHome does.
+      if (tab.view.kind === 'home') refreshTrips()
+      const layer = underlayRef.current
+      // The tab layer is already where the screen belongs: it simply becomes the screen
+      // (the history follows as for the HomeNav buttons: Profile pushes, Trips goes back).
+      if (layer?.mode === 'tab' && viewKey(layer.view) === viewKey(tab.view)) flushSync(() => setView(tab.view))
+      else navigate(tab.view)
+    },
   }), [])
 
   // Swipe layers: lift both screens into viewport-sized layers, each showing its page
@@ -184,7 +210,7 @@ export function AuthBoundary() {
       const under = stack.querySelector<HTMLElement>('[data-screen-layer="underlay"]')
       if (under) {
         under.setAttribute('inert', '')
-        under.scrollTop = scrollMemory.current.get(viewKey(underlay)) ?? 0
+        under.scrollTop = scrollMemory.current.get(viewKey(underlay.view)) ?? 0
       }
     } else {
       swipeStart.current = null
@@ -438,18 +464,22 @@ export function AuthBoundary() {
       }} />
   }
 
-  // Each screen sits in a layer keyed by the screen, so the one shown underneath during
-  // an edge swipe keeps its component instance when it becomes the current screen.
-  const swiping = underlay !== null && viewKey(underlay) !== viewKey(view)
+  // Each screen sits in a layer keyed by the screen, so the one shown underneath (edge
+  // swipe) or beside (tab swipe) keeps its component instance when it becomes the
+  // current screen.
+  const swiping = underlay !== null && viewKey(underlay.view) !== viewKey(view)
+  const paging = swiping && underlay.mode === 'tab'
+  const currentClass = !swiping ? 'rove-layer' : paging ? 'rove-layer rove-layer--lifted rove-layer--paging' : 'rove-layer rove-layer--lifted'
   return (
     <div ref={stackRef} className="rove-stack">
       {swiping && (
-        <div key={viewKey(underlay)} data-screen-layer="underlay" className="rove-layer rove-layer--under" aria-hidden="true">
-          {renderScreen(underlay)}
+        <div key={viewKey(underlay.view)} data-screen-layer="underlay" data-side={underlay.side}
+          className={paging ? 'rove-layer rove-layer--under rove-layer--beside' : 'rove-layer rove-layer--under'} aria-hidden="true">
+          {renderScreen(underlay.view)}
         </div>
       )}
-      {swiping && <div key="rove-dim" data-screen-dim="" className="rove-dim" aria-hidden="true" />}
-      <div key={viewKey(view)} data-screen-layer="current" className={swiping ? 'rove-layer rove-layer--lifted' : 'rove-layer'}>
+      {swiping && !paging && <div key="rove-dim" data-screen-dim="" className="rove-dim" aria-hidden="true" />}
+      <div key={viewKey(view)} data-screen-layer="current" className={currentClass}>
         {renderScreen(view)}
       </div>
     </div>

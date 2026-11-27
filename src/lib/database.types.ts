@@ -1479,6 +1479,14 @@ export type Database = {
           member_count: number
         }[]
       }
+      get_my_ai_usage: {
+        Args: never
+        Returns: {
+          calls: number
+          cost_micro_usd: number
+          total_tokens: number
+        }[]
+      }
       get_split_ledger: { Args: { p_group_id: string }; Returns: Json }
       get_trip_member_profiles: {
         Args: { p_group_id: string }

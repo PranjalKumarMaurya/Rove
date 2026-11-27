@@ -706,3 +706,19 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
 /* One frame on a fresh layer makes iPhone re-place bottom-pinned bars (src/lib/pinBottomBars.ts). */
 html[data-repin="true"] .tab-bar,
 html[data-repin="true"] .home-nav { transform: translateZ(0); }
+
+/* Feels like an app, not a web page: no text selection or long-press callout
+   (copy/translate/look up) on the interface. Fields stay selectable so typing,
+   editing and pasting still work. */
+html, body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input, textarea, select, [contenteditable="true"], [contenteditable=""] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+/* Images and icons can't be long-pressed into "Save image" or dragged out either. */
+img, svg { -webkit-user-drag: none; }

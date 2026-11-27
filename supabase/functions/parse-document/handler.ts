@@ -6,6 +6,7 @@ import {
   BILL_CATEGORIES, EVENT_TYPES, MAX_PARSE_IMAGE_BYTES, type DocumentDraft, type TripContext,
   isParseableMimeType, normaliseDocument,
 } from '../_shared/documentDraft.ts'
+import { costMicroUsd, type TokenUsage } from '../_shared/aiPricing.ts'
 
 export type ParseErrorCode =
   | 'method_not_allowed'
@@ -53,9 +54,21 @@ export interface ParseStore {
    * caller). Throws when the count cannot be checked; the model is then not called.
    */
   claimParse(documentId: string, limits: ParseLimits): Promise<ParseClaim>
+  /**
+   * Record what a model call cost, for the caller's AI usage. Written with the
+   * service role (only the server may write usage), never from the client.
+   */
+  recordUsage(entry: { userId: string; groupId: string; documentId: string; usage: ModelUsage; costMicroUsd: number }): Promise<void>
 }
 
-export type Extractor = (input: { file: DocumentFile; fileName: string; trip: TripContext }) => Promise<unknown>
+/** Tokens one model call used, reported by the extractor as soon as the model answers. */
+export interface ModelUsage extends TokenUsage { model: string }
+
+export type Extractor = (input: {
+  file: DocumentFile; fileName: string; trip: TripContext
+  /** Called once the model has answered (even if the answer is then unusable): those tokens were spent. */
+  onUsage?: (usage: ModelUsage) => void
+}) => Promise<unknown>
 
 export const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -91,7 +104,8 @@ export function createParseHandler({ openStore, extractor, limits = DEFAULT_PARS
     if (typeof documentId !== 'string' || !UUID.test(documentId)) return json(400, { error: 'invalid_request' })
 
     const store = openStore(authorization)
-    if (!(await store.currentUserId())) return json(401, { error: 'not_authenticated' })
+    const userId = await store.currentUserId()
+    if (!userId) return json(401, { error: 'not_authenticated' })
 
     // Visible only to an active member of the document's Trip (RLS); anything
     // else, including another Trip's document, is indistinguishable from missing.
@@ -128,14 +142,23 @@ export function createParseHandler({ openStore, extractor, limits = DEFAULT_PARS
     if (claim !== 'claimed') return fail(503, 'parser_unavailable')
 
     let raw: unknown
+    let usage: ModelUsage | null = null
+    const record = async () => {
+      if (!usage) return
+      try {
+        await store.recordUsage({ userId, groupId: document.groupId, documentId: document.id, usage, costMicroUsd: costMicroUsd(usage.model, usage) })
+      } catch { log('usage_failed') }
+    }
     try {
-      raw = await extractor({ file, fileName: document.fileName, trip })
+      raw = await extractor({ file, fileName: document.fileName, trip, onUsage: (reported) => { usage = reported } })
     } catch (error) {
+      await record()
       // Only the HTTP status and error type, never document content or keys.
       const detail = error && typeof error === 'object' ? error as { status?: unknown; name?: unknown } : {}
       log(`extractor_error status=${typeof detail.status === 'number' ? detail.status : 'none'} type=${typeof detail.name === 'string' ? detail.name.replace(/[^A-Za-z]/gu, '').slice(0, 40) : 'unknown'}`)
       return fail(502, 'parse_failed')
     }
+    await record()
     // The draft is returned for review; no Event or expense is created here.
     const draft = normaliseDocument(raw, trip)
     try { await store.saveResult(document.id, { status: 'parsed', draft }) } catch { log('save_failed') }
@@ -235,8 +258,10 @@ export function parseModelText(text: string): unknown {
  * whose name contains "unreadable" simulates a document the parser cannot read.
  */
 export function createStubExtractor(): Extractor {
-  return async ({ fileName, trip }) => {
+  return async ({ fileName, trip, onUsage }) => {
     if (/unreadable/iu.test(fileName)) throw new Error('stub_unreadable')
+    // A fixed, realistic-looking usage so the AI usage records can be tested locally.
+    onUsage?.({ model: 'claude-haiku-5-5', inputTokens: 1800, outputTokens: 400 })
     if (/bill|receipt/iu.test(fileName)) {
       return {
         document_kind: 'bill', event_type: 'food', title: 'Curlies by the Sea: food and drinks',

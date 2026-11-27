@@ -1,13 +1,17 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  entryDepthOf, navDirection, planHistory, previousView, readRoveState, roveState, viewDepth, viewKey, withRoveState,
+  adjacentTab, entryDepthOf, navDirection, planHistory, previousView, readRoveState, roveState, viewDepth, viewKey, withRoveState,
   type View,
 } from '../../src/features/auth/navigationHistory.ts'
 import {
   classifySwipe, completionDuration, isStandaloneDisplay, shouldCompleteSwipe, startsAtEdge, swipeProgress,
   swipeVelocity, underlayDim, underlayShift,
 } from '../../src/lib/edgeSwipe.ts'
+import {
+  TAB_RESISTANCE_MAX, classifyTabSwipe, shouldSwitchTab, tabDragDxForOffset, tabDragOffset, tabNeighborOffset,
+  tabProgress, tabSwitchDuration, tabSwitchTarget,
+} from '../../src/lib/tabSwipe.ts'
 import { celebrate, onCelebrate, shouldCoalesce } from '../../src/lib/celebrate.ts'
 
 const home: View = { kind: 'home' }
@@ -95,6 +99,80 @@ test('button navigation pushes deeper, pops shallower, and moves sideways forwar
   assert.equal(navDirection(create, trip), 'push', 'Create → the new Trip reads as forward')
   assert.equal(navDirection(trip, { kind: 'trip', groupId: 'g1' }), 'none')
   assert.equal(navDirection(home, home), 'none')
+})
+
+test('Trips and Profile-from-home are side-by-side tabs; taps between them slide sideways', () => {
+  assert.deepEqual(adjacentTab(home), { view: profileFromHome, side: 'right' }, 'Profile is to the right of Trips')
+  assert.deepEqual(adjacentTab(profileFromHome), { view: home, side: 'left' }, 'Trips is to the left of Profile')
+  for (const view of [trip, create, profileFromTrip]) assert.equal(adjacentTab(view), null)
+  assert.equal(navDirection(home, profileFromHome), 'tab-left')
+  assert.equal(navDirection(profileFromHome, home), 'tab-right')
+  // Other moves keep the push/pop.
+  assert.equal(navDirection(profileFromHome, create), 'push')
+  assert.equal(navDirection(profileFromTrip, home), 'pop')
+  // The history still treats Profile-from-home as one level above the Trips home.
+  assert.deepEqual(planHistory(viewDepth(home), viewDepth(adjacentTab(home)!.view)), { kind: 'push', count: 1 })
+  assert.deepEqual(planHistory(viewDepth(profileFromHome), viewDepth(adjacentTab(profileFromHome)!.view)), { kind: 'back', count: 1 })
+})
+
+test('a tab swipe commits after 10px only when clearly sideways, either way', () => {
+  assert.equal(classifyTabSwipe(9, 0), 'pending')
+  assert.equal(classifyTabSwipe(-9, 9), 'pending')
+  assert.equal(classifyTabSwipe(-12, 4), 'horizontal')
+  assert.equal(classifyTabSwipe(12, 4), 'horizontal')
+  assert.equal(classifyTabSwipe(15, 10), 'cancel', 'exactly 1.5× is not enough')
+  assert.equal(classifyTabSwipe(16, 10), 'horizontal')
+  assert.equal(classifyTabSwipe(3, 14), 'cancel', 'vertical is a scroll')
+})
+
+test('dragging towards the other tab is 1:1; the wrong way rubber-bands, capped at 48px', () => {
+  // On Trips (Profile on the right) the finger drags left.
+  assert.equal(tabDragOffset(-120, 'right', 400), -120)
+  assert.equal(tabDragOffset(-500, 'right', 400), -400, 'never past a full width')
+  assert.equal(tabDragOffset(100, 'right', 400), 25)
+  assert.equal(tabDragOffset(1000, 'right', 400), TAB_RESISTANCE_MAX)
+  // On Profile (Trips on the left) the finger drags right.
+  assert.equal(tabDragOffset(120, 'left', 400), 120)
+  assert.equal(tabDragOffset(-100, 'left', 400), -25)
+  assert.equal(tabDragOffset(-1000, 'left', 400), -TAB_RESISTANCE_MAX)
+  assert.equal(tabDragOffset(0, 'left', 400), 0)
+  // Catching a moving screen continues from where it is.
+  for (const [offset, side] of [[-80, 'right'], [20, 'right'], [80, 'left'], [-20, 'left']] as const) {
+    assert.equal(tabDragOffset(tabDragDxForOffset(offset, side), side, 400), offset)
+  }
+  assert.equal(tabProgress(-100, 'right'), 100)
+  assert.equal(tabProgress(100, 'right'), -100)
+})
+
+test('the other tab stays edge to edge with the current screen', () => {
+  assert.equal(tabNeighborOffset(0, 'right', 400), 400, 'Profile waits just off the right edge')
+  assert.equal(tabNeighborOffset(-150, 'right', 400), 250)
+  assert.equal(tabNeighborOffset(0, 'left', 400), -400, 'Trips waits just off the left edge')
+  assert.equal(tabNeighborOffset(150, 'left', 400), -250)
+  assert.equal(tabNeighborOffset(tabSwitchTarget('right', 400), 'right', 400), 0, 'a switch ends with it in place')
+  assert.equal(tabNeighborOffset(tabSwitchTarget('left', 400), 'left', 400), 0)
+})
+
+test('release switches past 30% or on a flick towards the other tab, never the wrong way', () => {
+  assert.equal(shouldSwitchTab(-120, 400, 0, 'right'), true)
+  assert.equal(shouldSwitchTab(-119, 400, 0.1, 'right'), false)
+  assert.equal(shouldSwitchTab(-40, 400, -0.6, 'right'), true, 'a leftward flick on Trips')
+  assert.equal(shouldSwitchTab(-40, 400, 0.6, 'right'), false, 'flicking back towards rest')
+  assert.equal(shouldSwitchTab(40, 400, 0.6, 'left'), true, 'a rightward flick on Profile')
+  assert.equal(shouldSwitchTab(120, 400, 0, 'left'), true)
+  assert.equal(shouldSwitchTab(25, 400, 2, 'right'), false, 'rubber-banded the wrong way')
+  assert.equal(shouldSwitchTab(-25, 400, -2, 'left'), false)
+  assert.equal(shouldSwitchTab(0, 400, -2, 'right'), false)
+  assert.equal(shouldSwitchTab(-200, 0, 0, 'right'), false)
+})
+
+test('a switch finishes at the finger’s speed, within 180–300ms', () => {
+  assert.equal(tabSwitchDuration(-150, 400, -1, 'right'), 250, '250px left at 1px/ms')
+  assert.equal(tabSwitchDuration(150, 400, 1, 'left'), 250)
+  assert.equal(tabSwitchDuration(-100, 400, -5, 'right'), 180, 'a hard flick is never a jump')
+  assert.equal(tabSwitchDuration(-150, 400, -0.1, 'right'), 300, 'a slow release still finishes briskly')
+  assert.equal(tabSwitchDuration(-150, 400, 1, 'right'), 300, 'moving the other way: the longest')
+  assert.equal(tabSwitchDuration(-400, 400, -1, 'right'), 180, 'nothing left to travel')
 })
 
 test('during a swipe the screen underneath slides in from -30% and its dim fades', () => {

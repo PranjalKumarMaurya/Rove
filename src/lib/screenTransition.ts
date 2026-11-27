@@ -13,6 +13,10 @@ import type { NavDirection } from '../features/auth/navigationHistory'
  *   previous screen in a layer beneath the current one, then moves the layers with the
  *   finger. A completed swipe goes `history.back()`, flagged with `markSwipeNavigation`
  *   so the resulting popstate does not animate a second time.
+ * - The tab swipe (TabSwipe, between the Trips home and Profile-from-home) asks the same
+ *   host for the other tab in a layer beside the current one (`begin('tab')`), moves
+ *   both like a pager, and on a switch asks the host to make that layer the current
+ *   screen (`switchTab`). Tapping the tabs in HomeNav slides them with a view transition.
  */
 
 /** iOS navigation push/pop curve. */
@@ -25,28 +29,59 @@ export function prefersReducedMotion(): boolean {
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-// ---- Edge swipe: the screen underneath ------------------------------------------
+// ---- Swipes: the screen underneath (edge swipe) or beside (tab swipe) ------------
+
+/** `back`: the previous screen beneath the current one. `tab`: the other home tab beside it. */
+export type SwipeMode = 'back' | 'tab'
 
 export interface SwipeHost {
-  /** Render the previous screen beneath the current one, synchronously. False if there is none. */
-  begin(): boolean
-  /** Remove the screen underneath again (the swipe was cancelled and has settled back). */
+  /** Render the other screen for this swipe, synchronously. False if there is none. */
+  begin(mode: SwipeMode): boolean
+  /** Remove that screen again (the swipe was cancelled and has settled back). */
   cancel(): void
+  /** Where the other home tab sits for the current screen, if it is one of the two tabs. */
+  tabSide(): 'left' | 'right' | null
+  /**
+   * Switch to the other home tab. With the tab layer showing (after `begin('tab')`), it
+   * becomes the current screen as it is; without one, the switch plays the tab slide
+   * (or its reduced-motion crossfade).
+   */
+  switchTab(): void
 }
 
 let host: SwipeHost | null = null
+// The swipe whose layers are showing, so the edge and tab swipes never run together.
+let activeSwipe: SwipeMode | null = null
 
 export function registerSwipeHost(next: SwipeHost): () => void {
   host = next
   return () => { if (host === next) host = null }
 }
 
-export function beginSwipeUnderlay(): boolean {
-  try { return host?.begin() ?? false } catch { return false }
+export function beginSwipeUnderlay(mode: SwipeMode = 'back'): boolean {
+  if (activeSwipe) return false
+  let ok = false
+  try { ok = host?.begin(mode) ?? false } catch { ok = false }
+  if (ok) activeSwipe = mode
+  return ok
 }
 
 export function cancelSwipeUnderlay(): void {
+  activeSwipe = null
   host?.cancel()
+}
+
+/** A swipe's layers are on screen (being dragged, settling back or finishing). */
+export function swipeBusy(): boolean {
+  return activeSwipe !== null
+}
+
+export function tabSwipeSide(): 'left' | 'right' | null {
+  try { return host?.tabSide() ?? null } catch { return null }
+}
+
+export function switchTab(): void {
+  host?.switchTab()
 }
 
 export interface SwipeLayers {
@@ -63,11 +98,19 @@ export function swipeLayers(): SwipeLayers | null {
   return { current, underlay, dim: document.querySelector<HTMLElement>('[data-screen-dim]') }
 }
 
-/** Drops everything the swipe wrote on a layer, so it is an ordinary screen again. */
-export function clearLayerStyles(element: HTMLElement): void {
+/** Bars that stay put on screen while a tab swipe moves the screens (HomeNav). */
+export const SWIPE_PIN_SELECTOR = '[data-swipe-pin]'
+
+function clearMotionStyles(element: HTMLElement): void {
   element.style.removeProperty('transform')
   element.style.removeProperty('transition')
   element.style.removeProperty('opacity')
+}
+
+/** Drops everything the swipe wrote on a layer, so it is an ordinary screen again. */
+export function clearLayerStyles(element: HTMLElement): void {
+  clearMotionStyles(element)
+  element.querySelectorAll<HTMLElement>(SWIPE_PIN_SELECTOR).forEach(clearMotionStyles)
   element.removeAttribute('inert')
 }
 
@@ -92,6 +135,7 @@ export function onSwipeSettled(listener: () => void): () => void {
 }
 
 export function notifySwipeSettled(): void {
+  activeSwipe = null
   for (const listener of [...settledListeners]) listener()
 }
 

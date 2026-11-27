@@ -160,6 +160,20 @@ try {
   assert.equal(parsed.json.draft.startsAt, '2026-11-01T00:45:00.000Z')
   assert.equal(stack.psql(`SELECT parse_status || '|' || (extracted ->> 'bookingRef') FROM public.trip_documents WHERE id = ${quote(ownerDocId)};`), 'parsed|STUB42')
   assert.equal(stack.psql('SELECT count(*) FROM public.trip_events;'), '0', 'parse created an Event')
+  // The read's tokens and cost are recorded for the caller, by the server (094).
+  assert.equal(stack.psql(`SELECT usage.feature || '|' || usage.input_tokens || '|' || usage.output_tokens || '|' || usage.cost_micro_usd
+    || '|' || (usage.document_id = ${quote(ownerDocId)})::text
+    FROM public.ai_usage AS usage JOIN public.profiles AS profile ON profile.id = usage.profile_id
+    WHERE profile.auth_user_id = ${quote(owner.id)};`), 'scan|1800|400|380|true')
+  const mine = sqlAs(stack, owner.id, 'SELECT total_tokens, cost_micro_usd, calls FROM public.get_my_ai_usage();')
+  assert.deepEqual(mine.rows, [['2200', '380', '1']], mine.error)
+  // Nobody else sees it, and clients can't write or change usage.
+  assert.deepEqual(sqlAs(stack, friend.id, 'SELECT count(*) FROM public.ai_usage;').rows, [['0']])
+  assert.deepEqual(sqlAs(stack, friend.id, 'SELECT total_tokens, cost_micro_usd, calls FROM public.get_my_ai_usage();').rows, [['0', '0', '0']])
+  assert.equal(sqlAs(stack, owner.id, `INSERT INTO public.ai_usage (profile_id, feature, model, input_tokens) VALUES
+    ((SELECT id FROM public.profiles WHERE auth_user_id = ${quote(owner.id)}), 'scan', 'x', 1);`).ok, false, 'client inserts usage')
+  assert.equal(sqlAs(stack, owner.id, 'UPDATE public.ai_usage SET cost_micro_usd = 0;').ok, false, 'client lowers usage')
+  assert.equal(sqlAs(stack, owner.id, 'DELETE FROM public.ai_usage;').ok, false, 'client deletes usage')
   assert.equal((await parse(stranger, ownerDocId)).status, 404, 'stranger parse')
   assert.equal((await parse(other, ownerDocId)).status, 404, 'other Trip parse')
   assert.equal((await parse({ token: keys.anonKey }, ownerDocId)).status, 401, 'anon parse')

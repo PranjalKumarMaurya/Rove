@@ -47,6 +47,9 @@ test('Trips home, Profile, Trip settings and domestic vs International Trips', a
     const profile = owner.getByTestId('profile-screen')
     await expect(profile.getByTestId('profile-email')).toHaveText('olive-home@example.test')
     await expect(profile.getByTestId('app-version')).toHaveText(/^Version \d+\.\d+\.\d+$/u)
+    // A new account hasn't used any AI yet.
+    await expect(profile.getByTestId('ai-usage-tokens')).toHaveText('0')
+    await expect(profile.getByTestId('ai-usage-cost')).toHaveText('$0.00')
     await expect(profile.getByRole('link', { name: 'Help & feedback' })).toHaveAttribute('href', /^mailto:help@example\.test\?subject=/u)
     await profile.getByLabel('Home currency').selectOption('SGD')
     await profile.getByLabel('UPI ID').fill('not a upi')

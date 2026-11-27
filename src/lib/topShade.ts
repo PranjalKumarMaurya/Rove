@@ -8,9 +8,11 @@ export function startTopShade(): void {
   const root = document.documentElement
   let scrolled = false
   const update = () => {
-    // A sheet pins the body with `top: -scrollY`, so read that too.
-    const offset = window.scrollY || -parseInt(document.body.style.top || '0', 10) || 0
-    const next = offset > 2
+    // While a pop-up or sheet is open the page behind is pinned and nothing
+    // scrolls under the status bar (pop-ups start below it), so keep the strip
+    // status-bar height; growing it would cover the pop-up's top edge.
+    const locked = document.body.dataset.scrollLocked === 'true'
+    const next = !locked && window.scrollY > 2
     if (next !== scrolled) {
       scrolled = next
       if (next) root.dataset.scrolled = 'true'
@@ -18,6 +20,6 @@ export function startTopShade(): void {
     }
   }
   window.addEventListener('scroll', update, { passive: true })
-  new MutationObserver(update).observe(document.body, { attributes: true, attributeFilter: ['style'] })
+  new MutationObserver(update).observe(document.body, { attributes: true, attributeFilter: ['style', 'data-scroll-locked'] })
   update()
 }

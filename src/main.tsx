@@ -6,6 +6,7 @@ import './styles/screens.css'
 import { App } from './App'
 import { AppStatus } from './features/pwa/AppStatus'
 import { EdgeSwipeBack } from './components/EdgeSwipeBack'
+import { TabSwipe } from './components/TabSwipe'
 import { SuccessTick } from './components/ui/SuccessTick'
 import { startServiceWorker } from './features/pwa/serviceWorker'
 import { startTopShade } from './lib/topShade'
@@ -22,5 +23,6 @@ createRoot(document.getElementById('root')!).render(
     <AppStatus />
     <SuccessTick />
     <EdgeSwipeBack />
+    <TabSwipe />
   </StrictMode>
 )

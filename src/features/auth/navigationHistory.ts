@@ -100,14 +100,30 @@ export function previousView(view: View): View | null {
   return { kind: 'home' }
 }
 
-export type NavDirection = 'push' | 'pop' | 'none'
+export type NavDirection = 'push' | 'pop' | 'tab-left' | 'tab-right' | 'none'
+
+/**
+ * The two home tabs, Trips and Profile-opened-from-home, sit side by side like tabs in
+ * a native app: Profile to the right of Trips. Each has the other as its neighbour, on
+ * that side; every other screen has none. (In the history Profile-from-home is still
+ * one level above the Trips home, so going to Profile pushes and back to Trips pops.)
+ */
+export function adjacentTab(view: View): { view: View; side: 'left' | 'right' } | null {
+  if (view.kind === 'home') return { view: { kind: 'profile', from: { kind: 'home' } }, side: 'right' }
+  if (view.kind === 'profile' && view.from.kind === 'home') return { view: { kind: 'home' }, side: 'left' }
+  return null
+}
 
 /**
  * How moving between two screens animates: deeper slides the new screen in from the
  * right (push), shallower slides the current one off to the right (pop), a sideways
  * move (Create → the new Trip, Profile → Create) reads as forward, the same screen is none.
+ * Between the two home tabs the screens slide side by side instead: `tab-left` moves
+ * them left (Trips → Profile), `tab-right` moves them right (Profile → Trips).
  */
 export function navDirection(from: View, to: View): NavDirection {
   if (viewKey(from) === viewKey(to)) return 'none'
+  const tab = adjacentTab(from)
+  if (tab && viewKey(tab.view) === viewKey(to)) return tab.side === 'right' ? 'tab-left' : 'tab-right'
   return viewDepth(to) < viewDepth(from) ? 'pop' : 'push'
 }

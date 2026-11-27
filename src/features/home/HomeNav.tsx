@@ -22,7 +22,7 @@ export function HomeNav({ active, onTrips, onCreate, onProfile, profile, account
 }) {
   const photo = useAvatarUrl(profile?.avatarPath)
   return (
-    <nav className="home-nav" aria-label="Main">
+    <nav className="home-nav" aria-label="Main" data-swipe-pin="">
       <div className="home-nav__inner">
         <button type="button" className={`home-nav__item${active === 'trips' ? ' is-active' : ''}`}
           aria-current={active === 'trips' ? 'page' : undefined} onClick={onTrips}>

@@ -47,7 +47,14 @@ All streams are merged into `v2`. Every row below passed on the combined branch.
 - **Reduced motion:** turns all of it into short fades.
 - **Home:** the wordmark is centred and closer to the status bar.
 - **Crew strip:** keeps its left padding when scrolled to the start.
-- **Next-journey card:** shows the next flight, train, ferry or bus, and is hidden when nothing is ahead. | `tests/unit/navigation-gestures.test.ts`, `tests/unit/trip-itinerary.test.ts`, all browser suites | `tests/unit/split-travel.test.ts`, `tests/unit/navigation-gestures.test.ts`, browser suites |
+- **Next-journey card:** shows the next flight, train, ferry or bus, and is hidden when nothing is ahead. | `tests/unit/navigation-gestures.test.ts`, `tests/unit/trip-itinerary.test.ts`, all browser suites |
+| **Tab swipe, AI usage, app feel (2026-11-27):**
+- **Tab swipe:** swipe sideways between Trips and Profile-from-home. It is a pager with the other tab beside the current one and a sideways tab slide when tapping the nav (`src/lib/tabSwipe.ts`, `src/components/TabSwipe.tsx`).
+- **AI usage (094):**
+  - `ai_usage` holds one row per model call: tokens, model and cost in micro-USD from `supabase/functions/_shared/aiPricing.ts`.
+  - The rows are written only by the server: `parse-document` uses the service role for this insert alone. Clients can read only their own rows.
+  - Profile shows total tokens and cost in dollars (`get_my_ai_usage`), with no model or input/output split.
+- **App feel:** no text selection or long-press callout outside fields. The Add event form starts below the status bar. | `tests/unit/ai-pricing.test.ts`, `tests/unit/scan-parse-handler.test.ts`, `npm run test:scan:db`, browser suites | `tests/unit/split-travel.test.ts`, `tests/unit/navigation-gestures.test.ts`, browser suites |
 | **FX tab** (international Trips): converter with live rates and offline cache | `npm run test:fx:unit`, scan-fx live test |
 | **Crew tab:** roster with each member's shared details, invitations with **Share… / WhatsApp**, revoke, roles, transfer, remove, leave, archive/restore (060) | `npm run test:crew:db`, `npm run test:crew:live`, `npm run test:crew:browser`, `npm run test:extras:live` |
 | **Installable app (PWA):** manifest, icons, app-shell service worker (never caches data or auth), offline notice, update prompt | `tests/browser/pwa/installable-app.spec.ts` |

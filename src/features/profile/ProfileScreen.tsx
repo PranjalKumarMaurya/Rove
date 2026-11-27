@@ -8,6 +8,8 @@ import { ScreenFrame } from '../../components/ui/ScreenFrame'
 import { Sheet } from '../../components/ui/Sheet'
 import { UserAvatar } from '../../components/ui/UserAvatar'
 import { TRIP_CURRENCIES, currencyName } from '../onboarding/tripSettings'
+import { formatUsd } from '../../../supabase/functions/_shared/aiPricing.ts'
+import { type AiUsageTotals, loadMyAiUsage } from './aiUsageApi'
 import {
   AccountRequestError, accountErrorMessage, changeEmail, changePassword, deleteMyAccount, loadDeletionBlockers,
 } from './accountApi'
@@ -76,6 +78,7 @@ export function ProfileScreen({ userId, email, profile, profileStatus, onProfile
       <div className="flex flex-col gap-8">
         <AvatarEditor userId={userId} profile={profile} onChanged={onProfileChanged} />
         <DetailsForm profile={profile} onChanged={onProfileChanged} />
+        <AiUsage />
 
         <section aria-labelledby="profile-sign-in" className="flex flex-col gap-3">
           <h2 id="profile-sign-in" className="section-title">Sign-in</h2>
@@ -462,5 +465,41 @@ function DeleteAccountSheet({ userId, onClose, onDeleted }: { userId: string; on
         </form>
       )}
     </Sheet>
+  )
+}
+
+/**
+ * What the AI features have used for me so far (today: reading scanned
+ * documents), across every Trip: total tokens and what they cost in dollars.
+ * Re-read each time Profile opens, so it grows as I use them.
+ */
+function AiUsage() {
+  const [state, setState] = useState<{ kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; totals: AiUsageTotals }>({ kind: 'loading' })
+  useEffect(() => {
+    let active = true
+    loadMyAiUsage()
+      .then((totals) => { if (active) setState({ kind: 'ready', totals }) })
+      .catch(() => { if (active) setState({ kind: 'error' }) })
+    return () => { active = false }
+  }, [])
+  const tokens = state.kind === 'ready' ? state.totals.totalTokens.toLocaleString('en-US') : '—'
+  const cost = state.kind === 'ready' ? formatUsd(state.totals.costMicroUsd) : '—'
+  return (
+    <section aria-labelledby="profile-ai-usage" className="flex flex-col gap-3" data-testid="profile-ai-usage">
+      <h2 id="profile-ai-usage" className="section-title">AI usage</h2>
+      <div className="surface grid grid-cols-2 px-4 py-3" aria-busy={state.kind === 'loading'}>
+        <div className="min-w-0">
+          <p className="field-label">Tokens used</p>
+          <p className="mt-0.5 truncate font-mono" style={{ color: 'var(--text-primary)', fontSize: 17 }} data-testid="ai-usage-tokens">{tokens}</p>
+        </div>
+        <div className="min-w-0 border-l pl-4" style={{ borderColor: 'var(--border)' }}>
+          <p className="field-label">Cost</p>
+          <p className="mt-0.5 truncate font-mono" style={{ color: 'var(--text-primary)', fontSize: 17 }} data-testid="ai-usage-cost">{cost}</p>
+        </div>
+      </div>
+      <p style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
+        {state.kind === 'error' ? 'Couldn’t load your AI usage just now.' : 'Everything AI has done for you so far, like reading scanned tickets and bills, across all your Trips.'}
+      </p>
+    </section>
   )
 }

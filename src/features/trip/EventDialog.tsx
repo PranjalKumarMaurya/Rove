@@ -32,8 +32,10 @@ function formFromEvent(event: TripEvent, timeZone: string): EventFormValues {
 }
 
 const overlay: CSSProperties = {
-  position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(15, 11, 8, 0.92)',
-  display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'contain', padding: 16,
+  // Starts below the status bar so the form's title never scrolls under it (iOS blurs content there).
+  position: 'fixed', top: 'env(safe-area-inset-top, 0px)', right: 0, bottom: 0, left: 0, zIndex: 50, background: 'rgba(15, 11, 8, 0.92)',
+  display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'none',
+  padding: '16px 16px calc(16px + env(safe-area-inset-bottom, 0px))',
 }
 const sheet: CSSProperties = {
   width: '100%', maxWidth: 480, margin: 'auto', background: 'var(--bg-elevated)', border: '1px solid var(--border)',
