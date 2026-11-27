@@ -444,7 +444,7 @@ function DocumentList({ state, names, trip, tripContext, disabled, reading, onRe
         <p className="mt-3 text-sm" style={{ color: 'var(--text-secondary)' }}>No documents yet. Bills you add show to the whole Trip; a booking shows only to the people on it.</p>
       )}
       {state.kind === 'ready' && state.documents.length > 0 && (
-        <ul aria-label="Trip documents" className="mt-3 flex flex-col gap-2">
+        <ul aria-label="Trip documents" className="m-list mt-3 flex flex-col gap-2">
           {state.documents.map((document) => (
             <DocumentRow key={document.id} document={document} disabled={disabled || reading.has(document.id)} reading={reading.has(document.id)} unsplitBill={isUnsplitBill(document, tripContext)}
               uploader={names.get(document.uploadedBy) ?? 'Former member'} date={dateFormat.format(new Date(document.createdAt))}

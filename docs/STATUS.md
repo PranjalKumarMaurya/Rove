@@ -37,7 +37,17 @@ All streams are merged into `v2`. Every row below passed on the combined branch.
 - **Sheets:** they close by dragging anywhere when scrolled to the top, and nothing rubber-bands.
 - **Home:** a ROVE wordmark, then "Your Trips" with an invite-link icon that opens a centred popup. A bottom nav (Trips · ＋ New trip · Profile) also appears on Profile opened from home.
 - **Success tick:** an animated tick (`celebrate()`) on expense, payment, itinerary, join and create.
-- **Back navigation:** history entries make the system back work on Android and in Safari. In the installed iPhone app, a left-edge swipe goes back. No backdrop blur anywhere. While scrolled, a solid band covers the strip that iOS 26 blurs under the status bar (`src/lib/topShade.ts`). Bottom bars are re-placed after the keyboard closes, after a sheet unlocks, and when the app returns from the background (`src/lib/pinBottomBars.ts`), because iPhone web apps can leave them too high until the next touch. | `tests/unit/split-travel.test.ts`, `tests/unit/navigation-gestures.test.ts`, browser suites |
+- **Back navigation:** history entries make the system back work on Android and in Safari. In the installed iPhone app, a left-edge swipe goes back. No backdrop blur anywhere. While scrolled, a solid band covers the strip that iOS 26 blurs under the status bar (`src/lib/topShade.ts`). Bottom bars are re-placed after the keyboard closes, after a sheet unlocks, and when the app returns from the background (`src/lib/pinBottomBars.ts`), because iPhone web apps can leave them too high until the next touch. |
+| **Motion system (2026-11-27, researched; Kowalski, Apple HIG, NN/g, Freiberg):**
+- **Tokens:** in `src/styles/motion.css`: strong ease-out, an in-out curve and the iOS drawer curve. Durations are 120 ms for presses, 160–220 ms for UI, about 420 ms for sheets and 380/320 ms for push/pop.
+- **Screens:** iOS-style push/pop through the View Transitions API (`src/lib/screenTransition.ts`, `screens.css`).
+- **Edge swipe:** shows the real previous screen underneath, with parallax and dim.
+- **Dialogs:** they scale up from the control that opened them.
+- **Small motion:** press feedback, a sliding tab indicator, list entrances (staggered, first six only), drawing checkboxes, sliding switches, rolling countdown digits.
+- **Reduced motion:** turns all of it into short fades.
+- **Home:** the wordmark is centred and closer to the status bar.
+- **Crew strip:** keeps its left padding when scrolled to the start.
+- **Next-journey card:** shows the next flight, train, ferry or bus, and is hidden when nothing is ahead. | `tests/unit/navigation-gestures.test.ts`, `tests/unit/trip-itinerary.test.ts`, all browser suites | `tests/unit/split-travel.test.ts`, `tests/unit/navigation-gestures.test.ts`, browser suites |
 | **FX tab** (international Trips): converter with live rates and offline cache | `npm run test:fx:unit`, scan-fx live test |
 | **Crew tab:** roster with each member's shared details, invitations with **Share… / WhatsApp**, revoke, roles, transfer, remove, leave, archive/restore (060) | `npm run test:crew:db`, `npm run test:crew:live`, `npm run test:crew:browser`, `npm run test:extras:live` |
 | **Installable app (PWA):** manifest, icons, app-shell service worker (never caches data or auth), offline notice, update prompt | `tests/browser/pwa/installable-app.spec.ts` |

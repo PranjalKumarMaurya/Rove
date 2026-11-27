@@ -1,4 +1,5 @@
 import { useId, useState, type CSSProperties } from 'react'
+import { enterIndex } from '../../components/ui/motion'
 import { eventTypeMeta, safeMapUrl, type EventStatus, type TripEvent } from './itinerary'
 import { clocksDiffer, formatSpan } from './tripTime'
 import { terminalLabel } from './NextFlight'
@@ -9,8 +10,10 @@ const smallButton: CSSProperties = {
   fontSize: 12, color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px',
 }
 
-export function EventCard({ event, status, tripTimeZone, localTimeZone, audienceNames, onEdit, onDelete }: {
+export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZone, audienceNames, onEdit, onDelete }: {
   event: TripEvent
+  /** Position in the itinerary, for the entrance stagger. */
+  index?: number
   status: EventStatus
   tripTimeZone: string
   localTimeZone: string
@@ -43,7 +46,7 @@ export function EventCard({ event, status, tripTimeZone, localTimeZone, audience
   }
 
   return (
-    <li data-testid="trip-event" data-status={status} aria-label={event.title} className="flex items-start gap-3">
+    <li data-testid="trip-event" data-status={status} aria-label={event.title} className="m-enter flex items-start gap-3" style={enterIndex(index)}>
       <span aria-hidden="true" className="relative flex shrink-0 items-center justify-center" style={{
         width: 38, height: 38, borderRadius: '50%', background: 'var(--bg-base)', fontSize: 16,
         border: `1px solid ${highlighted ? 'var(--accent)' : 'var(--border-strong)'}`,
@@ -93,7 +96,7 @@ export function EventCard({ event, status, tripTimeZone, localTimeZone, audience
         </p>
 
         {expanded && event.notes && (
-          <p id={notesId} className="font-mono mt-2.5 whitespace-pre-wrap pt-2.5 text-xs animate-fade-in" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+          <p id={notesId} className="font-mono m-reveal mt-2.5 whitespace-pre-wrap pt-2.5 text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
             {event.notes}
           </p>
         )}
@@ -101,17 +104,17 @@ export function EventCard({ event, status, tripTimeZone, localTimeZone, audience
         {confirming ? (
           <div role="group" aria-label={`Confirm deleting ${event.title}`} className="mt-3 flex flex-wrap items-center gap-2">
             <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Delete this for everyone?</span>
-            <button type="button" disabled={deleting} onClick={() => void confirmDelete()} style={{ ...smallButton, color: '#1A0A03', background: 'var(--accent)', border: '1px solid var(--accent)' }}>
+            <button type="button" disabled={deleting} onClick={() => void confirmDelete()} className="m-press" style={{ ...smallButton, color: '#1A0A03', background: 'var(--accent)', border: '1px solid var(--accent)' }}>
               {deleting ? 'Deleting…' : 'Yes, delete'}
             </button>
-            <button type="button" disabled={deleting} onClick={() => setConfirming(false)} style={smallButton}>Keep it</button>
+            <button type="button" disabled={deleting} onClick={() => setConfirming(false)} className="m-press" style={smallButton}>Keep it</button>
             {deleteError && <p role="alert" className="w-full text-xs" style={{ color: 'var(--accent)' }}>Could not delete. Try again.</p>}
           </div>
         ) : (
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {mapUrl && <a href={mapUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open map for ${event.title}`} style={smallButton}>↗ Map</a>}
-            <button type="button" aria-label={`Edit ${event.title}`} onClick={onEdit} style={smallButton}>Edit</button>
-            <button type="button" aria-label={`Delete ${event.title}`} onClick={() => setConfirming(true)} style={smallButton}>Delete</button>
+            {mapUrl && <a href={mapUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open map for ${event.title}`} className="m-press" style={smallButton}>↗ Map</a>}
+            <button type="button" aria-label={`Edit ${event.title}`} onClick={onEdit} className="m-press" style={smallButton}>Edit</button>
+            <button type="button" aria-label={`Delete ${event.title}`} onClick={() => setConfirming(true)} className="m-press" style={smallButton}>Delete</button>
           </div>
         )}
       </article>

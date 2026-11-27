@@ -121,7 +121,7 @@ export function TodosTab({ trip, roster }: TripTabProps) {
       {loading ? (
         <p role="status" className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Loading todos…</p>
       ) : !error && todos.length === 0 ? (
-        <div className="px-1" data-testid="todos-empty">
+        <div className="m-appear px-1" data-testid="todos-empty">
           <p className="serif-display" style={{ color: 'var(--text-secondary)', fontSize: 19 }}>Nothing on the list yet.</p>
           <p className="mt-1 text-sm" style={{ color: 'var(--text-tertiary)' }}>Add what the group needs to sort out before or during the Trip.</p>
         </div>
@@ -131,7 +131,7 @@ export function TodosTab({ trip, roster }: TripTabProps) {
             <p id="todos-open-heading" className="font-mono mb-2.5" style={{ color: 'var(--accent)', fontSize: 11, letterSpacing: '0.12em' }}>TO DO — {open.length}</p>
             {open.length === 0
               ? <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>All done.</p>
-              : <ul aria-label="Open todos" className="flex flex-col gap-2">{open.map((todo) => <TodoRow key={todo.id} {...rowProps(todo)} />)}</ul>}
+              : <ul aria-label="Open todos" className="m-list flex flex-col gap-2">{open.map((todo) => <TodoRow key={todo.id} {...rowProps(todo)} />)}</ul>}
           </section>
           {done.length > 0 && (
             <section aria-labelledby="todos-done-heading">
@@ -141,7 +141,7 @@ export function TodosTab({ trip, roster }: TripTabProps) {
                   {clearing ? 'Clearing…' : 'Clear completed'}
                 </button>
               </div>
-              <ul aria-label="Completed todos" className="flex flex-col gap-2">{done.map((todo) => <TodoRow key={todo.id} {...rowProps(todo)} />)}</ul>
+              <ul aria-label="Completed todos" className="m-list flex flex-col gap-2">{done.map((todo) => <TodoRow key={todo.id} {...rowProps(todo)} />)}</ul>
             </section>
           )}
         </>
@@ -183,7 +183,7 @@ function AddTodo({ onAdd }: { onAdd: (title: string) => Promise<void> }) {
         {/* Never disabled while saving: disabling would drop keyboard focus. */}
         <input aria-label="New todo" value={draft} maxLength={TODO_TITLE_MAX} placeholder="Book the airport transfer…"
           onChange={(event) => { setDraft(event.target.value); if (error) setError(null) }} className="flex-1" style={inputStyle} />
-        <button type="submit" className="rounded-xl px-4 text-sm" style={{ background: 'var(--accent)', color: '#1A0A03', fontWeight: 600 }}>Add todo</button>
+        <button type="submit" className="m-press rounded-xl px-4 text-sm" style={{ background: 'var(--accent)', color: '#1A0A03', fontWeight: 600 }}>Add todo</button>
       </div>
       {error && <p role="alert" className="text-xs" style={{ color: 'var(--accent)' }}>{error}</p>}
     </form>
@@ -214,8 +214,8 @@ function TodoRow({ todo, attribution, editing, onToggle, onStartRename, onDraft,
           <div className="flex gap-2">
             <input aria-label="Todo title" autoFocus value={editing.draft} maxLength={TODO_TITLE_MAX} onChange={(event) => onDraft(event.target.value)}
               onKeyDown={onKey} className="flex-1" style={inputStyle} />
-            <button type="submit" style={smallButton}>Save</button>
-            <button type="button" onClick={onCancelRename} style={smallButton}>Cancel</button>
+            <button type="submit" className="m-press" style={smallButton}>Save</button>
+            <button type="button" onClick={onCancelRename} className="m-press" style={smallButton}>Cancel</button>
           </div>
           {changedElsewhere && !editing.conflict && (
             <p role="status" className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Someone else changed this to “{todo.title}”.</p>
@@ -233,14 +233,17 @@ function TodoRow({ todo, attribution, editing, onToggle, onStartRename, onDraft,
       ) : (
         <div className="flex items-center gap-3">
           <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
-            <input type="checkbox" checked={todo.done} onChange={(event) => onToggle(event.target.checked)}
-              style={{ width: 18, height: 18, accentColor: 'var(--accent)', flexShrink: 0 }} />
-            <span className="min-w-0 break-words text-sm" style={{
+            {/* Native checkbox, restyled so its tick can draw itself in (motion.css). */}
+            <span className="todo-check">
+              <input type="checkbox" className="todo-check__input" checked={todo.done} onChange={(event) => onToggle(event.target.checked)} />
+              <svg className="todo-check__mark" viewBox="0 0 18 18" aria-hidden="true"><path d="M4.75 9.4l2.9 2.85L13.4 6.3" /></svg>
+            </span>
+            <span className="todo-text min-w-0 break-words text-sm" style={{
               color: todo.done ? 'var(--text-tertiary)' : 'var(--text-primary)', textDecoration: todo.done ? 'line-through' : 'none',
             }}>{todo.title}</span>
           </label>
-          <button type="button" aria-label={`Rename ${todo.title}`} onClick={onStartRename} style={smallButton}>Rename</button>
-          <button type="button" aria-label={`Delete ${todo.title}`} onClick={() => void onDelete()} style={smallButton}>Delete</button>
+          <button type="button" aria-label={`Rename ${todo.title}`} onClick={onStartRename} className="m-press" style={smallButton}>Rename</button>
+          <button type="button" aria-label={`Delete ${todo.title}`} onClick={() => void onDelete()} className="m-press" style={smallButton}>Delete</button>
         </div>
       )}
       {!editing && <p className="font-mono mt-1 pl-[30px]" data-testid="todo-attribution" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.06em' }}>{attribution}</p>}

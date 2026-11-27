@@ -39,7 +39,7 @@ export function CrewStatusStrip({ trip, roster, events, audience, tripTimeZone }
   return (
     <section aria-labelledby="crew-status-heading" data-testid="crew-status">
       <p id="crew-status-heading" className="serif-eyebrow" style={{ color: 'var(--text-secondary)', fontSize: 13 }}>the crew, right now</p>
-      <ul className="-mx-5 mt-2 flex gap-2 overflow-x-auto px-5 pb-1" style={{ scrollSnapType: 'x proximity' }}>
+      <ul className="-mx-5 mt-2 flex gap-2 overflow-x-auto px-5 pb-1" style={{ scrollSnapType: 'x proximity', scrollPaddingInline: 20 }}>
         {members.map((member) => {
           const status = statuses.get(member.groupMemberId)
           if (!status) return null

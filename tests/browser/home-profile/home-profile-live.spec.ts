@@ -165,6 +165,8 @@ test('Trips home, Profile, Trip settings and domestic vs International Trips', a
       expect(field && frame && field.x + field.width <= frame.x + frame.width + 0.5, `${name} inside the sheet`).toBe(true)
     }
     const handle = sheet.getByTestId('sheet-drag-handle')
+    // Measure once the sheet has finished sliding up.
+    await sheet.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)))
     const grip = await handle.boundingBox()
     if (!grip) throw new Error('no-sheet-handle')
     const startX = grip.x + 40

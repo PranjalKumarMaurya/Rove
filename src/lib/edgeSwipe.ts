@@ -42,3 +42,43 @@ export function swipeVelocity(samples: ReadonlyArray<{ x: number; t: number }>, 
 export function isStandaloneDisplay(standalone: unknown, displayModeStandalone: boolean): boolean {
   return standalone === true || displayModeStandalone
 }
+
+/** How far (fraction of the width) the screen underneath starts shifted left, as on iOS. */
+export const UNDERLAY_SHIFT = 0.3
+/** Opacity of the dim over the screen underneath when the swipe starts. */
+export const UNDERLAY_DIM = 0.35
+/** Shortest and longest finishing slide after a completed swipe (ms). */
+export const COMPLETE_MIN_MS = 180
+export const COMPLETE_MAX_MS = 320
+/** A cancelled swipe settles back over this long (ms). */
+export const CANCEL_MS = 250
+
+/** 0 at rest, 1 when the current screen has left the viewport. */
+export function swipeProgress(dx: number, width: number): number {
+  if (width <= 0) return 0
+  return Math.min(1, Math.max(0, dx / width))
+}
+
+/** translateX (px) of the screen underneath: -30% of the width at rest, 0 when uncovered. */
+export function underlayShift(progress: number, width: number): number {
+  const p = Math.min(1, Math.max(0, progress))
+  return -UNDERLAY_SHIFT * width * (1 - p)
+}
+
+/** Opacity of the dim over the screen underneath: 0.35 at rest, fading to 0. */
+export function underlayDim(progress: number): number {
+  const p = Math.min(1, Math.max(0, progress))
+  return UNDERLAY_DIM * (1 - p)
+}
+
+/**
+ * Duration (ms) of the slide that finishes a released swipe: the remaining distance
+ * at the finger's speed, so a flick carries on as fast as it was thrown, clamped so a
+ * slow release still finishes briskly and a fast one is never a jump.
+ */
+export function completionDuration(remaining: number, velocity: number,
+  min = COMPLETE_MIN_MS, max = COMPLETE_MAX_MS): number {
+  if (!(remaining > 0)) return min
+  const raw = velocity > 0.01 ? remaining / velocity : max
+  return Math.round(Math.min(max, Math.max(min, raw)))
+}

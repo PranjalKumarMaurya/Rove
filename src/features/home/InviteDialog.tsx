@@ -1,13 +1,15 @@
-import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { type FormEvent, type KeyboardEvent, type RefObject, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { IconClose } from '../../components/ui/icons'
 import { NeonBtn } from '../../components/ui/NeonBtn'
 import { NeonInput } from '../../components/ui/NeonInput'
+import { useTriggerOrigin } from '../../components/ui/motion'
 import { lockBodyScroll } from '../../hooks/useBodyScrollLock'
 import { inviteProofFromInput } from './tripGrouping'
 import './home.css'
 
-const EXIT_MS = 200
+/** The close transition (home.css): card 160ms, backdrop 150ms. */
+const EXIT_MS = 160
 const INVALID_LINK = 'That doesn’t look like a Trip invite link. Copy the whole link and paste it again.'
 
 function prefersReducedMotion(): boolean {
@@ -16,12 +18,15 @@ function prefersReducedMotion(): boolean {
 
 /**
  * A centred popup for joining a Trip with a pasted invite link. Fades and scales
- * in, closes on backdrop tap, Escape or ✕ (then plays the reverse before
- * unmounting), and pins the page behind it while open.
+ * in out of the button that opened it, closes on backdrop tap, Escape or ✕ (then
+ * shrinks back toward that button before unmounting), and pins the page behind
+ * it while open.
  */
-export function InviteDialog({ open, onClose, onInvite }: {
+export function InviteDialog({ open, onClose, onInvite, triggerRef }: {
   open: boolean
   onClose: () => void
+  /** The control that opens it; the card grows from and returns to it. */
+  triggerRef?: RefObject<HTMLElement | null>
   /** A valid invite proof from the pasted link. */
   onInvite: (proof: string) => void
 }) {
@@ -42,18 +47,20 @@ export function InviteDialog({ open, onClose, onInvite }: {
   }, [open])
 
   if (!mounted || typeof document === 'undefined') return null
-  return createPortal(<InviteDialogCard shown={shown} open={open} onClose={onClose} onInvite={onInvite} />, document.body)
+  return createPortal(<InviteDialogCard shown={shown} open={open} onClose={onClose} onInvite={onInvite} triggerRef={triggerRef} />, document.body)
 }
 
-function InviteDialogCard({ shown, open, onClose, onInvite }: {
+function InviteDialogCard({ shown, open, onClose, onInvite, triggerRef }: {
   shown: boolean
   open: boolean
   onClose: () => void
   onInvite: (proof: string) => void
+  triggerRef?: RefObject<HTMLElement | null>
 }) {
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | undefined>()
   const cardRef = useRef<HTMLDivElement>(null)
+  useTriggerOrigin(cardRef, triggerRef)
   // NeonInput does not forward refs, so the field is found inside the card.
   const focusInput = () => cardRef.current?.querySelector<HTMLInputElement>('#invite-link')?.focus({ preventScroll: true })
   const canPaste = typeof navigator !== 'undefined' && typeof navigator.clipboard?.readText === 'function'

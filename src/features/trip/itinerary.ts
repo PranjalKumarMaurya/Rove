@@ -76,6 +76,13 @@ export function nextFlight<T extends Pick<TripEvent, 'id' | 'starts_at' | 'event
   return sortEvents(events).find((event) => event.event_type === 'flight' && Date.parse(event.starts_at) > nowMs) ?? null
 }
 
+const JOURNEYS = new Set(['flight', 'ferry', 'transport'])
+
+/** The next flight, ferry or train/bus/cab still to depart, or null. */
+export function nextJourney<T extends Pick<TripEvent, 'id' | 'starts_at' | 'event_type'>>(events: readonly T[], nowMs: number): T | null {
+  return sortEvents(events).find((event) => JOURNEYS.has(event.event_type) && Date.parse(event.starts_at) > nowMs) ?? null
+}
+
 export interface Countdown { days: number; hours: number; minutes: number; seconds: number; totalMs: number }
 
 export function countdown(targetMs: number, nowMs: number): Countdown {

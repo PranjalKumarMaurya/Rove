@@ -5,7 +5,7 @@ import { CrewStatusStrip } from './CrewStatusStrip'
 import { EventCard } from './EventCard'
 import { EventDialog, type SaveEvent } from './EventDialog'
 import { NextFlight } from './NextFlight'
-import { eventStatuses, nextFlight, type TripEvent } from './itinerary'
+import { eventStatuses, nextJourney, type TripEvent } from './itinerary'
 import { createTripEvent, deleteTripEvent, updateTripEvent, useItinerary } from './tripEventsApi'
 import { clocksDiffer, dayKey, formatDay, resolveTripTimeZone, timeZoneCity, viewerTimeZone } from './tripTime'
 import { LiveBadge } from './useLiveRefetch'
@@ -26,7 +26,7 @@ export function TripTab({ trip, roster }: TripTabProps) {
   }, [])
 
   const statuses = useMemo(() => eventStatuses(events, now), [events, now])
-  const flight = useMemo(() => nextFlight(events, now), [events, now])
+  const flight = useMemo(() => nextJourney(events, now), [events, now])
   const names = useMemo(() => new Map(roster.map((member) => [member.groupMemberId, member.displayName])), [roster])
   const days = useMemo(() => {
     const groups: { key: string; label: string; events: TripEvent[] }[] = []
@@ -38,6 +38,8 @@ export function TripTab({ trip, roster }: TripTabProps) {
     }
     return groups
   }, [events, tripZone])
+  // Position in the whole itinerary, so the entrance stagger runs across days, not per day.
+  const order = useMemo(() => new Map(events.map((event, index) => [event.id, index])), [events])
 
   const save: SaveEvent = async (payload, people, overwrite) => {
     const saved = editing?.mode === 'edit'
@@ -88,7 +90,7 @@ export function TripTab({ trip, roster }: TripTabProps) {
         {loading ? (
           <p role="status" className="mt-6 text-sm" style={{ color: 'var(--text-tertiary)' }}>Loading itinerary…</p>
         ) : !error && events.length === 0 ? (
-          <div className="surface mt-4 px-4 py-5" data-testid="itinerary-empty">
+          <div className="surface m-appear mt-4 px-4 py-5" data-testid="itinerary-empty">
             <p className="serif-display" style={{ color: 'var(--text-secondary)', fontSize: 19 }}>Nothing planned yet.</p>
             <p className="mt-1 text-sm" style={{ color: 'var(--text-tertiary)' }}>Add flights, stays and plans. Everyone in the Trip sees them.</p>
           </div>
@@ -99,7 +101,7 @@ export function TripTab({ trip, roster }: TripTabProps) {
                 <p className="serif-eyebrow mb-2" style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{day.label}</p>
                 <ol className="flex flex-col gap-3">
                   {day.events.map((event) => (
-                    <EventCard key={event.id} event={event} status={statuses.get(event.id) ?? 'upcoming'}
+                    <EventCard key={event.id} index={order.get(event.id) ?? 0} event={event} status={statuses.get(event.id) ?? 'upcoming'}
                       tripTimeZone={tripZone} localTimeZone={localTimeZone}
                       audienceNames={(audience.get(event.id) ?? []).map((id) => names.get(id) ?? 'a former member')}
                       onEdit={() => setEditing({ mode: 'edit', event })} onDelete={() => remove(event)} />

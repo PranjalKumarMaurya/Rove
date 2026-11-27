@@ -170,12 +170,15 @@ function BalanceSummary({ me, balances, activeIds, nameOf, money }: {
   const abs = (value: bigint) => (value < 0n ? -value : value)
   const others = [...balances].filter(([id, value]) => id !== me && (value !== 0n || activeIds.has(id)))
   return (
-    <section aria-labelledby="split-balance-heading" className="surface px-4 py-5" data-testid="split-balance">
+    <section aria-labelledby="split-balance-heading" className="surface m-appear px-4 py-5" data-testid="split-balance">
       <h3 id="split-balance-heading" className="serif-eyebrow" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
         {mine > 0n ? 'You’re owed' : mine < 0n ? 'You owe' : 'All settled up'}
       </h3>
       <p className="serif-display mt-1 whitespace-nowrap" data-testid="split-my-balance"
-        style={{ color: 'var(--text-primary)', fontSize: 38, fontWeight: 300, lineHeight: 1.1 }}>{money(abs(mine))}</p>
+        style={{ color: 'var(--text-primary)', fontSize: 38, fontWeight: 300, lineHeight: 1.1 }}>
+        {/* Keyed by the amount: a new balance fades in over the old (no count-up). */}
+        <span key={money(abs(mine))} className="m-swap">{money(abs(mine))}</span>
+      </p>
       {others.length > 0 && (
         <ul aria-label="Balances" className="mt-4 flex flex-col gap-1.5">
           {others.map(([id, value]) => {
@@ -203,10 +206,10 @@ function GroupTotals({ totals, nameOf, money, me }: {
 }) {
   const rows = [...totals.members]
   return (
-    <section className="surface overflow-x-auto" aria-labelledby="split-totals-heading">
+    <section className="surface m-appear overflow-x-auto" aria-labelledby="split-totals-heading">
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
         <h3 id="split-totals-heading" className="serif-eyebrow" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Group totals</h3>
-        <p className="font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 11 }} data-testid="split-total-spend">{money(totals.total)} spent</p>
+        <p className="font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 11 }} data-testid="split-total-spend"><span key={money(totals.total)} className="m-swap">{money(totals.total)}</span> spent</p>
       </div>
       <table className="w-full text-xs" aria-labelledby="split-totals-heading">
         <thead>
@@ -298,7 +301,7 @@ function ExpenseLog({ expenses: allExpenses, me, isOwner, activeIds, nameOf, mon
           <div role="group" aria-label="Show expenses" className="flex rounded-full border p-0.5 text-xs" style={{ borderColor: 'var(--border)' }}>
             {([['all', 'All'], ['mine', `Only mine · ${mineCount}`]] as const).map(([value, label]) => (
               <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}
-                className="min-h-9 rounded-full px-3"
+                className="m-press min-h-9 rounded-full px-3"
                 style={{ background: filter === value ? 'var(--accent-soft)' : 'transparent', color: filter === value ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
                 {label}
               </button>
@@ -307,18 +310,18 @@ function ExpenseLog({ expenses: allExpenses, me, isOwner, activeIds, nameOf, mon
         )}
       </div>
       {expenses.length > 0 && during.length > 0 && (
-        <ul aria-label="Expenses" className="flex flex-col gap-2">{during.map(card)}</ul>
+        <ul aria-label="Expenses" className="m-list flex flex-col gap-2">{during.map(card)}</ul>
       )}
       {before.length > 0 && (
         <section aria-labelledby="split-before-heading" className="flex flex-col gap-2" data-testid="expenses-before-trip">
           <h4 id="split-before-heading" className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
             Before the trip · {before.length === 1 ? '1 expense' : `${before.length} expenses`}
           </h4>
-          <ul aria-label="Expenses before the trip" className="flex flex-col gap-2">{before.map(card)}</ul>
+          <ul aria-label="Expenses before the trip" className="m-list flex flex-col gap-2">{before.map(card)}</ul>
         </section>
       )}
       {allExpenses.length === 0 ? (
-        <p className="py-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }} data-testid="expenses-empty">
+        <p className="m-appear py-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }} data-testid="expenses-empty">
           No expenses yet. Tap “Add expense” to log the first one.
         </p>
       ) : expenses.length === 0 ? (
@@ -432,10 +435,10 @@ function ExpenseCard({ expense, me, mine, source, canChange, involvesFormer, nam
         ) : (
           <div className="flex gap-2">
             {!involvesFormer && (
-              <button type="button" onClick={onEdit} aria-label={`Edit ${expense.description}`} className="min-h-11 rounded-md border px-3 text-xs"
+              <button type="button" onClick={onEdit} aria-label={`Edit ${expense.description}`} className="m-press min-h-11 rounded-md border px-3 text-xs"
                 style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>Edit</button>
             )}
-            <button type="button" onClick={() => setConfirming(true)} aria-label={`Delete ${expense.description}`} className="min-h-11 rounded-md border px-3 text-xs"
+            <button type="button" onClick={() => setConfirming(true)} aria-label={`Delete ${expense.description}`} className="m-press min-h-11 rounded-md border px-3 text-xs"
               style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>Delete</button>
           </div>
         ))}
@@ -459,7 +462,7 @@ function PaymentHistory({ settlements, me, isOwner, nameOf, money, timezone, onC
         Payments recorded · {settlements.length}
       </h3>
       <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Records of payments made outside the app. No money moves here.</p>
-      <ul aria-label="Payments" className="flex flex-col gap-1.5">
+      <ul aria-label="Payments" className="m-list flex flex-col gap-1.5">
         {settlements.map((settlement) => (
           <PaymentRow key={settlement.id} settlement={settlement} me={me} canDelete={settlement.recordedBy === me || isOwner}
             nameOf={nameOf} money={money} timezone={timezone} onChanged={onChanged} />
@@ -514,7 +517,7 @@ function PaymentRow({ settlement, me, canDelete, nameOf, money, timezone, onChan
         </div>
       ) : (
         <button type="button" onClick={() => setConfirming(true)} aria-label={`Delete payment: ${label}`}
-          className="min-h-11 self-start text-xs" style={{ color: 'var(--text-tertiary)' }}>Delete</button>
+          className="m-press min-h-11 self-start text-xs" style={{ color: 'var(--text-tertiary)' }}>Delete</button>
       ))}
     </li>
   )

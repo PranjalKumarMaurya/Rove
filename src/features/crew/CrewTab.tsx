@@ -132,7 +132,7 @@ export function CrewTab({ trip, roster, reloadRoster, onTripsChanged }: TripTabP
         </div>
         {notice && <p role="status" className="mt-2" style={{ color: 'var(--text-secondary)' }}>{notice}</p>}
         {active.length === 0 && <p className="mt-3" style={{ color: 'var(--text-secondary)' }}>The crew list is not available right now. Try Refresh crew.</p>}
-        <ul className="mt-3 flex flex-col gap-2" aria-label="Trip members">
+        <ul className="m-list mt-3 flex flex-col gap-2" aria-label="Trip members">
           {active.map((member) => {
             const manageable = memberActionsFor(viewer, member).length > 0
             const isMe = member.groupMemberId === trip.groupMemberId
@@ -144,7 +144,7 @@ export function CrewTab({ trip, roster, reloadRoster, onTripsChanged }: TripTabP
               <li key={member.groupMemberId} style={{ color: 'var(--text-primary)' }}>
                 <div className="flex items-center justify-between gap-3" style={{ minHeight: 48 }}>
                   <button type="button" aria-expanded={open} aria-controls={infoId} aria-label={`Details for ${label}`}
-                    onClick={() => setExpanded(open ? null : member.groupMemberId)} className="flex min-h-12 min-w-0 flex-1 items-center gap-3 text-left">
+                    onClick={() => setExpanded(open ? null : member.groupMemberId)} className="m-press-card flex min-h-12 min-w-0 flex-1 items-center gap-3 text-left">
                     <span aria-hidden="true" className="flex shrink-0 items-center justify-center" style={{
                       width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-soft)', border: '1px solid var(--border-strong)',
                       fontSize: emoji ? 17 : 13, fontWeight: 600,

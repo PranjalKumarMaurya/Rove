@@ -1,7 +1,8 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock'
 import type { CSSProperties } from 'react'
+import { useTriggerOrigin } from './motion'
 
 interface Props {
   onClose: () => void
@@ -40,10 +41,12 @@ export const sheetStyle: CSSProperties = {
 
 export function Modal({ onClose, children, testId }: Props) {
   useBodyScrollLock()
+  const card = useRef<HTMLDivElement>(null)
+  useTriggerOrigin(card)
 
   return createPortal(
-    <div style={overlay} onClick={onClose} data-testid={testId}>
-      <div style={sheetStyle} onClick={e => e.stopPropagation()} className="animate-slide-up">
+    <div style={overlay} onClick={onClose} data-testid={testId} className="m-backdrop">
+      <div ref={card} style={sheetStyle} onClick={e => e.stopPropagation()} className="m-dialog">
         {children}
       </div>
     </div>,

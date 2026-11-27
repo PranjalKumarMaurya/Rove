@@ -66,7 +66,7 @@ test('two members share a live itinerary and todo list', async ({ browser }) => 
     for (const page of [owner, friend]) {
       await page.getByRole('tab', { name: 'Trip' }).click()
       await expect(page.getByTestId('itinerary-empty')).toBeVisible()
-      await expect(page.getByTestId('next-flight')).toContainText('No upcoming flight')
+      await expect(page.getByTestId('next-flight')).toHaveCount(0)
       await expect(page.locator('[data-live-status="live"]')).toBeVisible(LIVE)
     }
 
@@ -140,7 +140,7 @@ test('two members share a live itinerary and todo list', async ({ browser }) => 
     await card(owner, 'Fly home').getByRole('button', { name: 'Yes, delete' }).click()
     await expect(card(owner, 'Fly home')).toHaveCount(0)
     await expect(card(friend, 'Fly home')).toHaveCount(0, LIVE)
-    await expect(friend.getByTestId('next-flight')).toContainText('No upcoming flight')
+    await expect(friend.getByTestId('next-flight')).toHaveCount(0)
 
     // ---- Todos tab --------------------------------------------------------
     for (const page of [owner, friend]) {

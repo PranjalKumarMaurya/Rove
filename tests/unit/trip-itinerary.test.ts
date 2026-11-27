@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
-  countdown, emptyEventForm, eventStatuses, formatCountdown, nextFlight, safeMapUrl, sortEvents, validateEventForm,
+  countdown, emptyEventForm, eventStatuses, formatCountdown, nextFlight, nextJourney, safeMapUrl, sortEvents, validateEventForm,
 } from '../../src/features/trip/itinerary.ts'
 import {
   clocksDiffer, dayKey, dualTime, formatDay, formatSpan, formatTime, isoToZonedInput, resolveTripTimeZone, timeZoneCity, timeZoneOffsetMs,
@@ -119,6 +119,11 @@ test('next flight and countdown', () => {
   ]
   assert.equal(nextFlight(events, now)?.id, 'out')
   assert.equal(nextFlight(events.slice(0, 2), now), null)
+  // The card also covers trains and ferries; a stay or a meal isn't a journey.
+  const train = { id: 'train', event_type: 'transport', starts_at: '2026-11-01T06:00:00Z' }
+  const stay = { id: 'stay', event_type: 'hotel', starts_at: '2026-11-01T05:00:00Z' }
+  assert.equal(nextJourney([stay, train, ...events], now)?.id, 'train')
+  assert.equal(nextJourney([stay], now), null)
   const parts = countdown(Date.parse('2026-11-02T03:04:05Z'), now)
   assert.deepEqual(parts, { days: 1, hours: 3, minutes: 4, seconds: 5, totalMs: 97_445_000 })
   assert.equal(formatCountdown(parts), '1d 03h 04m 05s')

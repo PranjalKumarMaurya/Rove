@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { IconClose } from '../../components/ui/icons'
+import { useTriggerOrigin } from '../../components/ui/motion'
 import { lockBodyScroll } from '../../hooks/useBodyScrollLock'
 
 /**
@@ -18,6 +19,9 @@ export function SplitDialog({ title, onClose, locked = false, testId, children }
   const heading = useRef<HTMLHeadingElement>(null)
   const close = useRef(onClose)
   close.current = onClose
+  // Grows out of the button that opened it ("Add expense", "Settle up", "Edit").
+  const card = useRef<HTMLDivElement>(null)
+  useTriggerOrigin(card)
 
   useEffect(() => {
     heading.current?.focus()
@@ -33,11 +37,11 @@ export function SplitDialog({ title, onClose, locked = false, testId, children }
 
   return createPortal(
     // Starts below the status bar so nothing scrolls under it (iOS blurs content there).
-    <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center overflow-y-auto overflow-x-hidden overscroll-none px-4 pt-6"
+    <div className="m-backdrop fixed inset-x-0 bottom-0 z-50 flex justify-center overflow-y-auto overflow-x-hidden overscroll-none px-4 pt-6"
       style={{ top: 'env(safe-area-inset-top, 0px)', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', background: 'rgba(15, 11, 8, 0.92)' }}
       onClick={() => { if (!locked) close.current() }}>
-      <div role="dialog" aria-modal="true" aria-labelledby={headingId} data-testid={testId}
-        className="animate-slide-up my-auto w-full max-w-[480px]" onClick={(event) => event.stopPropagation()}
+      <div ref={card} role="dialog" aria-modal="true" aria-labelledby={headingId} data-testid={testId}
+        className="m-dialog my-auto w-full max-w-[480px]" onClick={(event) => event.stopPropagation()}
         style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 20, padding: 22 }}>
         <div className="mb-4 flex items-start justify-between gap-3">
           <h2 id={headingId} ref={heading} tabIndex={-1} className="serif-display outline-none"

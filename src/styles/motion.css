@@ -1,0 +1,189 @@
+/* ─── Motion system ──────────────────────────────────────────
+   Restrained by design: only transform and opacity move (colour for state),
+   entrances travel 8px at most, nothing bounces or overshoots, and exits are
+   quicker than entrances. Keyframes are used only for one-shot entrances that
+   play when an element mounts; anything that can reverse is a transition, so it
+   stays interruptible. `backwards` fill (never `both`) so a finished entrance
+   leaves no transform behind (a lingering transform would trap fixed children
+   and fight Sheet's drag).
+
+   Reduced motion: one rule at the bottom zeroes every distance and scale token,
+   which leaves at most short opacity fades. */
+
+:root {
+  /* Curves. Never ease-in for UI: it feels sluggish at the start, where the eye is. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);      /* entering / exiting */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);  /* moving between two places on screen */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);   /* sheets (iOS-like drawer) */
+
+  --dur-press: 120ms;
+  --dur-fast: 160ms;
+  --dur-base: 220ms;
+  --dur-slow: 320ms;
+
+  /* Distances and scales, as tokens so reduced motion can zero them in one place. */
+  --m-rise: 8px;          /* list items */
+  --m-rise-sm: 6px;       /* tab content */
+  --m-rise-xs: 4px;       /* inline messages, disclosure content */
+  --m-digit: 0.28em;      /* countdown digit roll */
+  --m-press: 0.97;        /* buttons, nav items */
+  --m-press-card: 0.985;  /* cards and full-width rows: big surfaces need less */
+  --m-press-deep: 0.94;   /* the raised ＋ and small icon targets */
+  --m-dialog-scale: 0.96;         /* centred dialog, no known trigger */
+  --m-dialog-scale-origin: 0.92;  /* centred dialog growing out of its trigger */
+  --m-sheet-from: 100%;
+  --m-tab-move: 280ms;    /* tab indicator travel */
+  --m-switch-move: 220ms; /* switch thumb travel */
+}
+
+/* No grey flash on tap anywhere; keyboard focus keeps its :focus-visible ring. */
+html { -webkit-tap-highlight-color: transparent; }
+
+@keyframes m-fade  { from { opacity: 0; } }
+@keyframes m-enter { from { opacity: 0; transform: translateY(var(--m-rise)); } }
+@keyframes m-enter-sm { from { opacity: 0; transform: translateY(var(--m-rise-sm)); } }
+@keyframes m-enter-xs { from { opacity: 0; transform: translateY(var(--m-rise-xs)); } }
+@keyframes m-digit { from { opacity: 0; transform: translateY(var(--m-digit)); } }
+@keyframes m-dialog { from { opacity: 0; transform: scale(var(--m-from, var(--m-dialog-scale))); } }
+@keyframes m-sheet { from { transform: translateY(var(--m-sheet-from)); } }
+@keyframes m-draw { from { stroke-dashoffset: var(--m-dash, 16); } to { stroke-dashoffset: 0; } }
+
+/* ─── Press feedback ─────────────────────────────────────────
+   Instant-feeling (120ms) and only while held; the transition itself lives on
+   each component's base rule so release animates back too. */
+.m-press {
+  transition: transform var(--dur-press) var(--ease-out), filter var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+:is(.m-press, .round-btn, .topbar-btn, .nav-tab, .home-nav__item:not(.home-nav__item--create)):active:not(:disabled) { transform: scale(var(--m-press)); }
+:is(.m-press-card, .trip-card, .row-btn, .list-option, .switch-row):active:not(:disabled) { transform: scale(var(--m-press-card)); }
+:is(.close-x, .emoji-option):active:not(:disabled) { transform: scale(var(--m-press-deep)); }
+.m-press-card { transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
+.emoji-option { transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
+
+/* ─── Lists ──────────────────────────────────────────────────
+   Items rise in when they mount: on first load, and when a new item is added.
+   Keys are stable, so realtime refreshes re-render without replaying this.
+   Only the first six are staggered (30ms apart); later ones start at once. */
+.m-list > *, .m-enter {
+  animation: m-enter 260ms var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+.m-list > * { --i: 0; }
+.m-list > :nth-child(2) { --i: 1; }
+.m-list > :nth-child(3) { --i: 2; }
+.m-list > :nth-child(4) { --i: 3; }
+.m-list > :nth-child(5) { --i: 4; }
+.m-list > :nth-child(6) { --i: 5; }
+
+/* Content that replaces a loading state, or a value that just changed. */
+.m-appear { animation: m-fade 180ms var(--ease-out) backwards; }
+.m-swap { animation: m-fade 180ms var(--ease-out) backwards; }
+
+/* A section opened in place (contact details, notes). */
+.m-reveal { animation: m-enter-xs 200ms var(--ease-out) backwards; }
+
+/* ─── Tab content ────────────────────────────────────────────
+   Keyed on the tab id: the new section settles in; the old one simply goes. */
+.m-tab-enter { animation: m-enter-sm 200ms var(--ease-out) backwards; }
+
+/* ─── Inline messages ────────────────────────────────────────
+   Alerts and status lines that appear fade and lift 4px. Mount-only, so a
+   status line whose text updates in place does not flicker. */
+:is(p, div)[role="alert"], p[role="status"] { animation: m-enter-xs 180ms var(--ease-out) backwards; }
+
+/* Disclosure content (<details>, e.g. Split's Breakdown) fades in as it opens. */
+details[open] > :not(summary) { animation: m-enter-xs 200ms var(--ease-out) backwards; }
+
+/* ─── Centred dialogs ────────────────────────────────────────
+   Scale up from 0.96 around the centre, or from 0.92 around the control that
+   opened them (useTriggerOrigin sets data-origin and the origin point). */
+.m-backdrop { animation: m-fade 200ms var(--ease-out) backwards; }
+.m-dialog {
+  transform-origin: var(--m-origin-x, 50%) var(--m-origin-y, 50%);
+  animation: m-dialog var(--dur-base) var(--ease-out) backwards;
+}
+.m-dialog[data-origin] { --m-from: var(--m-dialog-scale-origin); animation-duration: 240ms; }
+
+/* ─── Countdown digits ───────────────────────────────────────
+   Only a digit whose value changed remounts and rolls up into place. */
+.m-digit { display: inline-block; animation: m-digit 180ms var(--ease-out) backwards; }
+
+/* ─── Todo checkbox ──────────────────────────────────────────
+   A real checkbox (keyboard, screen readers and tests see the native control),
+   restyled; the tick strokes itself in when it becomes checked. */
+.todo-check { position: relative; display: inline-flex; flex-shrink: 0; width: 18px; height: 18px; }
+.todo-check__input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border-radius: 5px;
+  border: 1.5px solid var(--border-strong);
+  background: transparent;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.todo-check__input:checked { background: var(--accent); border-color: var(--accent); }
+.todo-check__input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.todo-check__mark {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  fill: none;
+  stroke: #1A0A03;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 16;
+  stroke-dashoffset: 16;
+  --m-dash: 16;
+}
+.todo-check__input:checked + .todo-check__mark { stroke-dashoffset: 0; animation: m-draw 200ms var(--ease-out) 40ms backwards; }
+.todo-text { transition: color var(--dur-base) var(--ease-out); }
+
+/* ─── Trip tab bar indicator ─────────────────────────────────
+   One line for the whole bar, slid to the active tab, rather than a line per
+   tab that pops in and out. */
+.tab-bar__indicator {
+  position: absolute;
+  top: 0;
+  left: 4px;
+  width: calc((100% - 8px) / var(--tab-count, 1));
+  height: 2px;
+  pointer-events: none;
+  transform: translateX(calc(var(--tab-index, 0) * 100%));
+  transition: transform var(--m-tab-move) var(--ease-in-out);
+}
+.tab-bar__indicator::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 22px;
+  height: 2px;
+  margin-left: -11px;
+  border-radius: 0 0 2px 2px;
+  background: var(--accent);
+}
+
+/* ─── Reduced motion ─────────────────────────────────────────
+   No travel, no scaling, no slides: every distance and scale token goes to
+   zero / one, so what is left are the short opacity fades. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --m-rise: 0px;
+    --m-rise-sm: 0px;
+    --m-rise-xs: 0px;
+    --m-digit: 0px;
+    --m-press: 1;
+    --m-press-card: 1;
+    --m-press-deep: 1;
+    --m-dialog-scale: 1;
+    --m-dialog-scale-origin: 1;
+    --m-sheet-from: 0px;
+    --m-tab-move: 0ms;
+    --m-switch-move: 0ms;
+  }
+}

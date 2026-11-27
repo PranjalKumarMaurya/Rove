@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabase'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { NeonBtn } from '../../components/ui/NeonBtn'
 import { ScreenFrame } from '../../components/ui/ScreenFrame'
 import { AuthEntry } from './AuthEntry'
@@ -14,8 +15,12 @@ import { TripsHome } from '../home/TripsHome'
 import { useMyProfile } from '../profile/profileApi'
 import { ProfileScreen } from '../profile/ProfileScreen'
 import {
-  entryDepthOf, planHistory, readRoveState, roveState, viewDepth, viewKey, withRoveState, type View,
+  entryDepthOf, navDirection, planHistory, previousView, readRoveState, roveState, viewDepth, viewKey, withRoveState,
+  type View,
 } from './navigationHistory'
+import {
+  clearLayerStyles, notifySwipeSettled, registerSwipeHost, runNavTransition, systemAnimatedBack, takeSwipeNavigation,
+} from '../../lib/screenTransition'
 
 /**
  * Signed-in screens (`View`, see navigationHistory.ts). After sign-in the Trips home
@@ -23,6 +28,13 @@ import {
  * An invite link opens the invitation screen first, and joining opens that Trip.
  * Screens are mirrored into the browser history so the system back gesture (and the
  * iOS edge swipe, EdgeSwipeBack) steps back through them.
+ *
+ * Motion (src/lib/screenTransition.ts): button navigation and the system back gesture
+ * slide screens with a view transition. During an edge swipe the previous screen is
+ * rendered beneath the current one (`underlay`), each in its own layer keyed by the
+ * screen, so when the swipe completes the screen underneath simply becomes the current
+ * one (same component instance, no remount, no flash). Each screen's scroll position
+ * is remembered, so going back returns to where the person was.
  */
 
 // The Trip open in this browser tab, so a reload returns to it (cleared on sign-out).
@@ -65,6 +77,21 @@ export function AuthBoundary() {
   const viewRef = useRef(view)
   viewRef.current = view
 
+  /** Changes screen with the push/pop slide (see screenTransition.ts). */
+  const navigate = (next: View) => {
+    runNavTransition(navDirection(viewRef.current, next), () => setView(next))
+  }
+
+  // The previous screen, rendered beneath the current one while an edge swipe is live.
+  const [underlay, setUnderlay] = useState<View | null>(null)
+  const stackRef = useRef<HTMLDivElement>(null)
+  // Where the swipe started: the screen, its scroll offset and the page height then.
+  const swipeStart = useRef<{ fromKey: string; scrollY: number; pageHeight: number } | null>(null)
+  // Scroll offset per screen (viewKey), so going back lands where the person left off.
+  // Only the Trips home is recorded (see the scroll listener).
+  const scrollMemory = useRef(new Map<string, number>())
+  const shownView = useRef(view)
+
   useEffect(() => {
     const key = viewKey(view)
     if (key === syncedKey.current) return
@@ -104,13 +131,90 @@ export function AuthBoundary() {
       if (!ours && window.location.hash.startsWith('#invite=')) return
       entryDepth.current = entry.roveDepth
       syncedKey.current = viewKey(entry.rove)
-      setView(entry.rove)
+      // The edge swipe (or the browser) already animated this step back.
+      if (takeSwipeNavigation() || systemAnimatedBack(event)) setView(entry.rove)
+      else runNavTransition(navDirection(viewRef.current, entry.rove), () => setView(entry.rove))
       // As goHome does; a Trip that is no longer listed falls back to the Trips home on reload.
       refreshTrips()
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
+
+  // Scroll positions are ours to restore (the screens are React state, not pages).
+  useEffect(() => {
+    try { if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual' } catch { /* see above */ }
+    // Only the Trips home comes back as it was; a Trip reopens on its first tab, at the top.
+    const onScroll = () => {
+      if (!swipeStart.current && viewRef.current.kind === 'home') scrollMemory.current.set('home', window.scrollY)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // The edge swipe asks for the previous screen underneath (EdgeSwipeBack).
+  useEffect(() => registerSwipeHost({
+    begin: () => {
+      const current = viewRef.current
+      const previous = previousView(current)
+      if (!previous || !stackRef.current) return false
+      // Read before the layers change, while the page still has its normal layout.
+      swipeStart.current = {
+        fromKey: viewKey(current), scrollY: window.scrollY, pageHeight: document.documentElement.scrollHeight,
+      }
+      flushSync(() => setUnderlay(previous))
+      if (stackRef.current?.querySelector('[data-screen-layer="underlay"]')) return true
+      flushSync(() => setUnderlay(null))
+      return false
+    },
+    cancel: () => flushSync(() => setUnderlay(null)),
+  }), [])
+
+  // Swipe layers: lift both screens into viewport-sized layers, each showing its page
+  // where it was scrolled to, and put them back when a cancelled swipe has settled.
+  useLayoutEffect(() => {
+    const stack = stackRef.current
+    const start = swipeStart.current
+    if (!stack || !start || viewKey(viewRef.current) !== start.fromKey) return
+    const current = stack.querySelector<HTMLElement>('[data-screen-layer="current"]')
+    if (underlay) {
+      // Keep the page height so the window keeps its scroll offset meanwhile.
+      stack.style.minHeight = `${start.pageHeight}px`
+      if (current) current.scrollTop = start.scrollY
+      const under = stack.querySelector<HTMLElement>('[data-screen-layer="underlay"]')
+      if (under) {
+        under.setAttribute('inert', '')
+        under.scrollTop = scrollMemory.current.get(viewKey(underlay)) ?? 0
+      }
+    } else {
+      swipeStart.current = null
+      stack.style.minHeight = ''
+      if (current) clearLayerStyles(current)
+      window.scrollTo(0, start.scrollY)
+    }
+  }, [underlay])
+
+  // A new screen: restore its scroll offset when going back, start at the top otherwise.
+  // When a swipe brought it here, the layer it was shown in becomes the plain screen in
+  // this same frame.
+  useLayoutEffect(() => {
+    const previous = shownView.current
+    shownView.current = view
+    if (viewKey(previous) === viewKey(view)) return
+    const swiped = swipeStart.current
+    if (swiped) {
+      swipeStart.current = null
+      const stack = stackRef.current
+      if (stack) {
+        stack.style.minHeight = ''
+        stack.querySelectorAll<HTMLElement>('[data-screen-layer]').forEach(clearLayerStyles)
+      }
+      setUnderlay(null)
+    }
+    const back = viewDepth(view) < viewDepth(previous)
+    window.scrollTo(0, back ? scrollMemory.current.get(viewKey(view)) ?? 0 : 0)
+    if (swiped) notifySwipeSettled()
+  }, [view])
 
   const [inviteProof, setInviteProof] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
@@ -148,23 +252,25 @@ export function AuthBoundary() {
   }
 
   const goHome = () => {
-    setView({ kind: 'home' })
+    navigate({ kind: 'home' })
     refreshTrips()
   }
 
   /** Open a Trip; one not listed yet (or `reload`) opens after the Trip list is re-read. */
-  const openTrip = (groupId: string, { reload = false }: { reload?: boolean } = {}) => {
+  const openTrip = (groupId: string, { reload = false, animate = true }: { reload?: boolean; animate?: boolean } = {}) => {
     if (reload || !groups.some((group) => group.groupId === groupId)) {
       pendingOpen.current = groupId
       refreshTrips()
     }
-    setView({ kind: 'trip', groupId })
+    if (animate) navigate({ kind: 'trip', groupId })
+    else setView({ kind: 'trip', groupId })
   }
 
   const resetSignedIn = () => {
     restoreTrip.current = null
     pendingOpen.current = null
     writeOpenTrip(null)
+    scrollMemory.current.clear()
     // Signing out starts again at the Trips home without stepping back through history.
     awaitingPop.current = false
     entryDepth.current = 0
@@ -257,7 +363,8 @@ export function AuthBoundary() {
       }}
       onOpenTrip={(groupId) => {
         closeInvitation()
-        openTrip(groupId, { reload: true })
+        // The invitation screen is leaving too, so this is a plain switch.
+        openTrip(groupId, { reload: true, animate: false })
       }} signOutError={signOutError} />
   }
   if (auth.status === 'signed-out') {
@@ -294,36 +401,57 @@ export function AuthBoundary() {
 
   const accountName = myProfile.profile?.displayName || auth.displayName
 
-  if (view.kind === 'profile') {
-    const from = view.from
-    const back = from.kind === 'trip' ? groups.find((group) => group.groupId === from.groupId) : undefined
-    return <ProfileScreen userId={auth.session.user.id} email={auth.session.user.email} profile={myProfile.profile}
-      profileStatus={myProfile.status} onProfileChanged={myProfile.patch} onReload={myProfile.reload}
-      onBack={back ? () => setView({ kind: 'trip', groupId: back.groupId }) : undefined} backLabel={back?.tripName}
-      bottomNav={back ? undefined : <HomeNav active="profile" onTrips={goHome} onCreate={() => setView({ kind: 'create' })}
-        onProfile={() => window.scrollTo({ top: 0, behavior: 'smooth' })} profile={myProfile.profile} accountName={accountName} />}
-      onSignOut={() => void signOut()} signOutError={signOutError} onAccountDeleted={accountDeleted} />
+  /** One signed-in screen. The swipe underlay renders through here too (inert, never interacted with). */
+  const renderScreen = (screen: View) => {
+    if (screen.kind === 'profile') {
+      const from = screen.from
+      const back = from.kind === 'trip' ? groups.find((group) => group.groupId === from.groupId) : undefined
+      return <ProfileScreen userId={auth.session.user.id} email={auth.session.user.email} profile={myProfile.profile}
+        profileStatus={myProfile.status} onProfileChanged={myProfile.patch} onReload={myProfile.reload}
+        onBack={back ? () => navigate({ kind: 'trip', groupId: back.groupId }) : undefined} backLabel={back?.tripName}
+        bottomNav={back ? undefined : <HomeNav active="profile" onTrips={goHome} onCreate={() => navigate({ kind: 'create' })}
+          onProfile={() => window.scrollTo({ top: 0, behavior: 'smooth' })} profile={myProfile.profile} accountName={accountName} />}
+        onSignOut={() => void signOut()} signOutError={signOutError} onAccountDeleted={accountDeleted} />
+    }
+
+    if (screen.kind === 'create') {
+      // The new Trip may still be loading, so it appears without a slide.
+      return <BootstrapOnboarding onBack={goHome} homeCurrency={myProfile.profile?.homeCurrency}
+        onContinue={(groupId) => openTrip(groupId, { reload: true, animate: false })} />
+    }
+
+    if (screen.kind === 'trip') {
+      const trip = groups.find((group) => group.groupId === screen.groupId)
+      // Waiting for the Trip list that includes a just-created or just-joined Trip.
+      if (!trip) return <AuthEntry mode="restoring" />
+      return <GroupWorkspace trip={trip} onBack={goHome} onRefresh={refreshTrips} profile={myProfile.profile} accountName={accountName}
+        onOpenProfile={() => navigate({ kind: 'profile', from: { kind: 'trip', groupId: trip.groupId } })} />
+    }
+
+    return <TripsHome trips={groups} profile={myProfile.profile} accountName={accountName}
+      onCreate={() => navigate({ kind: 'create' })} onOpenTrip={openTrip}
+      onOpenProfile={() => navigate({ kind: 'profile', from: { kind: 'home' } })}
+      onInvite={(proof) => {
+        let storage: Storage | null = null
+        try { storage = window.localStorage } catch { /* private browsing may deny storage */ }
+        setInviteProof(pendingInvitationFromBrowser(`#invite=${proof}`, storage).proof)
+      }} />
   }
 
-  if (view.kind === 'create') {
-    return <BootstrapOnboarding onBack={goHome} homeCurrency={myProfile.profile?.homeCurrency}
-      onContinue={(groupId) => openTrip(groupId, { reload: true })} />
-  }
-
-  if (view.kind === 'trip') {
-    const trip = groups.find((group) => group.groupId === view.groupId)
-    // Waiting for the Trip list that includes a just-created or just-joined Trip.
-    if (!trip) return <AuthEntry mode="restoring" />
-    return <GroupWorkspace trip={trip} onBack={goHome} onRefresh={refreshTrips} profile={myProfile.profile} accountName={accountName}
-      onOpenProfile={() => setView({ kind: 'profile', from: { kind: 'trip', groupId: trip.groupId } })} />
-  }
-
-  return <TripsHome trips={groups} profile={myProfile.profile} accountName={accountName}
-    onCreate={() => setView({ kind: 'create' })} onOpenTrip={openTrip}
-    onOpenProfile={() => setView({ kind: 'profile', from: { kind: 'home' } })}
-    onInvite={(proof) => {
-      let storage: Storage | null = null
-      try { storage = window.localStorage } catch { /* private browsing may deny storage */ }
-      setInviteProof(pendingInvitationFromBrowser(`#invite=${proof}`, storage).proof)
-    }} />
+  // Each screen sits in a layer keyed by the screen, so the one shown underneath during
+  // an edge swipe keeps its component instance when it becomes the current screen.
+  const swiping = underlay !== null && viewKey(underlay) !== viewKey(view)
+  return (
+    <div ref={stackRef} className="rove-stack">
+      {swiping && (
+        <div key={viewKey(underlay)} data-screen-layer="underlay" className="rove-layer rove-layer--under" aria-hidden="true">
+          {renderScreen(underlay)}
+        </div>
+      )}
+      {swiping && <div key="rove-dim" data-screen-dim="" className="rove-dim" aria-hidden="true" />}
+      <div key={viewKey(view)} data-screen-layer="current" className={swiping ? 'rove-layer rove-layer--lifted' : 'rove-layer'}>
+        {renderScreen(view)}
+      </div>
+    </div>
+  )
 }

@@ -88,3 +88,26 @@ export function withRoveState(state: unknown, view: View, depth = viewDepth(view
   const base = state && typeof state === 'object' ? state as Record<string, unknown> : {}
   return { ...base, ...roveState(view, depth) }
 }
+
+/**
+ * The screen one level back in the history stack: what the iOS edge swipe shows
+ * beneath the current screen. A Trip, Create and Profile-from-home sit on the Trips
+ * home; Profile opened from a Trip sits on that Trip. The Trips home has nothing below.
+ */
+export function previousView(view: View): View | null {
+  if (view.kind === 'home') return null
+  if (view.kind === 'profile' && view.from.kind === 'trip') return { kind: 'trip', groupId: view.from.groupId }
+  return { kind: 'home' }
+}
+
+export type NavDirection = 'push' | 'pop' | 'none'
+
+/**
+ * How moving between two screens animates: deeper slides the new screen in from the
+ * right (push), shallower slides the current one off to the right (pop), a sideways
+ * move (Create → the new Trip, Profile → Create) reads as forward, the same screen is none.
+ */
+export function navDirection(from: View, to: View): NavDirection {
+  if (viewKey(from) === viewKey(to)) return 'none'
+  return viewDepth(to) < viewDepth(from) ? 'pop' : 'push'
+}

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { countdown, formatCountdown, type TripEvent } from './itinerary'
 import { dualTime } from './tripTime'
+import { legLabel } from '../split/travelRules'
 
 /** "3" reads "Terminal 3"; a value already written as "Terminal 3" or "T3" stays as typed. */
 export function terminalLabel(terminal: string) {
@@ -8,7 +9,26 @@ export function terminalLabel(terminal: string) {
   return /^terminal/i.test(value) || /^T\d/i.test(value) ? value : `Terminal ${value}`
 }
 
-/** Next-flight card with a ticking countdown (the v1 CountdownClock, simplified). */
+/**
+ * The countdown text with each digit that just changed rolling up into place (180ms,
+ * `.m-digit`). Digits are keyed by place (from the right) and value, so only a changed
+ * digit remounts; the first render and unchanged digits stay still. The text content
+ * is exactly `text`, for screen readers and tests.
+ */
+function RollingDigits({ text }: { text: string }) {
+  const previous = useRef<string | null>(null)
+  useEffect(() => { previous.current = text })
+  const before = previous.current
+  const chars = [...text]
+  return <>{chars.map((char, index) => {
+    if (!/\d/.test(char)) return char
+    const place = chars.length - index
+    const changed = before !== null && before.length === text.length && before[index] !== char
+    return <span key={`${place}:${char}`} className={changed ? 'm-digit' : undefined}>{char}</span>
+  })}</>
+}
+
+/** The next journey (flight, train, ferry, bus) with a ticking countdown; nothing when none is ahead. */
 export function NextFlight({ flight, tripTimeZone, localTimeZone }: { flight: TripEvent | null; tripTimeZone: string; localTimeZone: string }) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
@@ -17,33 +37,32 @@ export function NextFlight({ flight, tripTimeZone, localTimeZone }: { flight: Tr
     return () => window.clearInterval(id)
   }, [flight])
 
-  if (!flight) {
-    return (
-      <section aria-label="Next flight" data-testid="next-flight" className="surface px-4 py-4">
-        <p className="serif-eyebrow" style={{ color: 'var(--accent)', fontSize: 12 }}>next flight</p>
-        <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>No upcoming flight.</p>
-      </section>
-    )
-  }
+  // Nothing booked ahead: no card at all, rather than an empty "No upcoming flight".
+  if (!flight) return null
+  const isFlight = flight.event_type === 'flight'
+  const kind = isFlight ? 'flight' : legLabel({ eventType: flight.event_type, title: flight.title }).replace(/^(the|a) /u, '').replace('separate journey', 'journey')
+  const from = isFlight ? flight.dep_code : flight.location
+  const to = isFlight ? flight.arr_code : flight.location_to
+  const glyph = isFlight ? '✈' : kind === 'train' ? '🚆' : kind === 'ferry' ? '⛴' : kind === 'bus' ? '🚌' : '→'
 
   const parts = countdown(Date.parse(flight.starts_at), now)
   const time = dualTime(flight.starts_at, tripTimeZone, localTimeZone)
   const details = [flight.airline, flight.flight_no, flight.terminal && terminalLabel(flight.terminal)].filter(Boolean).join(' · ')
 
   return (
-    <section aria-label="Next flight" data-testid="next-flight" className="surface px-4 py-4">
+    <section aria-label={`Next ${kind}`} data-testid="next-flight" className="surface px-4 py-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="serif-eyebrow" style={{ color: 'var(--accent)', fontSize: 12 }}>next flight</p>
+        <p className="serif-eyebrow" style={{ color: 'var(--accent)', fontSize: 12 }}>next {kind}</p>
         {flight.flight_no && <span className="pill font-mono">{flight.flight_no}</span>}
       </div>
       <p className="serif-display mt-1 truncate" style={{ color: 'var(--text-primary)', fontSize: 19 }}>{flight.title}</p>
-      {(flight.dep_code || flight.arr_code) && (
-        <p className="serif-display mt-2" style={{ color: 'var(--text-primary)', fontSize: 28 }}>
-          {flight.dep_code ?? '—'} <span aria-hidden="true" style={{ color: 'var(--text-tertiary)', fontSize: 16 }}>✈</span><span className="sr-only">to</span> {flight.arr_code ?? '—'}
+      {(from || to) && (
+        <p className="serif-display mt-2 truncate" style={{ color: 'var(--text-primary)', fontSize: isFlight ? 28 : 22 }}>
+          {from ?? '—'} <span aria-hidden="true" style={{ color: 'var(--text-tertiary)', fontSize: 16 }}>{glyph}</span><span className="sr-only">to</span> {to ?? '—'}
         </p>
       )}
       <p className="font-mono mt-3" data-testid="next-flight-countdown" style={{ color: 'var(--text-primary)', fontSize: 22, letterSpacing: '0.06em' }}>
-        <span className="sr-only">Departs in </span>{formatCountdown(parts)}
+        <span className="sr-only">Departs in </span><RollingDigits text={formatCountdown(parts)} />
       </p>
       <p className="font-mono mt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
         {time.tripDay} {time.trip} trip time{time.local ? ` · ${time.local.day} ${time.local.time} your time` : ''}

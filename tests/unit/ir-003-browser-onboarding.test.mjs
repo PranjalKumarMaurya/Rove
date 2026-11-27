@@ -33,7 +33,7 @@ test('staged handoff uses current membership context: Trips home first, a Trip o
   assert.match(boundary, /<TripsHome/)
   assert.match(boundary, /<BootstrapOnboarding/)
   // A Trip opens only once the caller's own Trip list includes it.
-  assert.match(boundary, /const trip = groups\.find\(\(group\) => group\.groupId === view\.groupId\)/)
+  assert.match(boundary, /const trip = groups\.find\(\(group\) => group\.groupId === (view|screen)\.groupId\)/)
   assert.match(groupAccess, /get_my_group_access/)
   assert.match(workspace, /trip\.role === 'owner'/)
   assert.doesNotMatch(boundary, /TripTab|PersonaPicker|useCurrentUser/)

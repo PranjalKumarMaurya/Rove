@@ -1,0 +1,106 @@
+/* Screen-to-screen motion (src/lib/screenTransition.ts).
+   Curves: iOS push/pop cubic-bezier(0.32, 0.72, 0, 1); settle-back ease-out
+   cubic-bezier(0.23, 1, 0.32, 1). Only transform and opacity animate. */
+
+/* ---- Edge swipe back: the current screen over the previous one ------------------
+   While a swipe is live both screens are viewport-sized fixed layers (each scrolled
+   to where its page was), so their fixed bars stay pinned to the bottom of the
+   screen while the layer moves (a transformed layer is their containing block). */
+.rove-layer--lifted,
+.rove-layer--under {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--bg-base, #0F0B08);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+.rove-layer--under {
+  z-index: 1;
+  pointer-events: none;
+  transform: translate3d(-30%, 0, 0);
+}
+.rove-dim {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  background: #000;
+  opacity: 0.35;
+  pointer-events: none;
+  will-change: opacity;
+}
+.rove-layer--lifted {
+  z-index: 3;
+  transform: translate3d(0, 0, 0);
+  /* A soft edge on the left, like the screen lifting off the one beneath. */
+  box-shadow: -10px 0 28px rgba(0, 0, 0, 0.45), -1px 0 0 rgba(0, 0, 0, 0.35);
+}
+
+/* ---- Button navigation: View Transitions --------------------------------------
+   `data-nav` on <html> is set for the length of one transition. Push: the new screen
+   comes in from the right on top while the old one drifts left and dims. Pop: the
+   current screen leaves to the right on top, revealing the previous one. */
+html[data-nav]::view-transition {
+  background: var(--bg-base, #0F0B08);
+}
+html[data-nav]::view-transition-group(root) {
+  animation-duration: 380ms;
+}
+html[data-nav]::view-transition-old(root),
+html[data-nav]::view-transition-new(root) {
+  mix-blend-mode: normal;
+  animation-fill-mode: both;
+  backface-visibility: hidden;
+}
+
+html[data-nav="push"]::view-transition-old(root) {
+  z-index: 0;
+  animation: rove-push-old 380ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+html[data-nav="push"]::view-transition-new(root) {
+  z-index: 1;
+  box-shadow: -10px 0 28px rgba(0, 0, 0, 0.45);
+  animation: rove-push-new 380ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+html[data-nav="pop"]::view-transition-group(root) {
+  animation-duration: 320ms;
+}
+html[data-nav="pop"]::view-transition-old(root) {
+  z-index: 1;
+  box-shadow: -10px 0 28px rgba(0, 0, 0, 0.45);
+  animation: rove-pop-old 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+html[data-nav="pop"]::view-transition-new(root) {
+  z-index: 0;
+  animation: rove-pop-new 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/* Reduced motion: a short crossfade, no movement. */
+html[data-nav="fade"]::view-transition-group(root) { animation-duration: 150ms; }
+html[data-nav="fade"]::view-transition-old(root) { animation: rove-fade-out 150ms ease both; mix-blend-mode: plus-lighter; }
+html[data-nav="fade"]::view-transition-new(root) { animation: rove-fade-in 150ms ease both; mix-blend-mode: plus-lighter; }
+@media (prefers-reduced-motion: reduce) {
+  html[data-nav]::view-transition-group(root) { animation-duration: 150ms; }
+  html[data-nav]::view-transition-old(root) { animation: rove-fade-out 150ms ease both; box-shadow: none; mix-blend-mode: plus-lighter; }
+  html[data-nav]::view-transition-new(root) { animation: rove-fade-in 150ms ease both; box-shadow: none; mix-blend-mode: plus-lighter; }
+}
+
+@keyframes rove-push-old {
+  from { transform: translate3d(0, 0, 0); opacity: 1; }
+  to { transform: translate3d(-30%, 0, 0); opacity: 0.65; }
+}
+@keyframes rove-push-new {
+  from { transform: translate3d(100%, 0, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+@keyframes rove-pop-old {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(100%, 0, 0); }
+}
+@keyframes rove-pop-new {
+  from { transform: translate3d(-30%, 0, 0); opacity: 0.65; }
+  to { transform: translate3d(0, 0, 0); opacity: 1; }
+}
+@keyframes rove-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes rove-fade-in { from { opacity: 0; } to { opacity: 1; } }

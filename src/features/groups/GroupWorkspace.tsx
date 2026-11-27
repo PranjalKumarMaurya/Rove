@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useRef, useState } from 'react'
+import { type CSSProperties, type KeyboardEvent, useRef, useState } from 'react'
 import { IconBack, IconCrew, IconExchange, IconMap, IconReceipt, IconScan, IconSettings, IconTodos } from '../../components/ui/icons'
 import { CrewTab } from '../crew/CrewTab'
 import { FxTab } from '../fx/FxTab'
@@ -80,6 +80,7 @@ function TripSections({ trip, onTripsChanged }: { trip: MyGroupAccess; onTripsCh
   const TABS = tabsFor(trip)
   // A tab that disappears (e.g. FX after a Trip becomes domestic) falls back to the first.
   const current = TABS.find((entry) => entry.id === tab) ?? TABS[0]
+  const currentIndex = TABS.findIndex((entry) => entry.id === current.id)
 
   const choose = (id: TabId, focus = false) => {
     setTab(id)
@@ -101,10 +102,14 @@ function TripSections({ trip, onTripsChanged }: { trip: MyGroupAccess; onTripsCh
 
   return (
     <>
-      <div role="tabpanel" id="trip-tab-panel" aria-labelledby={`trip-tab-${current.id}`} className="app-content flex-1">
+      {/* Keyed by tab so each section settles in once when chosen (m-tab-enter); no exit. */}
+      <div key={current.id} role="tabpanel" id="trip-tab-panel" aria-labelledby={`trip-tab-${current.id}`} className="app-content m-tab-enter flex-1">
         <current.Component trip={trip} roster={roster} reloadRoster={reload} onTripsChanged={onTripsChanged} />
       </div>
       <div className="tab-bar">
+        {/* One accent line that slides to the active tab (motion.css). */}
+        <span className="tab-bar__indicator" aria-hidden="true"
+          style={{ '--tab-index': currentIndex, '--tab-count': TABS.length } as CSSProperties} />
         <div role="tablist" aria-label="Trip sections" className="tab-bar__inner" onKeyDown={onKeyDown}>
           {TABS.map((entry) => {
             const active = entry.id === current.id

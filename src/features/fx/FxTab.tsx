@@ -169,7 +169,7 @@ function QuickChips({ label, amounts, onPick }: { label: string; amounts: number
       <div className="flex flex-wrap gap-2">
         {amounts.map((value) => (
           <button key={value} type="button" onClick={() => onPick(value)} aria-label={`Convert ${formatMoney(value, label)}`}
-            className="rounded-full border px-3 py-1.5 text-sm" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+            className="m-press rounded-full border px-3 py-1.5 text-sm" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
             {formatMoney(value, label)}
           </button>
         ))}

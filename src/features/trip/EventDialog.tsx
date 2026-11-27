@@ -2,6 +2,7 @@ import { lockBodyScroll } from '../../hooks/useBodyScrollLock'
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { NeonBtn } from '../../components/ui/NeonBtn'
 import { NeonInput } from '../../components/ui/NeonInput'
+import { useTriggerOrigin } from '../../components/ui/motion'
 import type { RosterMember } from '../groups/useGroupRoster'
 import {
   EVENT_TYPES, emptyEventForm, validateEventForm,
@@ -61,6 +62,9 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
   const [saving, setSaving] = useState(false)
   const [problem, setProblem] = useState<'conflict' | 'removed' | 'failed' | null>(null)
   const firstField = useRef<HTMLSelectElement>(null)
+  // Grows out of "Add event" or the card's "Edit".
+  const card = useRef<HTMLDivElement>(null)
+  useTriggerOrigin(card)
   const activeMembers = roster.filter((member) => member.status === 'active')
 
   useEffect(() => {
@@ -102,8 +106,8 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
   const zone = `${timeZoneCity(tripTimeZone)} time`
 
   return (
-    <div style={overlay} onClick={onClose} onKeyDown={(keyEvent) => { if (keyEvent.key === 'Escape') onClose() }}>
-      <div role="dialog" aria-modal="true" aria-labelledby={titleId} style={sheet} onClick={(clickEvent) => clickEvent.stopPropagation()} className="animate-slide-up">
+    <div style={overlay} className="m-backdrop" onClick={onClose} onKeyDown={(keyEvent) => { if (keyEvent.key === 'Escape') onClose() }}>
+      <div ref={card} role="dialog" aria-modal="true" aria-labelledby={titleId} style={sheet} onClick={(clickEvent) => clickEvent.stopPropagation()} className="m-dialog">
         <div className="mb-4 flex items-center justify-between">
           <h2 id={titleId} className="serif-display" style={{ fontSize: 22, color: 'var(--text-primary)' }}>{event ? 'Edit event' : 'Add event'}</h2>
           <button type="button" aria-label="Close" onClick={onClose} style={{ color: 'var(--text-tertiary)', fontSize: 18 }}>✕</button>

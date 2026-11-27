@@ -33,7 +33,8 @@ export function NeonBtn({
 
   return (
     <button
-      className={`${sizing} font-ui transition-all duration-200 hover:brightness-110 active:scale-[0.985] rounded-full disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100 disabled:active:scale-100 ${className}`}
+      // m-press: transform-only press feedback (motion.css) instead of transition-all, which also eased layout.
+      className={`${sizing} m-press font-ui hover:brightness-110 rounded-full disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100 ${className}`}
       style={{
         fontWeight: size === 'lg' && variant === 'solid' ? 600 : 500,
         letterSpacing: 0.2,

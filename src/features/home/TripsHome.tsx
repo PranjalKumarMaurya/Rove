@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { IconChevronRight, IconLinkPlus, IconPlus } from '../../components/ui/icons'
+import { enterIndex } from '../../components/ui/motion'
 import { NeonBtn } from '../../components/ui/NeonBtn'
 import { BrandMark } from '../../components/ui/ScreenFrame'
 import { supabase } from '../../lib/supabase'
@@ -27,6 +28,21 @@ function useTripMemberCounts(refreshKey: string): Record<string, number> {
     return () => { active = false }
   }, [refreshKey])
   return counts
+}
+
+/**
+ * Trips whose card has already been shown this session. Home remounts every time the
+ * person comes back from a Trip; cards rise in only on their first appearance (first
+ * load, or a Trip just created or joined), never on each return.
+ */
+const shownTrips = new Set<string>()
+
+/** Ids of this mount's cards that are new this session; grows only, so a class never drops mid-animation. */
+function useFreshTrips(trips: MyGroupAccess[]): ReadonlySet<string> {
+  const fresh = useRef(new Set<string>())
+  for (const trip of trips) if (!shownTrips.has(trip.groupId)) fresh.current.add(trip.groupId)
+  useEffect(() => { for (const trip of trips) shownTrips.add(trip.groupId) }, [trips])
+  return fresh.current
 }
 
 /** The current time, refreshed every minute so "Day 3 of 7" rolls over at midnight. */
@@ -59,6 +75,8 @@ export function TripsHome({ trips, profile, accountName, onCreate, onOpenTrip, o
   const refreshKey = trips.map((trip) => `${trip.groupId}:${trip.role}`).join(',')
   const counts = useTripMemberCounts(refreshKey)
   const grouped = groupTrips(trips, now)
+  const fresh = useFreshTrips(trips)
+  let entering = 0
   const name = (profile?.displayName || accountName).trim()
   const [inviteOpen, setInviteOpen] = useState(false)
   const inviteButton = useRef<HTMLButtonElement>(null)
@@ -68,8 +86,8 @@ export function TripsHome({ trips, profile, accountName, onCreate, onOpenTrip, o
   }, [])
 
   return (
-    <main data-testid="trips-home" className="screen home-nav-space">
-      <div className="flex min-h-11 items-center">
+    <main data-testid="trips-home" className="screen home-nav-space home-top">
+      <div className="flex min-h-7 items-center justify-center">
         <BrandMark />
       </div>
 
@@ -85,7 +103,7 @@ export function TripsHome({ trips, profile, accountName, onCreate, onOpenTrip, o
       </div>
 
       {trips.length === 0 ? (
-        <section data-testid="trips-empty" aria-label="No Trips yet" className="surface mt-6 px-5 py-7 text-center">
+        <section data-testid="trips-empty" aria-label="No Trips yet" className="surface m-appear mt-6 px-5 py-7 text-center">
           <p className="serif-display" style={{ fontSize: 24, color: 'var(--text-primary)' }}>No Trips yet</p>
           <p className="mx-auto mt-2 max-w-[300px]" style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.5 }}>
             Create a Trip and invite your friends, or join one with the link a friend sent you.
@@ -99,7 +117,8 @@ export function TripsHome({ trips, profile, accountName, onCreate, onOpenTrip, o
               <h2 id={`trips-${phase}`} className="section-title mb-3">{sectionTitles[phase]}</h2>
               <ul className="flex flex-col gap-3">
                 {grouped[phase].map((trip) => (
-                  <li key={trip.groupId}>
+                  <li key={trip.groupId} className={fresh.has(trip.groupId) ? 'm-enter' : undefined}
+                    style={fresh.has(trip.groupId) ? enterIndex(entering++) : undefined}>
                     <TripCard trip={trip} phase={phase} now={now} members={counts[trip.groupId]} onOpen={() => onOpenTrip(trip.groupId)} />
                   </li>
                 ))}
@@ -113,7 +132,7 @@ export function TripsHome({ trips, profile, accountName, onCreate, onOpenTrip, o
 
       <HomeNav active="trips" onTrips={() => window.scrollTo({ top: 0, behavior: 'smooth' })} onCreate={onCreate}
         onProfile={onOpenProfile} profile={profile} accountName={accountName} />
-      <InviteDialog open={inviteOpen} onClose={closeInvite} onInvite={(proof) => { setInviteOpen(false); onInvite(proof) }} />
+      <InviteDialog open={inviteOpen} triggerRef={inviteButton} onClose={closeInvite} onInvite={(proof) => { setInviteOpen(false); onInvite(proof) }} />
     </main>
   )
 }

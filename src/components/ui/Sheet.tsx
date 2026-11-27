@@ -7,6 +7,10 @@ const CLOSE_DISTANCE = 90
 const CLOSE_SPEED = 0.6
 /** A body touch becomes a sheet drag after this much mostly-downward movement (px). */
 const BODY_DRAG_SLOP = 6
+/** Settle and close on the drawer curve the sheet opens with (`--ease-drawer`, motion.css). */
+const DRAWER_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)'
+const SETTLE_MS = 300
+const CLOSE_MS = 220
 
 /** Touches that start here keep their own behaviour (typing, caret moves, pickers, the handle). */
 const BODY_DRAG_IGNORE = 'input, textarea, select, [contenteditable="true"], .sheet__drag'
@@ -58,10 +62,10 @@ export function Sheet({ title, onClose, testId, children }: {
 
   const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
-  const moveTo = (offset: number, animate: boolean) => {
+  const moveTo = (offset: number, animate: boolean, duration = SETTLE_MS) => {
     const dialog = ref.current
     if (!dialog) return
-    dialog.style.transition = animate && !reducedMotion() ? 'transform 0.2s cubic-bezier(0.22, 1, 0.36, 1)' : 'none'
+    dialog.style.transition = animate && !reducedMotion() ? `transform ${duration}ms ${DRAWER_EASE}` : 'none'
     dialog.style.transform = offset > 0 ? `translateY(${offset}px)` : ''
   }
 
@@ -70,8 +74,9 @@ export function Sheet({ title, onClose, testId, children }: {
     closing.current = true
     const dialog = ref.current
     if (!dialog || reducedMotion()) { onClose(); return }
-    moveTo(dialog.offsetHeight + 40, true)
-    window.setTimeout(onClose, 180)
+    moveTo(dialog.offsetHeight + 40, true, CLOSE_MS)
+    // The drawer curve front-loads the travel, so the sheet is off screen well before it ends.
+    window.setTimeout(onClose, CLOSE_MS - 20)
   }
 
   // Kept current so the native touch listeners below (bound once) see this render's onClose.

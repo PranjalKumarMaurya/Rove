@@ -37,16 +37,16 @@
   line-height: 14px;
   letter-spacing: 0.01em;
   cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: color 0.2s ease;
+  transition: color var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
 }
+.home-nav__icon svg { transition: color var(--dur-fast) var(--ease-out); }
 .home-nav__item:hover { color: var(--text-secondary); }
 .home-nav__item.is-active, .home-nav__item.is-active:hover { color: var(--text-primary); }
 .home-nav__item.is-active .home-nav__icon svg { color: var(--accent); }
 .home-nav__item:focus-visible { outline: 2px solid var(--accent); outline-offset: -6px; border-radius: 14px; }
 .home-nav__icon { display: flex; height: 26px; align-items: center; justify-content: center; }
 
-.home-nav__avatar { box-shadow: 0 0 0 1.5px transparent; transition: box-shadow 0.2s ease; }
+.home-nav__avatar { box-shadow: 0 0 0 1.5px transparent; transition: box-shadow var(--dur-fast) var(--ease-out); }
 .home-nav__item.is-active .home-nav__avatar { box-shadow: 0 0 0 1.5px var(--bg-base, #0F0B08), 0 0 0 3px var(--accent); }
 
 /* The raised ＋: overlaps the top border, ringed in the page colour. */
@@ -64,15 +64,20 @@
   background: var(--accent);
   color: #1A0A03;
   box-shadow: 0 0 0 5px var(--bg-base, #0F0B08), 0 8px 22px rgba(255, 139, 77, 0.28);
-  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), filter 0.2s ease;
+  transition: transform var(--dur-press) var(--ease-out), filter var(--dur-fast) var(--ease-out);
 }
 .home-nav__item--create:hover .home-nav__fab { filter: brightness(1.08); }
-.home-nav__item--create:active .home-nav__fab { transform: scale(0.94); }
+/* The primary action gets a slightly deeper press than the plain items (0.97). */
+.home-nav__item--create:active .home-nav__fab { transform: scale(var(--m-press-deep)); }
 .home-nav__item--create:focus-visible .home-nav__fab {
   box-shadow: 0 0 0 3px var(--bg-base, #0F0B08), 0 0 0 5px var(--accent);
 }
 
-/* ---- Invite-link popup -------------------------------------------------- */
+/* ---- Invite-link popup --------------------------------------------------
+   Opens out of the link button beside the title (useTriggerOrigin sets the
+   origin and data-origin): 0.92 -> 1 and a fade, 240ms; closes back toward it
+   in 160ms. With no trigger it scales gently from 0.96 around its centre.
+   The base rules are the closed state, so their durations are the exit. */
 .invite-dialog {
   position: fixed;
   inset: 0;
@@ -87,7 +92,7 @@
   inset: 0;
   background: rgba(8, 5, 3, 0.62);
   opacity: 0;
-  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 150ms var(--ease-out);
 }
 .invite-dialog__card {
   position: relative;
@@ -99,12 +104,15 @@
   background: var(--bg-elevated, #16110D);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
   opacity: 0;
-  transform: scale(0.96);
-  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1), transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: var(--m-origin-x, 50%) var(--m-origin-y, 50%);
+  transform: scale(var(--m-dialog-scale));
+  transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out);
 }
+.invite-dialog__card[data-origin] { transform: scale(var(--m-dialog-scale-origin)); }
 .invite-dialog.is-shown .invite-dialog__backdrop,
 .invite-dialog.is-shown .invite-dialog__card { opacity: 1; }
-.invite-dialog.is-shown .invite-dialog__card { transform: scale(1); }
+.invite-dialog.is-shown .invite-dialog__backdrop { transition-duration: 200ms; }
+.invite-dialog.is-shown .invite-dialog__card { transform: scale(1); transition-duration: 240ms; }
 
 .invite-dialog__title {
   font-family: var(--font-display);
@@ -129,8 +137,9 @@
   background: none;
   color: var(--text-tertiary);
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: color var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
 }
+.invite-dialog__close:active { transform: scale(var(--m-press-deep)); }
 .invite-dialog__close:hover { color: var(--text-primary); }
 .invite-dialog__paste {
   position: absolute;
@@ -147,11 +156,13 @@
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
 }
 .invite-dialog__paste:hover { background: rgba(245, 241, 235, 0.09); color: var(--text-primary); }
+/* Keeps its vertical centring while pressed. */
+.invite-dialog__paste:active { transform: translateY(-50%) scale(var(--m-press)); }
 
-@media (prefers-reduced-motion: reduce) {
-  .invite-dialog__backdrop, .invite-dialog__card, .home-nav__fab, .home-nav__item { transition: none; }
-  .invite-dialog__card { transform: none; }
-}
+/* Reduced motion: the scale tokens go to 1 (motion.css), leaving only the fades. */
+
+/* The wordmark sits centred, close under the status bar (about half the usual top gap). */
+.screen.home-top { padding-top: calc(4px + env(safe-area-inset-top, 0px)); }
