@@ -7,7 +7,10 @@ import { fetchLiveRate } from './fxRate'
 import type { LedgerExpense } from './ledger'
 import { equalSplit, formatMoney, type MoneyLine } from './money'
 import { findSimilarExpenses } from './similarExpense'
+import { awayMembers, type TravelLeg } from './travelRules'
+import { zonedWallTimeToUtc } from '../../../supabase/functions/_shared/documentDraft.ts'
 import { commitExpense, SplitRequestError, updateExpense } from './splitApi'
+import { celebrate } from '../../lib/celebrate'
 import { Field, SplitDialog, inputClass, inputStyle } from './SplitDialog'
 import { splitErrorMessage } from './splitErrors'
 import { SPLIT_OPTIONS, WeightFields } from './SplitWeights'
@@ -35,7 +38,7 @@ export interface ExpensePrefill {
 
 export function ExpenseForm({
   groupId, accountingCurrency, timezone, me, members, expense, onClose, onSaved, international = true, prefill, requestId: fixedRequestId, notice, heading,
-  existing = [],
+  existing = [], legs = [],
 }: {
   groupId: string
   accountingCurrency: string
@@ -59,6 +62,8 @@ export function ExpenseForm({
   heading?: string
   /** Expenses already in Split, to warn about adding the same cost twice. */
   existing?: readonly LedgerExpense[]
+  /** Journeys on the itinerary: people travelling separately at the time are left out by default. */
+  legs?: readonly TravelLeg[]
 }) {
   const context = useMemo(() => ({ accountingCurrency, memberIds: members.map((member) => member.id), timezone }), [accountingCurrency, members, timezone])
   const [initial] = useState<ExpenseDraft>(() => {
@@ -115,6 +120,27 @@ export function ExpenseForm({
     setDraft((current) => ({ ...current, ...changes }))
   }
   const money = (minor: bigint, code = currency) => formatMoney(minor, code)
+
+  // People elsewhere when this was spent (e.g. on the train while this was the car's petrol).
+  const spentInstant = useMemo(() => {
+    const iso = draft.spentLocal.trim() ? zonedWallTimeToUtc(draft.spentLocal.trim(), timezone) : null
+    return iso ? Date.parse(iso) : null
+  }, [draft.spentLocal, timezone])
+  const away = useMemo(() => awayMembers(legs, spentInstant, context.memberIds, draft.payerId),
+    [legs, spentInstant, context.memberIds, draft.payerId])
+  const awayKey = [...away.keys()].sort().join(',')
+  // Applied until the person changes who shares it themselves; never on edits or a
+  // booking's own people.
+  const autoAway = useRef(!expense && !(prefill?.included?.length))
+  useEffect(() => {
+    if (!autoAway.current) return
+    setDraft((current) => {
+      const included = context.memberIds.filter((id) => !away.has(id))
+      return included.join(',') === current.included.join(',') ? current : { ...current, included }
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [awayKey, context.memberIds])
+  const chooseIncluded = (included: string[]) => { autoAway.current = false; update({ included }) }
   const similar = useMemo(() => findSimilarExpenses(existing, draft.amount, currency, expense?.id)[0] ?? null,
     [existing, draft.amount, currency, expense?.id])
   const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Someone'
@@ -159,6 +185,7 @@ export function ExpenseForm({
       } else {
         savedId = await commitExpense(groupId, request, requestId.current)
       }
+      celebrate(expense ? 'Expense updated' : 'Expense added')
       onSaved(savedId)
     } catch (error) {
       setServerError(splitErrorMessage(error instanceof SplitRequestError ? error.code : null))
@@ -280,26 +307,30 @@ export function ExpenseForm({
                     <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Split between</span>
                     <span className="flex gap-3 text-sm">
                       <button type="button" className="min-h-11" style={{ color: 'var(--accent)' }}
-                        onClick={() => update({ included: members.map((member) => member.id) })}>Everyone</button>
+                        onClick={() => chooseIncluded(members.map((member) => member.id))}>Everyone</button>
                       <button type="button" className="min-h-11" style={{ color: 'var(--text-secondary)' }}
-                        onClick={() => update({ included: [] })}>No one</button>
+                        onClick={() => chooseIncluded([])}>No one</button>
                     </span>
                   </div>
                   <ul className="flex flex-col gap-1" aria-label="People sharing this expense">
-                    {members.map((member) => (
-                      <li key={member.id}>
-                        <label className="flex min-h-11 items-center gap-3" style={{ color: 'var(--text-primary)' }}>
-                          <input type="checkbox" style={{ accentColor: 'var(--accent)', width: 18, height: 18 }}
-                            checked={draft.included.includes(member.id)}
-                            onChange={(event) => update({
-                              included: event.target.checked
+                    {members.map((member) => {
+                      const checked = draft.included.includes(member.id)
+                      const reason = away.get(member.id)
+                      return (
+                        <li key={member.id}>
+                          <label className="flex min-h-11 items-center gap-3" data-away={reason && !checked ? 'true' : undefined}
+                            style={{ color: reason && !checked ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
+                            <input type="checkbox" style={{ accentColor: 'var(--accent)', width: 18, height: 18 }}
+                              checked={checked}
+                              onChange={(event) => chooseIncluded(event.target.checked
                                 ? [...draft.included, member.id]
-                                : draft.included.filter((id) => id !== member.id),
-                            })} />
-                          {member.name}
-                        </label>
-                      </li>
-                    ))}
+                                : draft.included.filter((id) => id !== member.id))} />
+                            <span className="min-w-0 flex-1 truncate">{member.name}</span>
+                            {reason && <span className="shrink-0 text-xs" data-testid="split-away-reason" style={{ color: 'var(--text-tertiary)' }}>{reason}</span>}
+                          </label>
+                        </li>
+                      )
+                    })}
                   </ul>
                   {show('shares') && <p role="alert" style={{ color: 'var(--accent)', fontSize: 12 }}>{show('shares')}</p>}
                   {perHead && (

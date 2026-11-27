@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { IconClose } from '../../components/ui/icons'
 import { lockBodyScroll } from '../../hooks/useBodyScrollLock'
 
 /**
@@ -31,8 +32,9 @@ export function SplitDialog({ title, onClose, locked = false, testId, children }
   }, [locked])
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex justify-center overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-6"
-      style={{ background: 'rgba(15, 11, 8, 0.82)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }}
+    // Starts below the status bar so nothing scrolls under it (iOS blurs content there).
+    <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center overflow-y-auto overflow-x-hidden overscroll-none px-4 pt-6"
+      style={{ top: 'env(safe-area-inset-top, 0px)', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', background: 'rgba(15, 11, 8, 0.82)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }}
       onClick={() => { if (!locked) close.current() }}>
       <div role="dialog" aria-modal="true" aria-labelledby={headingId} data-testid={testId}
         className="animate-slide-up my-auto w-full max-w-[480px]" onClick={(event) => event.stopPropagation()}
@@ -41,8 +43,7 @@ export function SplitDialog({ title, onClose, locked = false, testId, children }
           <h2 id={headingId} ref={heading} tabIndex={-1} className="serif-display outline-none"
             style={{ color: 'var(--text-primary)', fontSize: 24, fontWeight: 400 }}>{title}</h2>
           <button type="button" onClick={() => close.current()} disabled={locked} aria-label="Close"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
-            style={{ color: 'var(--text-tertiary)', fontSize: 18 }}>✕</button>
+            className="close-x"><IconClose /></button>
         </div>
         {children}
       </div>

@@ -8,6 +8,7 @@ import {
   type EventFormErrors, type EventFormField, type EventFormValues, type EventPayload, type TripEvent,
 } from './itinerary'
 import { EventSaveError } from './tripEventsApi'
+import { celebrate } from '../../lib/celebrate'
 import { isoToZonedInput, timeZoneCity } from './tripTime'
 
 function formFromEvent(event: TripEvent, timeZone: string): EventFormValues {
@@ -85,6 +86,7 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
     setProblem(null)
     try {
       await onSave(result.payload, audience, overwrite)
+      celebrate(event ? 'Saved' : 'Added to itinerary')
     } catch (error) {
       setProblem(error instanceof EventSaveError ? error.kind : 'failed')
       setSaving(false)

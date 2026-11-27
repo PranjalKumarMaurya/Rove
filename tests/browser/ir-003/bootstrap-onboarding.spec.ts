@@ -104,7 +104,7 @@ test('IR-003 new user can go back from Create Trip and sign out from Profile', a
   await installEligibleAccount(page)
   await page.route('**/auth/v1/logout*', (route) => route.fulfill({ status: 204, body: '' }))
   await openCreateTrip(page)
-  await page.getByRole('button', { name: 'Trips', exact: true }).click()
+  await page.getByRole('button', { name: 'Back to Trips' }).click()
   await expect(page.getByTestId('trips-empty')).toBeVisible()
   await page.getByRole('button', { name: 'Profile', exact: true }).click()
   await page.getByTestId('profile-screen').getByRole('button', { name: 'Sign out' }).click()
@@ -165,7 +165,7 @@ test('IR-003 sends only the frozen RPC arguments and renders terminal ONB-06 Sta
     },
   })
   expect(JSON.stringify(rpcCalls[0])).not.toMatch(/actor|owner|role|profile|auth_user/i)
-  await expect(page.getByText('Trip created')).toBeVisible()
+  await expect(page.getByTestId('bootstrap-success-state-a').getByText('Trip created')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Northern lights' })).toBeVisible()
   await expect(page.getByTestId('bootstrap-success-state-a')).toContainText('Tromsø · 11–18 Jan 2027')
   // No invitation is created with the Trip; friends are invited later from the Crew tab.

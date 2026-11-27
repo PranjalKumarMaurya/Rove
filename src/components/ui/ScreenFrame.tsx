@@ -8,7 +8,9 @@ export function BrandMark() {
  * One full-height column for every screen outside the workspace (auth, onboarding,
  * invitations, interstitials): brand mark or eyebrow, serif title, lede, content.
  */
-export function ScreenFrame({ testId, eyebrow = <BrandMark />, title, lede, top, centered = true, busy, children }: {
+export function ScreenFrame({ testId, eyebrow = <BrandMark />, title, lede, top, centered = true, busy, className, children }: {
+  /** Extra classes on the screen, e.g. room for a bottom nav. */
+  className?: string
   testId?: string
   eyebrow?: ReactNode
   title: ReactNode
@@ -21,7 +23,7 @@ export function ScreenFrame({ testId, eyebrow = <BrandMark />, title, lede, top,
   children?: ReactNode
 }) {
   return (
-    <main data-testid={testId} className="screen" aria-busy={busy || undefined}>
+    <main data-testid={testId} className={className ? `screen ${className}` : 'screen'} aria-busy={busy || undefined}>
       {top && <div className="flex min-h-11 items-center justify-between gap-3">{top}</div>}
       <div className={centered ? 'my-auto py-8' : 'pb-4 pt-6'}>
         {eyebrow}

@@ -30,3 +30,7 @@ export const IconSettings = ({ size }: IconProps) => <Icon size={size}><circle c
 export const IconChevronRight = ({ size }: IconProps) => <Icon size={size}><path d="m9.5 5.5 6.5 6.5-6.5 6.5" /></Icon>
 export const IconCamera = ({ size }: IconProps) => <Icon size={size}><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.8l1.4-2h4.6l1.4 2h1.8A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5v-8z" /><circle cx="12" cy="12.5" r="3.4" /></Icon>
 export const IconLink = ({ size }: IconProps) => <Icon size={size}><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></Icon>
+/** A chain link with a small plus: join a Trip with an invite link. */
+export const IconLinkPlus = ({ size }: IconProps) => <Icon size={size}><path d="M9 16.5H7a4.5 4.5 0 0 1 0-9h2" /><path d="M15 7.5h2a4.5 4.5 0 0 1 4.5 4.5" /><path d="M8.5 12h7" /><path d="M18.5 15.5v5M16 18h5" /></Icon>
+/** A suitcase outline: the Trips list. */
+export const IconSuitcase = ({ size }: IconProps) => <Icon size={size}><rect x="4.5" y="7" width="15" height="12" rx="2.5" /><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /><path d="M9 10.5v5M15 10.5v5" /><path d="M8 19v1.5M16 19v1.5" /></Icon>

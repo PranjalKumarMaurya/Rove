@@ -102,6 +102,10 @@ test('the cost goes to Split by default only when the booking says it is paid', 
     description: 'Villa Lumbung', amount: '9000000', currency: 'IDR', category: 'stay', spentAt: null, included: ['m-asha', 'm-ravi'],
   })
   assert.equal(bookingCostPrefill({ price: null }, { title: 'Flight', eventType: 'flight' }, 'INR', []).currency, 'INR')
+  // Dated by the journey when it has happened; a future one starts at now (null).
+  const now = Date.parse('2026-11-27T00:00:00Z')
+  assert.equal(bookingCostPrefill({ price: null }, { title: 'Train', eventType: 'transport', startsAt: '2026-11-15T00:20:00Z' }, 'INR', [], now).spentAt, '2026-11-15T00:20:00.000Z')
+  assert.equal(bookingCostPrefill({ price: null }, { title: 'Villa', eventType: 'hotel', startsAt: '2026-12-12T08:00:00Z' }, 'INR', [], now).spentAt, null)
   assert.equal(bookingCostPrefill({ price: null }, { title: 'Flight', eventType: 'flight' }, 'INR', []).category, 'transport')
 })
 

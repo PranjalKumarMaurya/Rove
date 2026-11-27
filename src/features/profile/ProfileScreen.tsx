@@ -1,4 +1,4 @@
-import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from 'react'
+import { type ChangeEvent, type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react'
 import { Field } from '../../components/ui/Field'
 import { IconBack, IconCamera, IconChevronRight, IconSignOut } from '../../components/ui/icons'
 import { NeonBtn } from '../../components/ui/NeonBtn'
@@ -29,7 +29,7 @@ type SheetKind = 'email' | 'password' | 'delete' | null
  * The person's own profile: avatar, name, home currency, UPI ID and crew info,
  * sign-in details, help, legal pages, sign out and account deletion.
  */
-export function ProfileScreen({ userId, email, profile, profileStatus, onProfileChanged, onReload, onBack, backLabel, onSignOut, signOutError, onAccountDeleted }: {
+export function ProfileScreen({ userId, email, profile, profileStatus, onProfileChanged, onReload, onBack, backLabel = 'Trips', bottomNav, onSignOut, signOutError, onAccountDeleted }: {
   userId: string
   email: string | undefined
   profile: MyProfile | null
@@ -37,33 +37,42 @@ export function ProfileScreen({ userId, email, profile, profileStatus, onProfile
   /** Apply a saved change to the shared profile state. */
   onProfileChanged: (changes: Partial<MyProfile>) => void
   onReload: () => void
-  onBack: () => void
-  /** Where Back goes: "Trips" or the open Trip's name. */
-  backLabel: string
+  /** Back to the open Trip; absent when Profile is a home tab (with `bottomNav`). */
+  onBack?: () => void
+  /** Where Back goes: the open Trip's name. */
+  backLabel?: string
+  /** The home bottom nav, when Profile was opened from it. */
+  bottomNav?: ReactNode
   onSignOut: () => void
   signOutError: string | null
   onAccountDeleted: () => void
 }) {
   const [page, setPage] = useState<Page>('main')
   const [sheet, setSheet] = useState<SheetKind>(null)
-  const top = <button type="button" className="topbar-btn topbar-btn--back" onClick={onBack}><IconBack size={18} /><span className="truncate">{backLabel}</span></button>
+  // Icon only, like the Trip top bar; the destination shows as a hover hint.
+  const top = onBack ? <button type="button" className="round-btn" aria-label="Back" title={`Back to ${backLabel}`} onClick={onBack}><IconBack size={20} /></button> : undefined
+  const navClass = bottomNav ? 'home-nav-space' : undefined
 
   if (page !== 'main') return <LegalPage kind={page} onBack={() => setPage('main')} />
 
   if (!profile) {
     return (
-      <ScreenFrame testId="profile-screen" title="Profile" top={top} busy={profileStatus !== 'error'}
+      <>
+      <ScreenFrame testId="profile-screen" title="Profile" top={top} busy={profileStatus !== 'error'} className={navClass}
         lede={profileStatus === 'error' ? 'We couldn’t load your profile. Check your connection and try again.' : 'Loading your profile…'}>
         {profileStatus === 'error'
           ? <NeonBtn type="button" size="lg" className="w-full" onClick={onReload}>Try again</NeonBtn>
           : <span className="spinner" aria-hidden="true" />}
       </ScreenFrame>
+      {bottomNav}
+      </>
     )
   }
 
   return (
+    <>
     <ScreenFrame testId="profile-screen" centered={false} eyebrow={<p className="eyebrow">Profile</p>}
-      title={profile.displayName} lede={email} top={top}>
+      title={profile.displayName} lede={email} top={top} className={navClass}>
       <div className="flex flex-col gap-8">
         <AvatarEditor userId={userId} profile={profile} onChanged={onProfileChanged} />
         <DetailsForm profile={profile} onChanged={onProfileChanged} />
@@ -99,6 +108,8 @@ export function ProfileScreen({ userId, email, profile, profileStatus, onProfile
       {sheet === 'password' && email && <ChangePasswordSheet email={email} onClose={() => setSheet(null)} />}
       {sheet === 'delete' && <DeleteAccountSheet userId={userId} onClose={() => setSheet(null)} onDeleted={onAccountDeleted} />}
     </ScreenFrame>
+    {bottomNav}
+    </>
   )
 }
 

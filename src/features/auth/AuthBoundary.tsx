@@ -9,20 +9,21 @@ import { InvitationEntry } from '../invitations/InvitationEntry'
 import { clearPendingInvitation, pendingInvitationFromBrowser } from '../invitations/invitationLink'
 import { GroupWorkspace } from '../groups/GroupWorkspace'
 import { loadMyGroupAccess, type MyGroupAccess } from '../groups/myGroupAccess'
+import { HomeNav } from '../home/HomeNav'
 import { TripsHome } from '../home/TripsHome'
 import { useMyProfile } from '../profile/profileApi'
 import { ProfileScreen } from '../profile/ProfileScreen'
+import {
+  entryDepthOf, planHistory, readRoveState, roveState, viewDepth, viewKey, withRoveState, type View,
+} from './navigationHistory'
 
 /**
- * Signed-in screens. After sign-in the Trips home always comes first; from there
- * the person opens a Trip, creates one, or opens Profile. An invite link opens
- * the invitation screen first, and joining opens that Trip.
+ * Signed-in screens (`View`, see navigationHistory.ts). After sign-in the Trips home
+ * always comes first; from there the person opens a Trip, creates one, or opens Profile.
+ * An invite link opens the invitation screen first, and joining opens that Trip.
+ * Screens are mirrored into the browser history so the system back gesture (and the
+ * iOS edge swipe, EdgeSwipeBack) steps back through them.
  */
-type View =
-  | { kind: 'home' }
-  | { kind: 'trip'; groupId: string }
-  | { kind: 'create' }
-  | { kind: 'profile'; from: { kind: 'home' } | { kind: 'trip'; groupId: string } }
 
 // The Trip open in this browser tab, so a reload returns to it (cleared on sign-out).
 const openTripKey = 'trip:open-trip:v1'
@@ -54,6 +55,63 @@ export function AuthBoundary() {
     backgroundReload.current = true
     setGroupReload((value) => value + 1)
   }
+
+  // History sync. `syncedKey` is the screen the current history entry describes,
+  // `entryDepth` that entry's depth; `awaitingPop` is set while our own history.go(-n)
+  // (a UI back button) is travelling, so its popstate does not change the screen again.
+  const syncedKey = useRef(viewKey({ kind: 'home' }))
+  const entryDepth = useRef(typeof window === 'undefined' ? 0 : entryDepthOf(window.history.state))
+  const awaitingPop = useRef(false)
+  const viewRef = useRef(view)
+  viewRef.current = view
+
+  useEffect(() => {
+    const key = viewKey(view)
+    if (key === syncedKey.current) return
+    syncedKey.current = key
+    const target = viewDepth(view)
+    const plan = planHistory(entryDepth.current, target)
+    try {
+      if (plan.kind === 'push') {
+        // One entry per depth level, so going back always lands on the right level.
+        for (let step = 1; step <= plan.count; step += 1) {
+          window.history.pushState(roveState(view, entryDepth.current + step), '')
+        }
+      } else if (plan.kind === 'back') {
+        awaitingPop.current = true
+        window.history.go(-plan.count)
+      } else {
+        window.history.replaceState(withRoveState(window.history.state, view, target), '')
+      }
+    } catch { /* history may be unavailable (sandboxed frames); the screens still work */ }
+    entryDepth.current = target
+  }, [view])
+
+  useEffect(() => {
+    const onPopState = (event: PopStateEvent) => {
+      const entry = readRoveState(event.state)
+      if (awaitingPop.current) {
+        // Our own back step landed: record the screen now showing on this entry.
+        awaitingPop.current = false
+        const current = viewRef.current
+        try { window.history.replaceState(withRoveState(event.state, current), '') } catch { /* see above */ }
+        entryDepth.current = viewDepth(current)
+        syncedKey.current = viewKey(current)
+        return
+      }
+      // Following an invite link inside the app is handled by the hashchange listener.
+      const ours = !!event.state && typeof event.state === 'object' && 'rove' in event.state
+      if (!ours && window.location.hash.startsWith('#invite=')) return
+      entryDepth.current = entry.roveDepth
+      syncedKey.current = viewKey(entry.rove)
+      setView(entry.rove)
+      // As goHome does; a Trip that is no longer listed falls back to the Trips home on reload.
+      refreshTrips()
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
   const [inviteProof, setInviteProof] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
     let storage: Storage | null = null
@@ -107,6 +165,11 @@ export function AuthBoundary() {
     restoreTrip.current = null
     pendingOpen.current = null
     writeOpenTrip(null)
+    // Signing out starts again at the Trips home without stepping back through history.
+    awaitingPop.current = false
+    entryDepth.current = 0
+    syncedKey.current = viewKey({ kind: 'home' })
+    try { window.history.replaceState(withRoveState(window.history.state, { kind: 'home' }, 0), '') } catch { /* see above */ }
     setView({ kind: 'home' })
   }
 
@@ -236,7 +299,9 @@ export function AuthBoundary() {
     const back = from.kind === 'trip' ? groups.find((group) => group.groupId === from.groupId) : undefined
     return <ProfileScreen userId={auth.session.user.id} email={auth.session.user.email} profile={myProfile.profile}
       profileStatus={myProfile.status} onProfileChanged={myProfile.patch} onReload={myProfile.reload}
-      onBack={() => (back ? setView({ kind: 'trip', groupId: back.groupId }) : goHome())} backLabel={back ? back.tripName : 'Trips'}
+      onBack={back ? () => setView({ kind: 'trip', groupId: back.groupId }) : undefined} backLabel={back?.tripName}
+      bottomNav={back ? undefined : <HomeNav active="profile" onTrips={goHome} onCreate={() => setView({ kind: 'create' })}
+        onProfile={() => window.scrollTo({ top: 0, behavior: 'smooth' })} profile={myProfile.profile} accountName={accountName} />}
       onSignOut={() => void signOut()} signOutError={signOutError} onAccountDeleted={accountDeleted} />
   }
 

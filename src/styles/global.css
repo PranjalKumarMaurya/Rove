@@ -60,6 +60,21 @@ body {
   letter-spacing: -0.01em;
 }
 
+/* An opaque strip over the status bar. iOS 26 blurs whatever scrolls under a
+   translucent status bar, so titles near the top looked smeared; with this on top
+   nothing ever shows there. Only native top-layer dialogs (sheets) sit above it. */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--bg-base);
+  z-index: 10001;
+  pointer-events: none;
+}
+
 button { font-family: inherit; }
 input, textarea, select { font-family: inherit; }
 
@@ -173,7 +188,9 @@ input[type="number"] { -moz-appearance: textfield; }
    Additive: spacing scale 4/8/12/16/20/24/32, tap targets >= 44px. */
 :root {
   color-scheme: dark;
-  --tab-bar-height: 60px;
+  --tab-bar-height: 56px;
+  /* Below the tab labels: clear of the home indicator without the full inset's gap. */
+  --tab-bar-bottom: max(6px, calc(env(safe-area-inset-bottom, 0px) - 14px));
   --focus-ring: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--accent);
 }
 
@@ -408,7 +425,7 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   text-align: center;
 }
 
-.app-content { padding: 20px 20px calc(var(--tab-bar-height) + 40px + env(safe-area-inset-bottom, 0px)); }
+.app-content { padding: 20px 20px calc(var(--tab-bar-height) + 32px + var(--tab-bar-bottom)); }
 
 .tab-bar {
   position: fixed;
@@ -418,7 +435,7 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   z-index: 40;
   max-width: 480px;
   margin: 0 auto;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--tab-bar-bottom);
   background: rgba(15, 11, 8, 0.94);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
@@ -428,7 +445,7 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
 .nav-tab {
   min-width: 0;
   min-height: var(--tab-bar-height);
-  padding: 8px 0 10px;
+  padding: 6px 0;
   font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 500;
@@ -454,7 +471,9 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   overflow-y: auto;
   /* Up and down only: a slightly wide child must never let the sheet slide sideways. */
   overflow-x: hidden;
-  overscroll-behavior: contain;
+  /* No rubber-band: pulling past the top showed an empty strip and "moved the UI".
+     A downward pull at the top drags the sheet instead (Sheet.tsx). */
+  overscroll-behavior: none;
   touch-action: pan-y;
 }
 .sheet::backdrop { background: rgba(8, 6, 4, 0.66); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
@@ -466,9 +485,34 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
 .sheet__drag { touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; padding-top: 2px; }
 .sheet__drag:active { cursor: grabbing; }
 .sheet__grabber { width: 36px; height: 4px; margin: 8px auto 0; border-radius: 2px; background: var(--border-strong); }
+/* Focused on open for screen readers; it is not a control, so no ring. */
+.sheet__title:focus { outline: none; }
 .sheet__head { display: flex; align-items: center; gap: 12px; padding: 8px 12px 4px 20px; }
 .sheet__body { padding: 8px 20px calc(24px + env(safe-area-inset-bottom, 0px)); }
 @keyframes sheetUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Minimal close cross for sheets and dialogs: just the icon, 44px target, a ring
+   only for keyboard focus (the global :focus-visible rule). */
+.close-x {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -10px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.2s ease;
+}
+.close-x:hover { color: var(--text-primary); }
+.close-x:focus:not(:focus-visible) { outline: none; }
+.close-x:disabled { opacity: 0.4; cursor: default; }
 
 .list-option {
   display: flex;

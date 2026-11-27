@@ -11,7 +11,11 @@ interface Props {
 
 const overlay: CSSProperties = {
   position: 'fixed',
-  inset: 0,
+  // Starts below the status bar so nothing scrolls under it (iOS blurs content there).
+  top: 'env(safe-area-inset-top, 0px)',
+  right: 0,
+  bottom: 0,
+  left: 0,
   zIndex: 9999,
   background: 'rgba(15, 11, 8, 0.82)',
   backdropFilter: 'blur(14px)',
@@ -21,8 +25,8 @@ const overlay: CSSProperties = {
   justifyContent: 'center',
   overflowY: 'auto',
   overflowX: 'hidden',
-  overscrollBehavior: 'contain',
-  padding: '16px 16px env(safe-area-inset-bottom, 16px)',
+  overscrollBehavior: 'none',
+  padding: '16px 16px calc(16px + env(safe-area-inset-bottom, 0px))',
 }
 
 export const sheetStyle: CSSProperties = {

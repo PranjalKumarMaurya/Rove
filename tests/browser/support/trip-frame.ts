@@ -20,11 +20,19 @@ export const workspace = (page: Page) => page.getByTestId('group-workspace')
 
 /** Back to the Trips home from wherever the page is (a Trip, Profile or Create Trip). */
 export async function goToTrips(page: Page) {
-  const back = page.getByRole('button', { name: 'Trips', exact: true })
+  // "Back to Trips" in a Trip, "Back" on Profile, "Trips" on Create Trip.
+  const back = page.getByRole('button', { name: /^(Back to Trips|Back|Trips)$/ })
+  const tripBack = page.getByRole('button', { name: 'Back to Trips', exact: true })
   // Wait until the app has settled on a screen (it may still be restoring the session).
   await expect(tripsHome(page).or(back).first()).toBeVisible()
   if (await tripsHome(page).isVisible()) return
-  await back.click()
+  const onProfile = await page.getByRole('button', { name: 'Back', exact: true }).isVisible()
+  await back.first().click()
+  if (onProfile) {
+    // Profile opened from a Trip goes back to that Trip, one more step from home.
+    await expect(tripsHome(page).or(tripBack).first()).toBeVisible()
+    if (await tripBack.isVisible()) await tripBack.click()
+  }
   await expect(tripsHome(page)).toBeVisible()
 }
 

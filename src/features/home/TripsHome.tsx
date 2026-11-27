@@ -1,16 +1,16 @@
-import { type FormEvent, useEffect, useState } from 'react'
-import { Field } from '../../components/ui/Field'
-import { IconChevronRight, IconPlus } from '../../components/ui/icons'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { IconChevronRight, IconLinkPlus, IconPlus } from '../../components/ui/icons'
 import { NeonBtn } from '../../components/ui/NeonBtn'
-import { NeonInput } from '../../components/ui/NeonInput'
 import { BrandMark } from '../../components/ui/ScreenFrame'
 import { supabase } from '../../lib/supabase'
 import { ArchivedTrips } from '../crew/ArchivedTrips'
 import type { MyGroupAccess } from '../groups/myGroupAccess'
 import { formatTripDates } from '../onboarding/tripSettings'
 import type { MyProfile } from '../profile/profileApi'
-import { ProfileButton } from '../profile/ProfileButton'
-import { type TripPhase, groupTrips, inviteProofFromInput, relativeTripLine } from './tripGrouping'
+import { HomeNav } from './HomeNav'
+import { InviteDialog } from './InviteDialog'
+import { type TripPhase, groupTrips, relativeTripLine } from './tripGrouping'
+import './home.css'
 
 const sectionTitles: Record<TripPhase, string> = { ongoing: 'Ongoing', upcoming: 'Upcoming', past: 'Past' }
 
@@ -40,9 +40,10 @@ function useNow(): Date {
 }
 
 /**
- * The screen after sign-in: every Trip grouped Ongoing / Upcoming / Past, a way
- * to create one (＋) or join one with a pasted invite link, archived Trips an
- * Owner can restore, and the avatar that opens Profile.
+ * The screen after sign-in: every Trip grouped Ongoing / Upcoming / Past, a link
+ * button beside the title that opens a popup for joining with a pasted invite
+ * link, archived Trips an Owner can restore, and the bottom nav (Trips, ＋ Create
+ * Trip, Profile).
  */
 export function TripsHome({ trips, profile, accountName, onCreate, onOpenTrip, onOpenProfile, onInvite }: {
   trips: MyGroupAccess[]
@@ -59,19 +60,27 @@ export function TripsHome({ trips, profile, accountName, onCreate, onOpenTrip, o
   const counts = useTripMemberCounts(refreshKey)
   const grouped = groupTrips(trips, now)
   const name = (profile?.displayName || accountName).trim()
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const inviteButton = useRef<HTMLButtonElement>(null)
+  const closeInvite = useCallback(() => {
+    setInviteOpen(false)
+    inviteButton.current?.focus({ preventScroll: true })
+  }, [])
 
   return (
-    <main data-testid="trips-home" className="screen">
-      <div className="flex min-h-11 items-center justify-between gap-3">
-        <button type="button" className="round-btn round-btn--accent" aria-label="Create Trip" onClick={onCreate}>
-          <IconPlus size={22} />
-        </button>
+    <main data-testid="trips-home" className="screen home-nav-space">
+      <div className="flex min-h-11 items-center">
         <BrandMark />
-        <ProfileButton profile={profile} fallbackName={accountName} onOpen={onOpenProfile} />
       </div>
 
-      <div className="pb-2 pt-6">
-        <h1 className="screen-title">Your Trips</h1>
+      <div className="pb-2 pt-5">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="screen-title">Your Trips</h1>
+          <button ref={inviteButton} type="button" className="round-btn" aria-label="Join with an invite link"
+            aria-haspopup="dialog" aria-expanded={inviteOpen} onClick={() => setInviteOpen(true)}>
+            <IconLinkPlus size={22} />
+          </button>
+        </div>
         <p className="screen-lede mt-2">{name ? `Hi ${name}. ` : ''}{trips.length ? 'Where to next?' : 'Plan, split and share a group trip.'}</p>
       </div>
 
@@ -100,8 +109,11 @@ export function TripsHome({ trips, profile, accountName, onCreate, onOpenTrip, o
         </div>
       )}
 
-      <JoinWithLink onInvite={onInvite} />
       <ArchivedTrips className="mt-8" refreshKey={refreshKey} onRestored={(groupId) => onOpenTrip(groupId, { reload: true })} />
+
+      <HomeNav active="trips" onTrips={() => window.scrollTo({ top: 0, behavior: 'smooth' })} onCreate={onCreate}
+        onProfile={onOpenProfile} profile={profile} accountName={accountName} />
+      <InviteDialog open={inviteOpen} onClose={closeInvite} onInvite={(proof) => { setInviteOpen(false); onInvite(proof) }} />
     </main>
   )
 }
@@ -130,29 +142,5 @@ function TripCard({ trip, phase, now, members, onOpen }: {
       </span>
       <span aria-hidden="true" style={{ color: 'var(--text-tertiary)' }}><IconChevronRight size={20} /></span>
     </button>
-  )
-}
-
-function JoinWithLink({ onInvite }: { onInvite: (proof: string) => void }) {
-  const [value, setValue] = useState('')
-  const [error, setError] = useState<string | undefined>()
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const proof = inviteProofFromInput(value)
-    if (!proof) {
-      setError('That doesn’t look like a Trip invite link. Copy the whole link and paste it again.')
-      return
-    }
-    setError(undefined)
-    onInvite(proof)
-  }
-  return (
-    <form aria-label="Join a Trip" noValidate onSubmit={submit} className="mt-8 flex flex-col gap-3">
-      <Field id="invite-link" label="Have an invite link?" hint="Paste the link a friend sent you to join their Trip." error={error}>
-        <NeonInput value={value} onChange={(event) => { setValue(event.target.value); setError(undefined) }}
-          placeholder="Paste invite link" autoComplete="off" autoCapitalize="off" spellCheck={false} inputMode="url" style={{ fontSize: 16, minHeight: 44 }} />
-      </Field>
-      <NeonBtn type="submit" variant="outline" size="lg" className="w-full">Open invite</NeonBtn>
-    </form>
   )
 }

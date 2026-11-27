@@ -78,7 +78,8 @@ test('Scan stores documents privately, drafts an Event for review, and FX conver
     await expect(owner.getByTestId('scan-selected-file')).toContainText('boarding-pass.png')
     await owner.getByRole('button', { name: 'Upload and read' }).click()
     const review = owner.getByTestId('scan-review')
-    await expect(review).toBeVisible()
+    // The first read waits for the local Edge runtime to warm up.
+    await expect(review).toBeVisible({ timeout: 30_000 })
     await expect(review.getByLabel('Title')).toHaveValue('IndiGo 6E-123 · DEL → GOI')
     await expect(review.getByLabel('Starts')).toHaveValue('2026-11-01T06:15')
     await expect(review.getByLabel('Start timezone')).toHaveValue('Asia/Kolkata')

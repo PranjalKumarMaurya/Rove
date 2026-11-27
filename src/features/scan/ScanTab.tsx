@@ -3,8 +3,10 @@ import { NeonBtn } from '../../components/ui/NeonBtn'
 import type { TripTabProps } from '../workspace/tripTab'
 import { DEFAULT_MEMBER_PARSE_LIMIT, MAX_DOCUMENT_BYTES, billToEventDraft, emptyDraft, eventToBillDraft, type TripContext } from '../../../supabase/functions/_shared/documentDraft.ts'
 import { ExpenseForm, type ExpensePrefill } from '../split/ExpenseForm'
+import { celebrate } from '../../lib/celebrate'
 import type { LedgerExpense } from '../split/ledger'
 import { loadLedger } from '../split/splitApi'
+import { useTravelLegs } from '../trip/tripEventsApi'
 import { DraftReviewForm } from './DraftReviewForm'
 import { prepareForUpload } from './prepareImage'
 import {
@@ -64,6 +66,7 @@ export function ScanTab({ trip, roster }: TripTabProps) {
   const reload = useCallback(() => setReloadCount((value) => value + 1), [])
   // Expenses already in Split, to warn before the same cost is added twice.
   const [existing, setExisting] = useState<LedgerExpense[]>([])
+  const legs = useTravelLegs(trip.groupId, reloadCount)
   const splitting = phase.kind === 'cost' || (phase.kind === 'review' && isBillDraft(phase.draft))
   useEffect(() => {
     if (!splitting) return
@@ -236,6 +239,7 @@ export function ScanTab({ trip, roster }: TripTabProps) {
     setSaveError(null)
     try {
       await addDocumentEvent(document.id, input, audience)
+      celebrate('Added to itinerary')
       if (addToSplit) {
         const included = audience.length ? audience : members.map((member) => member.id)
         setPhase({ kind: 'cost', document, title: input.title, justAdded: true,
@@ -258,6 +262,8 @@ export function ScanTab({ trip, roster }: TripTabProps) {
   const billSplit = async (document: TripDocument, draft: BillDraft, expenseId: string) => {
     try {
       await linkDocumentExpense(document.id, expenseId)
+      // ExpenseForm already showed the tick for this save; this only relabels it if still showing.
+      celebrate('Added to Split', { followUp: true })
       setMessage(`Added to Split: ${draft.title}`)
     } catch {
       setMessage(`Added to Split: ${draft.title}. This bill still shows as ready to split; don’t split it again.`)
@@ -277,13 +283,15 @@ export function ScanTab({ trip, roster }: TripTabProps) {
     const active = new Set(members.map((member) => member.id))
     const included = audience.filter((id) => active.has(id))
     setPhase({ kind: 'cost', document, title, justAdded: false, prefill: bookingCostPrefill(
-      { price: booking?.price ?? null }, { title, eventType: booking?.eventType ?? 'other' }, trip.accountingCurrency,
+      { price: booking?.price ?? null }, { title, eventType: booking?.eventType ?? 'other', startsAt: booking?.startsAt ?? null }, trip.accountingCurrency,
       included.length ? included : [...active]) })
   }
 
   const costSplit = async (document: TripDocument, title: string, expenseId: string) => {
     try {
       await linkDocumentExpense(document.id, expenseId)
+      // ExpenseForm already showed the tick for this save; this only relabels it if still showing.
+      celebrate('Added to Split', { followUp: true })
       setMessage(`In the itinerary and in Split: ${title}`)
     } catch {
       setMessage(`Added to Split: ${title}. The document doesn’t show it yet; don’t split it again.`)
@@ -365,7 +373,7 @@ export function ScanTab({ trip, roster }: TripTabProps) {
       {phase.kind === 'review' && isBillDraft(phase.draft) && (
         <ExpenseForm key={`bill-${phase.document.id}`} groupId={trip.groupId} accountingCurrency={trip.accountingCurrency}
           timezone={trip.timezone} international={trip.isInternational} me={trip.groupMemberId} members={members} expense={null}
-          prefill={billPrefill(phase.draft, trip.accountingCurrency)} requestId={phase.document.id} heading="Split this bill" existing={existing}
+          prefill={billPrefill(phase.draft, trip.accountingCurrency)} requestId={phase.document.id} heading="Split this bill" existing={existing} legs={legs}
           notice={<BillNotice fileName={phase.document.fileName} draft={phase.draft} onSwitchToBooking={switchKind} />}
           onClose={finish}
           onSaved={(expenseId) => { if (phase.kind === 'review' && isBillDraft(phase.draft)) void billSplit(phase.document, phase.draft, expenseId) }} />

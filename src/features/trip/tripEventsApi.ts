@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { sortEvents, type EventPayload, type TripEvent } from './itinerary'
 import { useLiveRefetch } from './useLiveRefetch'
+import type { TravelLeg } from '../split/travelRules'
 
 const EVENT_COLUMNS = 'id, group_id, event_type, title, starts_at, ends_at, location, location_to, map_url, notes, dep_code, arr_code, flight_no, airline, terminal, booking_ref, created_by, created_at, updated_at'
 const LIVE_TABLES = ['trip_events', 'trip_event_audience'] as const
@@ -88,4 +89,30 @@ export async function updateTripEvent(groupId: string, eventId: string, expected
 export async function deleteTripEvent(groupId: string, eventId: string) {
   const { error } = await supabase.from('trip_events').delete().eq('group_id', groupId).eq('id', eventId)
   if (error) throw new EventSaveError('failed')
+}
+
+/** Journeys on the itinerary the caller can see, with who's on each (for Split's "travelling separately"). */
+export async function loadTravelLegs(groupId: string): Promise<TravelLeg[]> {
+  const [events, audience] = await Promise.all([
+    supabase.from('trip_events').select('id, event_type, title, starts_at, ends_at').eq('group_id', groupId)
+      .in('event_type', ['flight', 'ferry', 'transport']),
+    supabase.from('trip_event_audience').select('event_id, group_member_id').eq('group_id', groupId),
+  ])
+  if (events.error || audience.error) return []
+  const byEvent = new Map<string, string[]>()
+  for (const row of audience.data ?? []) byEvent.set(row.event_id, [...(byEvent.get(row.event_id) ?? []), row.group_member_id])
+  return (events.data ?? []).map((event) => ({
+    eventType: event.event_type, title: event.title, startsAt: event.starts_at, endsAt: event.ends_at, audience: byEvent.get(event.id) ?? [],
+  }))
+}
+
+/** Journeys for Split; `refreshKey` re-reads them (e.g. after a booking is added). */
+export function useTravelLegs(groupId: string, refreshKey: unknown = 0): TravelLeg[] {
+  const [legs, setLegs] = useState<TravelLeg[]>([])
+  useEffect(() => {
+    let active = true
+    void loadTravelLegs(groupId).then((found) => { if (active) setLegs(found) })
+    return () => { active = false }
+  }, [groupId, refreshKey])
+  return legs
 }

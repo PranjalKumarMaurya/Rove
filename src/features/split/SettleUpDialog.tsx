@@ -1,6 +1,7 @@
 import { type FormEvent, useId, useRef, useState } from 'react'
 import { NeonBtn } from '../../components/ui/NeonBtn'
 import type { SplitMember } from './ExpenseForm'
+import { celebrate } from '../../lib/celebrate'
 import type { SettlementSuggestion } from './ledger'
 import { formatMoney, minorUnits, parseAmount, toDecimalString } from './money'
 import { recordSettlement, SplitRequestError } from './splitApi'
@@ -78,6 +79,7 @@ export function SettleUpDialog({ groupId, tripName, currency, me, isOwner, membe
       await recordSettlement(groupId, {
         from: pending.from, to: pending.to, amount: toDecimalString(pending.amount, minorUnits(currency)), note: note.trim() || null,
       }, pending.requestId)
+      celebrate('Payment recorded')
       setDone(`Recorded: ${nameOf(pending.from)} paid ${nameOf(pending.to)} ${money(pending.amount)}.`)
       setPending(null)
       setCustom(false)

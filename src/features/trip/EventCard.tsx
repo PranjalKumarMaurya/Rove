@@ -1,6 +1,7 @@
 import { useId, useState, type CSSProperties } from 'react'
 import { eventTypeMeta, safeMapUrl, type EventStatus, type TripEvent } from './itinerary'
 import { clocksDiffer, formatSpan } from './tripTime'
+import { terminalLabel } from './NextFlight'
 
 const STATUS_LABEL: Record<EventStatus, string> = { past: 'Past', live: 'Live now', next: 'Next', upcoming: 'Upcoming' }
 
@@ -28,7 +29,7 @@ export function EventCard({ event, status, tripTimeZone, localTimeZone, audience
   const mapUrl = safeMapUrl(event.map_url)
   const highlighted = status === 'live' || status === 'next'
   const isFlight = event.event_type === 'flight'
-  const flightLine = [event.airline, event.flight_no, event.terminal && `Terminal ${event.terminal}`].filter(Boolean).join(' · ')
+  const flightLine = [event.airline, event.flight_no, event.terminal && terminalLabel(event.terminal)].filter(Boolean).join(' · ')
 
   const confirmDelete = async () => {
     setDeleting(true)

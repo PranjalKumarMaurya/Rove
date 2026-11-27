@@ -326,14 +326,16 @@ const COST_CATEGORY: Record<EventType, string> = {
 }
 
 /** What a booking's cost fills into Split's expense form. */
-export function bookingCostPrefill(draft: Pick<EventDraft, 'price'>, input: { title: string; eventType: EventType }, accountingCurrency: string, included: string[]): BillPrefill & { included: string[] } {
+export function bookingCostPrefill(draft: Pick<EventDraft, 'price'>, input: { title: string; eventType: EventType; startsAt?: string | null }, accountingCurrency: string, included: string[], now = Date.now()): BillPrefill & { included: string[] } {
+  const starts = input.startsAt ? Date.parse(input.startsAt) : NaN
   return {
     description: input.title.slice(0, 120),
     amount: draft.price?.amount ?? '',
     currency: draft.price?.currency ?? accountingCurrency,
     category: COST_CATEGORY[input.eventType],
-    // Paid when booked; the booking doesn't say when, so the form starts at now.
-    spentAt: null,
+    // Dated by the journey or stay itself, so it sits on that day in Split. A
+    // booking still ahead (Split refuses future dates) starts at now instead.
+    spentAt: !Number.isNaN(starts) && starts <= now ? new Date(starts).toISOString() : null,
     included,
   }
 }

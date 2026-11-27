@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { listExpenseSources, type ExpenseSource } from '../scan/documentsApi'
+import { useTravelLegs } from '../trip/tripEventsApi'
 import { NeonBtn } from '../../components/ui/NeonBtn'
 import { useTripMemberProfiles } from '../groups/useTripMemberProfiles'
 import type { TripTabProps } from '../workspace/tripTab'
@@ -42,6 +43,7 @@ export function SplitTab({ trip, roster, reloadRoster }: TripTabProps) {
   const upiIds = useMemo(() => (profilesLoading || profilesError ? null
     : new Map(profiles.map((profile) => [profile.groupMemberId, profile.upiId]))), [profiles, profilesLoading, profilesError])
   const [dialog, setDialog] = useState<Dialog>(null)
+  const legs = useTravelLegs(trip.groupId, dialog?.kind)
   const me = trip.groupMemberId
   const isOwner = trip.role === 'owner'
   const ledger: Ledger | null = state.status === 'loading' ? null : state.ledger
@@ -147,7 +149,7 @@ export function SplitTab({ trip, roster, reloadRoster }: TripTabProps) {
       {(dialog?.kind === 'add' || dialog?.kind === 'edit') && (
         <ExpenseForm key={dialog.kind === 'edit' ? dialog.expense.id : 'add'} groupId={trip.groupId} accountingCurrency={currency}
           timezone={trip.timezone} international={trip.isInternational} me={me} members={active} expense={dialog.kind === 'edit' ? dialog.expense : null}
-          existing={ledger?.expenses ?? []} onClose={closeDialog} onSaved={saved} />
+          existing={ledger?.expenses ?? []} legs={legs} onClose={closeDialog} onSaved={saved} />
       )}
       {dialog?.kind === 'settle' && (
         <SettleUpDialog groupId={trip.groupId} tripName={trip.tripName} currency={currency} me={me} isOwner={isOwner} members={active}

@@ -1,0 +1,90 @@
+/**
+ * Pure rules that keep the signed-in screens (React state in AuthBoundary) in step with
+ * the browser history, so Android's back gesture and the iOS edge swipe move between
+ * screens instead of leaving the app.
+ *
+ * Each screen has a depth: the Trips home is 0, a Trip, Create and Profile-from-home are 1,
+ * Profile opened from a Trip is 2. The history holds one entry per depth level, each
+ * tagged `{ rove, roveDepth }`. Going deeper pushes entries, going shallower goes back
+ * through them, and moving sideways (Create → the new Trip) replaces the current entry.
+ */
+
+export type View =
+  | { kind: 'home' }
+  | { kind: 'trip'; groupId: string }
+  | { kind: 'create' }
+  | { kind: 'profile'; from: { kind: 'home' } | { kind: 'trip'; groupId: string } }
+
+export interface RoveHistoryState {
+  rove: View
+  roveDepth: number
+}
+
+export type HistoryPlan =
+  | { kind: 'none' }
+  | { kind: 'push'; count: number }
+  | { kind: 'back'; count: number }
+  | { kind: 'replace' }
+
+export function viewDepth(view: View): number {
+  if (view.kind === 'home') return 0
+  if (view.kind === 'profile' && view.from.kind === 'trip') return 2
+  return 1
+}
+
+/** A stable identity for a view, so the same screen is not recorded twice. */
+export function viewKey(view: View): string {
+  switch (view.kind) {
+    case 'home': return 'home'
+    case 'create': return 'create'
+    case 'trip': return `trip:${view.groupId}`
+    case 'profile': return view.from.kind === 'trip' ? `profile:trip:${view.from.groupId}` : 'profile:home'
+  }
+}
+
+/** How to move from the current history entry (at `entryDepth`) to a view at `targetDepth`. */
+export function planHistory(entryDepth: number, targetDepth: number): HistoryPlan {
+  if (targetDepth > entryDepth) return { kind: 'push', count: targetDepth - entryDepth }
+  if (targetDepth < entryDepth) return { kind: 'back', count: entryDepth - targetDepth }
+  return { kind: 'replace' }
+}
+
+export function roveState(view: View, depth = viewDepth(view)): RoveHistoryState {
+  return { rove: view, roveDepth: depth }
+}
+
+const isId = (value: unknown): value is string => typeof value === 'string' && value.length > 0
+
+function readView(value: unknown): View | null {
+  if (!value || typeof value !== 'object') return null
+  const view = value as Record<string, unknown>
+  if (view.kind === 'home' || view.kind === 'create') return { kind: view.kind }
+  if (view.kind === 'trip') return isId(view.groupId) ? { kind: 'trip', groupId: view.groupId } : null
+  if (view.kind === 'profile') {
+    const from = view.from as Record<string, unknown> | null | undefined
+    if (from?.kind === 'home') return { kind: 'profile', from: { kind: 'home' } }
+    if (from?.kind === 'trip' && isId(from.groupId)) return { kind: 'profile', from: { kind: 'trip', groupId: from.groupId } }
+  }
+  return null
+}
+
+/** Reads a history entry's state; anything not written by us counts as the Trips home at depth 0. */
+export function readRoveState(state: unknown): RoveHistoryState {
+  const raw = state && typeof state === 'object' ? state as Record<string, unknown> : null
+  const view = raw ? readView(raw.rove) : null
+  if (!view) return { rove: { kind: 'home' }, roveDepth: 0 }
+  const depth = typeof raw?.roveDepth === 'number' && Number.isInteger(raw.roveDepth) && raw.roveDepth >= 0
+    ? raw.roveDepth : viewDepth(view)
+  return { rove: view, roveDepth: depth }
+}
+
+/** The depth of the current entry: 0 unless it is one of ours. */
+export function entryDepthOf(state: unknown): number {
+  return readRoveState(state).roveDepth
+}
+
+/** Merges our tag into an entry's state, keeping anything else stored there. */
+export function withRoveState(state: unknown, view: View, depth = viewDepth(view)): Record<string, unknown> {
+  const base = state && typeof state === 'object' ? state as Record<string, unknown> : {}
+  return { ...base, ...roveState(view, depth) }
+}

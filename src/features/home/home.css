@@ -1,0 +1,161 @@
+/* Trips home: headline row, bottom nav and the invite-link popup. */
+
+/* Room under the last card for the fixed bottom nav (and its raised ＋). */
+.screen.home-nav-space {
+  padding-bottom: calc(var(--tab-bar-height, 60px) + 40px + max(6px, calc(env(safe-area-inset-bottom, 0px) - 14px)));
+}
+
+/* ---- Bottom nav (same surface as the in-Trip tab bar) -------------------- */
+.home-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  max-width: 480px;
+  margin: 0 auto;
+  padding-bottom: max(6px, calc(env(safe-area-inset-bottom, 0px) - 14px));
+  background: rgba(15, 11, 8, 0.94);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border);
+}
+.home-nav__inner { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0 4px; }
+.home-nav__item {
+  display: flex;
+  min-width: 0;
+  min-height: var(--tab-bar-height, 60px);
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  padding: 8px 0 8px;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.2s ease;
+}
+.home-nav__item:hover { color: var(--text-secondary); }
+.home-nav__item.is-active, .home-nav__item.is-active:hover { color: var(--text-primary); }
+.home-nav__item.is-active .home-nav__icon svg { color: var(--accent); }
+.home-nav__item:focus-visible { outline: 2px solid var(--accent); outline-offset: -6px; border-radius: 14px; }
+.home-nav__icon { display: flex; height: 26px; align-items: center; justify-content: center; }
+
+.home-nav__avatar { box-shadow: 0 0 0 1.5px transparent; transition: box-shadow 0.2s ease; }
+.home-nav__item.is-active .home-nav__avatar { box-shadow: 0 0 0 1.5px var(--bg-base, #0F0B08), 0 0 0 3px var(--accent); }
+
+/* The raised ＋: overlaps the top border, ringed in the page colour. */
+.home-nav__item--create { color: var(--text-secondary); }
+.home-nav__item--create:focus-visible { outline: none; }
+.home-nav__fab {
+  display: flex;
+  width: 52px;
+  height: 52px;
+  margin-top: -30px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #1A0A03;
+  box-shadow: 0 0 0 5px var(--bg-base, #0F0B08), 0 8px 22px rgba(255, 139, 77, 0.28);
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), filter 0.2s ease;
+}
+.home-nav__item--create:hover .home-nav__fab { filter: brightness(1.08); }
+.home-nav__item--create:active .home-nav__fab { transform: scale(0.94); }
+.home-nav__item--create:focus-visible .home-nav__fab {
+  box-shadow: 0 0 0 3px var(--bg-base, #0F0B08), 0 0 0 5px var(--accent);
+}
+
+/* ---- Invite-link popup -------------------------------------------------- */
+.invite-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+}
+.invite-dialog__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 5, 3, 0.62);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.invite-dialog__card {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  padding: 22px 20px 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: 22px;
+  background: var(--bg-elevated, #16110D);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transform: scale(0.96);
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1), transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.invite-dialog.is-shown .invite-dialog__backdrop,
+.invite-dialog.is-shown .invite-dialog__card { opacity: 1; }
+.invite-dialog.is-shown .invite-dialog__card { transform: scale(1); }
+
+.invite-dialog__title {
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 48, "SOFT" 30, "wght" 400;
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+}
+.invite-dialog__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.invite-dialog__close:hover { color: var(--text-primary); }
+.invite-dialog__paste {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  transform: translateY(-50%);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(245, 241, 235, 0.05);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.invite-dialog__paste:hover { background: rgba(245, 241, 235, 0.09); color: var(--text-primary); }
+
+@media (prefers-reduced-motion: reduce) {
+  .invite-dialog__backdrop, .invite-dialog__card, .home-nav__fab, .home-nav__item { transition: none; }
+  .invite-dialog__card { transform: none; }
+}

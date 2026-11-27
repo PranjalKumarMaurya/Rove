@@ -41,7 +41,7 @@ test('the workspace is an app shell: compact top bar and a one-row bottom tab ba
   const header = page.getByTestId('group-workspace').locator('header')
   await expect(header).toContainText('Bali, Indonesia · Owner')
   await expect(header).not.toContainText(/\bGroups?\b|IANA|Supabase|Refresh|Sign out/)
-  await expect(header.getByRole('button', { name: 'Trips', exact: true })).toBeVisible()
+  await expect(header.getByRole('button', { name: 'Back to Trips', exact: true })).toBeVisible()
   await expect(header.getByRole('button', { name: 'Trip settings' })).toBeVisible()
   await expect(header.getByRole('button', { name: 'Profile' })).toBeVisible()
 
@@ -97,7 +97,8 @@ test('the Trips home lists Trips; back control, domestic tabs, and Profile with 
   const profile = page.getByTestId('profile-screen')
   await expect(profile).toContainText('Partha')
   await expect(profile).toContainText('partha@example.test')
-  await expect(profile.getByRole('button', { name: 'Goa weekend' })).toBeVisible()
+  // Back is icon-only now; its hint still names the Trip it returns to.
+  await expect(profile.getByRole('button', { name: 'Back' })).toHaveAttribute('title', 'Back to Goa weekend')
   await profile.getByRole('button', { name: 'Sign out' }).click()
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
 })

@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react'
 import { countdown, formatCountdown, type TripEvent } from './itinerary'
 import { dualTime } from './tripTime'
 
+/** "3" reads "Terminal 3"; a value already written as "Terminal 3" or "T3" stays as typed. */
+export function terminalLabel(terminal: string) {
+  const value = terminal.trim()
+  return /^terminal/i.test(value) || /^T\d/i.test(value) ? value : `Terminal ${value}`
+}
+
 /** Next-flight card with a ticking countdown (the v1 CountdownClock, simplified). */
 export function NextFlight({ flight, tripTimeZone, localTimeZone }: { flight: TripEvent | null; tripTimeZone: string; localTimeZone: string }) {
   const [now, setNow] = useState(() => Date.now())
@@ -22,7 +28,7 @@ export function NextFlight({ flight, tripTimeZone, localTimeZone }: { flight: Tr
 
   const parts = countdown(Date.parse(flight.starts_at), now)
   const time = dualTime(flight.starts_at, tripTimeZone, localTimeZone)
-  const details = [flight.airline, flight.flight_no, flight.terminal && `Terminal ${flight.terminal}`].filter(Boolean).join(' · ')
+  const details = [flight.airline, flight.flight_no, flight.terminal && terminalLabel(flight.terminal)].filter(Boolean).join(' · ')
 
   return (
     <section aria-label="Next flight" data-testid="next-flight" className="surface px-4 py-4">

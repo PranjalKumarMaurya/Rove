@@ -8,6 +8,7 @@ import { ScreenFrame } from '../../components/ui/ScreenFrame'
 import { Switch } from '../../components/ui/Switch'
 import { BootstrapGroupError, bootstrapGroup, createBootstrapRequestId } from './bootstrapGroup'
 import { TripCurrencyFields } from './CurrencyFields'
+import { celebrate } from '../../lib/celebrate'
 import {
   type BootstrapFieldName, type BootstrapFormErrors, type BootstrapFormValues,
   browserTimezone, currencyName, defaultTripCurrency, displayCurrencySet, formatTripDates,
@@ -149,6 +150,7 @@ export function BootstrapOnboarding({ onContinue, onBack, homeCurrency }: {
         endDate: values.endDate,
       })
       setState('success')
+      celebrate('Trip created')
     } catch (error) {
       if (!(error instanceof BootstrapGroupError)) {
         setState('retryable-failure')
@@ -171,7 +173,7 @@ export function BootstrapOnboarding({ onContinue, onBack, homeCurrency }: {
       eyebrow={<p className="eyebrow">New Trip</p>}
       title="Create your Trip"
       lede="Add the basics. You can invite friends once it’s created."
-      top={onBack ? <button type="button" className="topbar-btn topbar-btn--back" onClick={onBack}><IconBack size={18} />Trips</button> : undefined}>
+      top={onBack ? <button type="button" className="round-btn" aria-label="Back to Trips" onClick={onBack}><IconBack size={20} /></button> : undefined}>
       <form onSubmit={(event) => void submit(event)} aria-label="Create Trip" aria-busy={formIsInert} className="flex flex-col gap-5" noValidate>
         {message && <p role="alert" data-testid="bootstrap-status" className="notice notice--error">{message}</p>}
         {hasVisibleErrors && <p role="alert" className="notice notice--error">Check the highlighted fields.</p>}

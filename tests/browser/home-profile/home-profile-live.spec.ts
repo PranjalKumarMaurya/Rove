@@ -34,9 +34,13 @@ test('Trips home, Profile, Trip settings and domestic vs International Trips', a
     await signUp(owner, 'Olive Owner', 'olive-home@example.test')
     await expect(owner.getByTestId('trips-empty')).toContainText('No Trips yet')
     await expect(owner.getByRole('button', { name: 'Create your first Trip' })).toBeVisible()
+    await owner.getByRole('button', { name: 'Join with an invite link' }).click()
     await owner.getByLabel('Have an invite link?').fill('https://example.test/not-an-invite')
     await owner.getByRole('button', { name: 'Open invite' }).click()
     await expect(owner.getByText('That doesn’t look like a Trip invite link.', { exact: false })).toBeVisible()
+    // The popup stays open on a bad link; Escape closes it.
+    await owner.keyboard.press('Escape')
+    await expect(owner.getByRole('dialog', { name: 'Join a Trip' })).toHaveCount(0)
 
     // ---- Profile ---------------------------------------------------------------
     await openProfile(owner)
@@ -98,7 +102,7 @@ test('Trips home, Profile, Trip settings and domestic vs International Trips', a
     await expect(owner.getByRole('switch', { name: 'International trip?' })).toHaveAttribute('aria-checked', 'false')
     await expect(owner.getByRole('switch', { name: 'International trip?' })).toHaveAccessibleDescription(/SGD/u)
     await expect(owner.getByLabel('Trip currency')).toHaveCount(0)
-    await owner.getByRole('button', { name: 'Trips', exact: true }).click()
+    await owner.getByRole('button', { name: 'Back to Trips' }).click()
     await createTrip(owner, { name: 'Goa weekend', destination: 'Goa', startDate: day(5), endDate: day(8) })
 
     // A domestic Trip has no FX tab and no currency choice in Split.
@@ -211,6 +215,7 @@ test('Trips home, Profile, Trip settings and domestic vs International Trips', a
     await friend.goto('/')
     await signUp(friend, 'Farah Friend', 'farah-home@example.test')
     await expect(friend.getByTestId('trips-empty')).toBeVisible()
+    await friend.getByRole('button', { name: 'Join with an invite link' }).click()
     await friend.getByLabel('Have an invite link?').fill(link)
     await friend.getByRole('button', { name: 'Open invite' }).click()
     await expect(friend.getByTestId('invitation-entry')).toContainText('Join Goa long weekend as a member?')

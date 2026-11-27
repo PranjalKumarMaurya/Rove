@@ -5,6 +5,7 @@ import { AuthEntry } from '../auth/AuthEntry'
 import type { AuthSessionState } from '../auth/authSession'
 import { formatTripDates } from '../onboarding/tripSettings'
 import { acceptInvitation, inspectInvitation, type InvitationInspection } from './invitationApi'
+import { celebrate } from '../../lib/celebrate'
 
 type ViewState =
   | { kind: 'loading' }
@@ -64,6 +65,7 @@ export function InvitationEntry({ proof, auth, onSignOut, onClose, onAccepted, o
     try {
       const groupId = await acceptInvitation(proof, requestId)
       setView({ kind: 'accepted', groupId })
+      celebrate('Joined the Trip')
       onAccepted(groupId)
     } catch (error) {
       if (error instanceof Error && error.message === 'already_member') {
