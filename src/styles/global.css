@@ -111,13 +111,16 @@ body {
    pseudo-element is ignored and the blur stays). It only covers the status bar,
    where nothing in the app is tappable. Native top-layer dialogs sit above it. */
 :root {
-  /* Extra room under the status bar in the installed iPhone app (set by
-     src/lib/topShade.ts), where iOS 26 blurs a band about 30-40pt deep that no
-     web setting turns off: content starts below it, so only background is blurred. */
+  /* In the installed iPhone app (set by src/lib/topShade.ts), iOS 26 blurs the
+     top of the web view unless WebKit finds a fixed, solid, full-width box more
+     than 10px tall at the very top (it samples about 4px down). With the opaque
+     status bar the safe-area inset is 0, so the .status-shield below would be 0px
+     tall and the blur stayed; 12px makes it qualify. That is all the room it
+     takes: content starts right below it with the normal screen padding. */
   --top-clear: 0px;
   --safe-top: calc(env(safe-area-inset-top, 0px) + var(--top-clear));
 }
-html[data-ios-app="true"] { --top-clear: 36px; }
+html[data-ios-app="true"] { --top-clear: 12px; }
 .status-shield {
   position: fixed;
   top: 0;

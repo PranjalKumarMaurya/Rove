@@ -75,7 +75,7 @@ Every card is `--radius-lg` (`.surface`). A card inside a card or a dialog uses 
 - **Money columns** are right-aligned and tabular (`.t-num`) and never wrap. When space runs out the label column truncates, never the amount.
 - **One line per row heading.** A row's title truncates, its meta line may wrap, and its amount sits top-right.
 - Everything must work from 320px wide up to the 480px column, at every text size (Profile → Text size) and with Bold text on.
-- **Safe areas.** The top uses `var(--safe-top)` (status bar, plus the iPhone home-screen blur band). The bottom uses `env(safe-area-inset-bottom)` plus the bar height.
+- **Safe areas.** The top uses `var(--safe-top)`: the status bar plus, in the installed iPhone app only, a 12px solid strip (`--top-clear`). That strip is what makes iOS 26 skip its top-edge blur; WebKit needs a fixed, solid, full-width box more than 10px tall at the top. Don't add more clearance than that. The bottom uses `env(safe-area-inset-bottom)` plus the bar height.
 - **Docked to the bar.** The Chat composer is the one thing that sits closer than `--space-6` to the tab bar: it docks `--space-2` above it, like a messenger's, and the messages scroll above it. The message column's avatars sit on the gutter; my bubbles' tails take the `--space-2` on the right.
 
 ## 6. Components (one look each)
