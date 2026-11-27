@@ -1,4 +1,4 @@
-import { type CSSProperties, type RefObject, useLayoutEffect } from 'react'
+import { type CSSProperties, type RefObject, useCallback, useEffect, useLayoutEffect, useReducer, useRef } from 'react'
 
 /** List entrance stagger (`.m-enter`, motion.css): the first six items 30ms apart, later ones at once. */
 export function enterIndex(index: number): CSSProperties {
@@ -48,4 +48,60 @@ export function useTriggerOrigin(card: RefObject<HTMLElement | null>, trigger?: 
   // Measured once, at open: the card should return to where it came from.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+}
+
+/** A list item folding away (motion.css .m-fold): ~200ms, plus a frame. */
+const FOLD_MS = 220
+/** A removal the person asked for that never happened (the request failed) stops waiting after this. */
+const EXIT_EXPIRY_MS = 60_000
+
+export interface ExitEntry<T> { item: T; key: string; leaving: boolean }
+
+/**
+ * Lets items the person removed fold away instead of vanishing. Call `exit(key)` when
+ * they remove (or move) an item; when it then leaves `items`, it stays in place for one
+ * fold with `leaving: true`. Items that leave for any other reason (a realtime refresh,
+ * someone else's change) simply go.
+ */
+export function useExitList<T>(items: readonly T[], keyOf: (item: T) => string) {
+  const shown = useRef<ExitEntry<T>[]>([])
+  const expected = useRef(new Map<string, number>())
+  const [, rerender] = useReducer((count: number) => count + 1, 0)
+
+  const index = new Map(items.map((item, position) => [keyOf(item), position]))
+  const next: ExitEntry<T>[] = []
+  let cursor = 0
+  const now = Date.now()
+  for (const previous of shown.current) {
+    const at = index.get(previous.key)
+    if (at !== undefined) {
+      while (cursor <= at) { const item = items[cursor++]; next.push({ item, key: keyOf(item), leaving: false }) }
+    } else if (previous.leaving) {
+      next.push(previous)
+    } else {
+      const since = expected.current.get(previous.key)
+      if (since !== undefined && now - since < EXIT_EXPIRY_MS) next.push({ ...previous, leaving: true })
+      expected.current.delete(previous.key)
+    }
+  }
+  while (cursor < items.length) { const item = items[cursor++]; next.push({ item, key: keyOf(item), leaving: false }) }
+  shown.current = next
+
+  const leavingKeys = next.filter((entry) => entry.leaving).map((entry) => entry.key).join(',')
+  useEffect(() => {
+    if (!leavingKeys) return
+    const timer = window.setTimeout(() => {
+      shown.current = shown.current.filter((entry) => !entry.leaving)
+      rerender()
+    }, FOLD_MS)
+    return () => window.clearTimeout(timer)
+  }, [leavingKeys])
+
+  const exit = useCallback((key: string) => { expected.current.set(key, Date.now()) }, [])
+  return { entries: next, exit }
+}
+
+/** Props for an item that may be folding away: `.m-fold` plus, while leaving, hidden from assistive tech. */
+export function foldProps(leaving: boolean, className = ''): { className: string; 'aria-hidden'?: true; inert?: '' } {
+  return leaving ? { className: `m-fold is-leaving ${className}`, 'aria-hidden': true, inert: '' } : { className: `m-fold ${className}` }
 }

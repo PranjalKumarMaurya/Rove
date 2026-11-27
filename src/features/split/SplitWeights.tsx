@@ -64,7 +64,7 @@ export function WeightFields({ mode, members, values, onChange, evaluation, curr
 
 function Strip({ ok, children }: { ok: boolean; children: string }) {
   return (
-    <p role="status" className="rounded-lg px-3 py-2 text-xs" data-testid="split-weight-summary"
+    <p role="status" className="m-toggle rounded-lg px-3 py-2 text-xs" data-testid="split-weight-summary"
       style={{
         color: ok ? 'var(--text-primary)' : 'var(--accent)',
         border: `1px solid ${ok ? 'var(--border-strong)' : 'rgba(255,139,77,0.4)'}`,

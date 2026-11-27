@@ -1,6 +1,9 @@
 import { lockBodyScroll } from '../../hooks/useBodyScrollLock'
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { NeonBtn } from '../../components/ui/NeonBtn'
+import { AsyncButton, useAsyncStatus } from '../../components/ui/AsyncButton'
+import { Checkbox } from '../../components/ui/Checkbox'
+import { Collapse } from '../../components/ui/Collapse'
 import { NeonInput } from '../../components/ui/NeonInput'
 import { useTriggerOrigin } from '../../components/ui/motion'
 import type { RosterMember } from '../groups/useGroupRoster'
@@ -9,7 +12,6 @@ import {
   type EventFormErrors, type EventFormField, type EventFormValues, type EventPayload, type TripEvent,
 } from './itinerary'
 import { EventSaveError } from './tripEventsApi'
-import { celebrate } from '../../lib/celebrate'
 import { isoToZonedInput, timeZoneCity } from './tripTime'
 
 function formFromEvent(event: TripEvent, timeZone: string): EventFormValues {
@@ -33,7 +35,7 @@ function formFromEvent(event: TripEvent, timeZone: string): EventFormValues {
 
 const overlay: CSSProperties = {
   // Starts below the status bar so the form's title never scrolls under it (iOS blurs content there).
-  position: 'fixed', top: 'env(safe-area-inset-top, 0px)', right: 0, bottom: 0, left: 0, zIndex: 50, background: 'rgba(15, 11, 8, 0.92)',
+  position: 'fixed', top: 'var(--safe-top)', right: 0, bottom: 0, left: 0, zIndex: 50, background: 'rgba(15, 11, 8, 0.92)',
   display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'none',
   padding: '16px 16px calc(16px + env(safe-area-inset-bottom, 0px))',
 }
@@ -62,6 +64,7 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
   const [audience, setAudience] = useState<string[]>(initialAudience)
   const [errors, setErrors] = useState<EventFormErrors>({})
   const [saving, setSaving] = useState(false)
+  const action = useAsyncStatus()
   const [problem, setProblem] = useState<'conflict' | 'removed' | 'failed' | null>(null)
   const firstField = useRef<HTMLSelectElement>(null)
   // Grows out of "Add event" or the card's "Edit".
@@ -89,14 +92,19 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
     }
     setErrors({})
     setSaving(true)
+    action.busy()
     setProblem(null)
     try {
       await onSave(result.payload, audience, overwrite)
-      celebrate(event ? 'Saved' : 'Added to itinerary')
     } catch (error) {
       setProblem(error instanceof EventSaveError ? error.kind : 'failed')
       setSaving(false)
+      action.fail()
+      return
     }
+    // Saved: the button's tick confirms it in place, then the dialog closes.
+    await action.done()
+    onClose()
   }
 
   const submit = (formEvent: FormEvent) => {
@@ -115,7 +123,9 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
           <button type="button" aria-label="Close" onClick={onClose} style={{ color: 'var(--text-tertiary)', fontSize: 18 }}>✕</button>
         </div>
         <form onSubmit={submit} aria-label={event ? 'Edit event' : 'Add event'} className="flex flex-col gap-3.5" noValidate>
-          {Object.keys(errors).length > 0 && <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>Check the highlighted fields.</p>}
+          <Collapse open={Object.keys(errors).length > 0} gap={14}>
+            <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>Check the highlighted fields.</p>
+          </Collapse>
           <Field label="Type" error={errors.eventType}>
             <select ref={firstField} aria-label="Type" value={values.eventType} onChange={(change) => set('eventType')(change.target.value)}
               className="rounded-xl px-3.5 py-2.5 text-sm" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
@@ -174,8 +184,9 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
               <p className="font-mono mt-0.5" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.08em' }}>Leave all unticked for everyone. If you tick people, only they and whoever added it can see it.</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {activeMembers.map((member) => (
-                  <label key={member.groupMemberId} className="pill cursor-pointer" style={{ color: audience.includes(member.groupMemberId) ? 'var(--accent)' : 'var(--text-secondary)' }}>
-                    <input type="checkbox" checked={audience.includes(member.groupMemberId)}
+                  <label key={member.groupMemberId} className="pill cursor-pointer" data-on={audience.includes(member.groupMemberId)}
+                    style={{ color: audience.includes(member.groupMemberId) ? 'var(--accent)' : 'var(--text-secondary)' }}>
+                    <Checkbox checked={audience.includes(member.groupMemberId)}
                       onChange={(change) => setAudience((current) => change.target.checked
                         ? [...current, member.groupMemberId]
                         : current.filter((id) => id !== member.groupMemberId))} />
@@ -186,7 +197,7 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
             </fieldset>
           )}
 
-          {problem === 'conflict' && (
+          <Collapse open={problem === 'conflict'} gap={14}>
             <div role="alert" className="surface px-3.5 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
               Someone else changed this event while you were editing. Your changes are still here.
               <div className="mt-2 flex gap-2">
@@ -194,12 +205,17 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
                 <NeonBtn type="button" variant="ghost" onClick={onClose}>Discard mine</NeonBtn>
               </div>
             </div>
-          )}
-          {problem === 'removed' && <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>Someone else deleted this event. Nothing was saved.</p>}
-          {problem === 'failed' && <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>Could not save. Check your connection and try again.</p>}
+          </Collapse>
+          <Collapse open={problem === 'removed'} gap={14}>
+            <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>Someone else deleted this event. Nothing was saved.</p>
+          </Collapse>
+          <Collapse open={problem === 'failed'} gap={14}>
+            <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>Could not save. Check your connection and try again.</p>
+          </Collapse>
 
           <div className="mt-1 flex gap-2">
-            <NeonBtn type="submit" disabled={saving || problem === 'removed'} className="flex-1">{saving ? 'Saving…' : event ? 'Save changes' : 'Add event'}</NeonBtn>
+            <AsyncButton type="submit" status={action.status} disabled={problem === 'removed'} busyLabel="Saving…" doneLabel={event ? 'Saved' : 'Added'}
+              className="flex-1">{event ? 'Save changes' : 'Add event'}</AsyncButton>
             <NeonBtn type="button" variant="ghost" onClick={onClose}>Cancel</NeonBtn>
           </div>
         </form>
@@ -210,11 +226,11 @@ export function EventDialog({ event, initialAudience, tripTimeZone, roster, onSa
 
 function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: ReactNode }) {
   return (
-    <label className="flex flex-col gap-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
+    <label className="m-field flex flex-col gap-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
       <span>{label}</span>
       {children}
       {hint && !error && <span className="font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.08em' }}>{hint}</span>}
-      {error && <span role="alert" style={{ color: 'var(--accent)', fontSize: 12 }}>{error}</span>}
+      {error && <span role="alert" className="m-field-error" style={{ color: 'var(--accent)', fontSize: 12 }}>{error}</span>}
     </label>
   )
 }

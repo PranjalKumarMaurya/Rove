@@ -13,7 +13,7 @@ export function CrewInfo({ id, name, isMe, profile, loading, error }: {
 }) {
   const details = sharedDetails(profile)
   return (
-    <div id={id} data-testid="crew-info" className="m-reveal mb-2 mt-1 rounded-md border px-3 py-3 text-sm" style={{ borderColor: 'var(--border)' }}>
+    <div id={id} data-testid="crew-info" className="mb-2 mt-1 rounded-md border px-3 py-3 text-sm" style={{ borderColor: 'var(--border)' }}>
       {loading ? (
         <p style={{ color: 'var(--text-tertiary)' }}>Loading details…</p>
       ) : error ? (

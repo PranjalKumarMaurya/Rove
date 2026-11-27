@@ -2,6 +2,9 @@ import { type ChangeEvent, type FormEvent, type ReactNode, useEffect, useRef, us
 import { Field } from '../../components/ui/Field'
 import { IconBack, IconCamera, IconChevronRight, IconSignOut } from '../../components/ui/icons'
 import { NeonBtn } from '../../components/ui/NeonBtn'
+import { AsyncButton, useAsyncStatus } from '../../components/ui/AsyncButton'
+import { Collapse } from '../../components/ui/Collapse'
+import { Swap } from '../../components/ui/Swap'
 import { NeonInput } from '../../components/ui/NeonInput'
 import { NeonSelect } from '../../components/ui/NeonSelect'
 import { ScreenFrame } from '../../components/ui/ScreenFrame'
@@ -192,9 +195,10 @@ function AvatarEditor({ userId, profile, onChanged }: { userId: string; profile:
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <input ref={fileRef} type="file" accept={AVATAR_ACCEPT} className="sr-only" aria-label="Profile photo file"
             tabIndex={-1} onChange={(event) => void choosePhoto(event)} />
-          <NeonBtn type="button" variant="outline" size="lg" disabled={busy !== null} onClick={() => fileRef.current?.click()}>
-            <IconCamera size={18} />{busy === 'photo' ? 'Saving…' : profile.avatarPath ? 'Change photo' : 'Add photo'}
-          </NeonBtn>
+          <AsyncButton type="button" variant="outline" size="lg" disabled={busy !== null} status={busy === 'photo' ? 'busy' : 'idle'}
+            busyLabel="Saving…" onClick={() => fileRef.current?.click()}>
+            <IconCamera size={18} />{profile.avatarPath ? 'Change photo' : 'Add photo'}
+          </AsyncButton>
           {profile.avatarPath && <NeonBtn type="button" variant="ghost" size="lg" disabled={busy !== null} onClick={() => void removePhoto()}>Remove photo</NeonBtn>}
         </div>
       </div>
@@ -208,7 +212,9 @@ function AvatarEditor({ userId, profile, onChanged }: { userId: string; profile:
           )
         })}
       </div>
-      {message && <p role={message.tone === 'error' ? 'alert' : 'status'} className={`notice mt-4${message.tone === 'error' ? ' notice--error' : ''}`}>{message.text}</p>}
+      <Collapse open={Boolean(message)}>
+        {message && <p role={message.tone === 'error' ? 'alert' : 'status'} className={`notice mt-4${message.tone === 'error' ? ' notice--error' : ''}`}>{message.text}</p>}
+      </Collapse>
     </section>
   )
 }
@@ -226,6 +232,7 @@ function DetailsForm({ profile, onChanged }: { profile: MyProfile; onChanged: (c
   const [form, setForm] = useState<ProfileFormValues>(() => formFrom(profile))
   const [attempted, setAttempted] = useState(false)
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle')
+  const action = useAsyncStatus()
   const errors = validateProfileForm(form)
   const show = (field: ProfileField) => (attempted ? errors[field] : undefined)
   const dirty = JSON.stringify(form) !== JSON.stringify(formFrom(profile))
@@ -242,9 +249,12 @@ function DetailsForm({ profile, onChanged }: { profile: MyProfile; onChanged: (c
     setAttempted(true)
     if (Object.keys(errors).length) return
     setState('saving')
+    action.busy()
     const changes = profileChanges(form)
     try {
       await updateMyProfile(profile.id, changes)
+      await action.done()
+      action.reset()
       onChanged({
         displayName: changes.display_name, homeCurrency: changes.home_currency, upiId: changes.upi_id, phone: changes.phone,
         emergencyContact: changes.emergency_contact, dietaryNotes: changes.dietary_notes,
@@ -252,6 +262,7 @@ function DetailsForm({ profile, onChanged }: { profile: MyProfile; onChanged: (c
       setState('saved')
     } catch (error) {
       setState('failed')
+      action.fail()
       if (error instanceof ProfileRequestError && error.code === 'invalid_value') setAttempted(true)
     }
   }
@@ -289,12 +300,19 @@ function DetailsForm({ profile, onChanged }: { profile: MyProfile; onChanged: (c
         </Field>
       </fieldset>
 
-      {attempted && Object.keys(errors).length > 0 && <p role="alert" className="notice notice--error">Check the highlighted fields.</p>}
-      {state === 'failed' && <p role="alert" className="notice notice--error">We couldn’t save your details. Check your connection and try again.</p>}
-      {state === 'saved' && !dirty && <p role="status" className="notice">Saved.</p>}
-      <NeonBtn type="submit" size="lg" className="w-full" disabled={state === 'saving' || (!dirty && state !== 'failed')}>
-        {state === 'saving' ? 'Saving…' : 'Save details'}
-      </NeonBtn>
+      <Collapse open={attempted && Object.keys(errors).length > 0} gap={20}>
+        <p role="alert" className="notice notice--error">Check the highlighted fields.</p>
+      </Collapse>
+      <Collapse open={state === 'failed'} gap={20}>
+        <p role="alert" className="notice notice--error">We couldn’t save your details. Check your connection and try again.</p>
+      </Collapse>
+      <Collapse open={state === 'saved' && !dirty} gap={20}>
+        <p role="status" className="notice">Saved.</p>
+      </Collapse>
+      <AsyncButton type="submit" size="lg" className="w-full" status={action.status} busyLabel="Saving…" doneLabel="Saved"
+        disabled={!dirty && state !== 'failed' && action.status === 'idle'}>
+        Save details
+      </AsyncButton>
     </form>
   )
 }
@@ -303,6 +321,7 @@ function ChangeEmailSheet({ currentEmail, onClose }: { currentEmail: string | un
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [state, setState] = useState<'idle' | 'sending' | 'pending' | 'changed'>('idle')
+  const action = useAsyncStatus()
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -310,10 +329,14 @@ function ChangeEmailSheet({ currentEmail, onClose }: { currentEmail: string | un
     setError(problem)
     if (problem || state === 'sending') return
     setState('sending')
+    action.busy()
     try {
-      setState(await changeEmail(email))
+      const outcome = await changeEmail(email)
+      await action.done()
+      setState(outcome)
     } catch (failure) {
       setState('idle')
+      action.fail()
       setError(failure instanceof AccountRequestError && failure.code === 'email_unavailable'
         ? 'That email address can’t be used. Try another one.'
         : 'We couldn’t start the change. Check your connection and try again.')
@@ -322,6 +345,7 @@ function ChangeEmailSheet({ currentEmail, onClose }: { currentEmail: string | un
 
   return (
     <Sheet title="Change email" testId="change-email-sheet" onClose={onClose}>
+      <Swap id={state === 'pending' || state === 'changed' ? 'sent' : 'form'}>
       {state === 'pending' || state === 'changed' ? (
         <div className="flex flex-col gap-4">
           <p role="status" className="notice">{state === 'changed'
@@ -338,9 +362,10 @@ function ChangeEmailSheet({ currentEmail, onClose }: { currentEmail: string | un
             <NeonInput type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError(null) }}
               autoComplete="email" inputMode="email" placeholder="you@example.com" style={inputStyle} />
           </Field>
-          <NeonBtn type="submit" size="lg" className="w-full" disabled={state === 'sending'}>{state === 'sending' ? 'Sending…' : 'Send confirmation link'}</NeonBtn>
+          <AsyncButton type="submit" size="lg" className="w-full" status={action.status} busyLabel="Sending…" doneLabel="Sent">Send confirmation link</AsyncButton>
         </form>
       )}
+      </Swap>
     </Sheet>
   )
 }
@@ -351,6 +376,7 @@ function ChangePasswordSheet({ email, onClose }: { email: string; onClose: () =>
   const [confirmation, setConfirmation] = useState('')
   const [error, setError] = useState<{ field: 'current' | 'next' | 'form'; text: string } | null>(null)
   const [state, setState] = useState<'idle' | 'saving' | 'done'>('idle')
+  const action = useAsyncStatus()
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -360,11 +386,14 @@ function ChangePasswordSheet({ email, onClose }: { email: string; onClose: () =>
     if (problem) return setError({ field: 'next', text: problem })
     setError(null)
     setState('saving')
+    action.busy()
     try {
       await changePassword(email, current, next)
+      await action.done()
       setState('done')
     } catch (failure) {
       setState('idle')
+      action.fail()
       const code = failure instanceof AccountRequestError ? failure.code : 'password_failed'
       setError(code === 'wrong_password' ? { field: 'current', text: 'That’s not your current password.' }
         : code === 'same_password' ? { field: 'next', text: 'Choose a password different from your current one.' }
@@ -375,6 +404,7 @@ function ChangePasswordSheet({ email, onClose }: { email: string; onClose: () =>
 
   return (
     <Sheet title="Change password" testId="change-password-sheet" onClose={onClose}>
+      <Swap id={state === 'done' ? 'done' : 'form'}>
       {state === 'done' ? (
         <div className="flex flex-col gap-4">
           <p role="status" className="notice">Password changed. Use it the next time you sign in.</p>
@@ -391,10 +421,13 @@ function ChangePasswordSheet({ email, onClose }: { email: string; onClose: () =>
           <Field id="confirm-new-password" label="Confirm new password">
             <NeonInput type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" style={inputStyle} />
           </Field>
-          {error?.field === 'form' && <p role="alert" className="notice notice--error">{error.text}</p>}
-          <NeonBtn type="submit" size="lg" className="w-full" disabled={state === 'saving'}>{state === 'saving' ? 'Checking…' : 'Change password'}</NeonBtn>
+          <Collapse open={error?.field === 'form'} gap={16}>
+            <p role="alert" className="notice notice--error">{error?.text}</p>
+          </Collapse>
+          <AsyncButton type="submit" size="lg" className="w-full" status={action.status} busyLabel="Checking…" doneLabel="Changed">Change password</AsyncButton>
         </form>
       )}
+      </Swap>
     </Sheet>
   )
 }
@@ -457,10 +490,13 @@ function DeleteAccountSheet({ userId, onClose, onDeleted }: { userId: string; on
           <Field id="delete-confirm" label="Type DELETE to confirm">
             <NeonInput value={typed} onChange={(event) => setTyped(event.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} style={inputStyle} />
           </Field>
-          {error && <p role="alert" className="notice notice--error">{error}</p>}
-          <NeonBtn type="submit" size="lg" className="w-full" color="var(--neon-pink)" disabled={typed !== 'DELETE' || state === 'deleting'}>
-            {state === 'deleting' ? 'Deleting…' : 'Delete my account'}
-          </NeonBtn>
+          <Collapse open={Boolean(error)} gap={16}>
+            <p role="alert" className="notice notice--error">{error}</p>
+          </Collapse>
+          <AsyncButton type="submit" size="lg" className="w-full" color="var(--neon-pink)" disabled={typed !== 'DELETE'}
+            status={state === 'deleting' ? 'busy' : error ? 'error' : 'idle'} busyLabel="Deleting…">
+            Delete my account
+          </AsyncButton>
           <NeonBtn type="button" variant="ghost" size="lg" className="w-full" disabled={state === 'deleting'} onClick={onClose}>Keep my account</NeonBtn>
         </form>
       )}

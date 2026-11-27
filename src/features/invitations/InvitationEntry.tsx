@@ -1,11 +1,11 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { NeonBtn } from '../../components/ui/NeonBtn'
+import { AsyncButton, useAsyncStatus } from '../../components/ui/AsyncButton'
 import { ScreenFrame } from '../../components/ui/ScreenFrame'
 import { AuthEntry } from '../auth/AuthEntry'
 import type { AuthSessionState } from '../auth/authSession'
 import { formatTripDates } from '../onboarding/tripSettings'
 import { acceptInvitation, inspectInvitation, type InvitationInspection } from './invitationApi'
-import { celebrate } from '../../lib/celebrate'
 
 type ViewState =
   | { kind: 'loading' }
@@ -33,6 +33,8 @@ export function InvitationEntry({ proof, auth, onSignOut, onClose, onAccepted, o
   const [showAuth, setShowAuth] = useState(false)
   const [inspectionAttempt, setInspectionAttempt] = useState(0)
   const requestIdRef = useRef<string | null>(null)
+  // "Confirm and join" → Joining… → Joined ✓, on one button that stays in place.
+  const joinAction = useAsyncStatus()
   const signedIn = auth.status === 'authenticated-linked' || auth.status === 'authenticated-unlinked'
   const userId = signedIn ? auth.session.user.id : null
   const signedInEmail = signedIn ? auth.session.user.email : undefined
@@ -62,12 +64,14 @@ export function InvitationEntry({ proof, auth, onSignOut, onClose, onAccepted, o
     const requestId = requestIdRef.current ?? crypto.randomUUID()
     requestIdRef.current = requestId
     setView({ kind: 'accepting' })
+    joinAction.busy()
     try {
       const groupId = await acceptInvitation(proof, requestId)
+      await joinAction.done()
       setView({ kind: 'accepted', groupId })
-      celebrate('Joined the Trip')
       onAccepted(groupId)
     } catch (error) {
+      joinAction.fail()
       if (error instanceof Error && error.message === 'already_member') {
         setView({ kind: 'accept-error', reason: 'already-member' })
       } else if (error instanceof Error && error.message === 'invalid_invitation') {
@@ -136,10 +140,10 @@ export function InvitationEntry({ proof, auth, onSignOut, onClose, onAccepted, o
     </>
   } else if (outcome === 'ready') {
     body = <>Join <strong style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{tripName}</strong> as a member? Everyone in the Trip will see you in the Crew.</>
-    actions = <><NeonBtn type="button" size="lg" className="w-full" onClick={() => void accept()}>Confirm and join</NeonBtn>{leave('Not now')}</>
+    actions = <><AsyncButton type="button" size="lg" className="w-full" status="idle" onClick={() => void accept()}>Confirm and join</AsyncButton>{leave('Not now')}</>
   } else if (view.kind === 'accepting') {
     body = `Joining ${tripName}…`
-    actions = <NeonBtn type="button" size="lg" className="w-full" disabled>Joining…</NeonBtn>
+    actions = <AsyncButton type="button" size="lg" className="w-full" status={joinAction.status} busyLabel="Joining…" doneLabel="Joined">Confirm and join</AsyncButton>
   } else if (view.kind === 'accept-error' && view.reason === 'already-member') {
     title = 'You’re already in this Trip'
     body = 'This invite wasn’t needed, so it was left unused.'
@@ -150,7 +154,7 @@ export function InvitationEntry({ proof, auth, onSignOut, onClose, onAccepted, o
     actions = <NeonBtn type="button" size="lg" className="w-full" onClick={onClose}>{exitLabel}</NeonBtn>
   } else if (view.kind === 'accept-error') {
     body = <span role="alert">We couldn’t confirm whether you joined. It’s safe to try again — you won’t be added twice.</span>
-    actions = <><NeonBtn type="button" size="lg" className="w-full" onClick={() => void accept()}>Try again</NeonBtn>{leave('Not now')}</>
+    actions = <><AsyncButton type="button" size="lg" className="w-full" status={joinAction.status} onClick={() => void accept()}>Try again</AsyncButton>{leave('Not now')}</>
   } else if (view.kind === 'accepted') {
     title = 'You’re in!'
     body = `You joined ${tripName}. Everyone in the Trip is in the Crew tab.`
@@ -165,7 +169,8 @@ export function InvitationEntry({ proof, auth, onSignOut, onClose, onAccepted, o
       eyebrow={<p className="eyebrow">Trip invitation</p>}
       lede={showTripDetails && dates ? dates : undefined}>
       <div aria-live="polite" className="flex flex-col gap-6">
-        {body && <p style={{ color: 'var(--text-secondary)', fontSize: 15, lineHeight: 1.5 }}>{body}</p>}
+        {/* Each state's sentence fades in as it replaces the last. */}
+        {body && <p key={`${view.kind}:${outcome ?? ''}`} className="m-text-swap" style={{ color: 'var(--text-secondary)', fontSize: 15, lineHeight: 1.5 }}>{body}</p>}
         {actions && <div className="flex flex-col gap-3">{actions}</div>}
       </div>
     </ScreenFrame>

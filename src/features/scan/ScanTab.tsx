@@ -1,9 +1,12 @@
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { NeonBtn } from '../../components/ui/NeonBtn'
+import { AsyncButton, AsyncLabel, useAsyncStatus } from '../../components/ui/AsyncButton'
+import { Collapse } from '../../components/ui/Collapse'
+import { foldProps, useExitList } from '../../components/ui/motion'
+import { Swap } from '../../components/ui/Swap'
 import type { TripTabProps } from '../workspace/tripTab'
 import { DEFAULT_MEMBER_PARSE_LIMIT, MAX_DOCUMENT_BYTES, billToEventDraft, emptyDraft, eventToBillDraft, type TripContext } from '../../../supabase/functions/_shared/documentDraft.ts'
 import { ExpenseForm, type ExpensePrefill } from '../split/ExpenseForm'
-import { celebrate } from '../../lib/celebrate'
 import type { LedgerExpense } from '../split/ledger'
 import { loadLedger } from '../split/splitApi'
 import { useTravelLegs } from '../trip/tripEventsApi'
@@ -60,6 +63,9 @@ export function ScanTab({ trip, roster }: TripTabProps) {
   const [fileError, setFileError] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
   const [saving, setSaving] = useState(false)
+  // "Add to itinerary" on the review form: Adding… → Added ✓.
+  const addAction = useAsyncStatus()
+  const [uploadFailed, setUploadFailed] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [list, setList] = useState<ListState>({ kind: 'loading' })
@@ -93,6 +99,7 @@ export function ScanTab({ trip, roster }: TripTabProps) {
     const picked = [...(event.target.files ?? [])]
     // A cancelled chooser keeps the previous selection.
     if (!picked.length) return
+    setUploadFailed(false)
     setMessage(null)
     setBatchNote(null)
     if (picked.length === 1) {
@@ -141,6 +148,7 @@ export function ScanTab({ trip, roster }: TripTabProps) {
     const readNow = readNowCount
     setMessage(null)
     setSaveError(null)
+    setUploadFailed(false)
     setPhase({ kind: 'uploading', done: 0, total: batch.length })
     const uploaded: TripDocument[] = []
     const failed: string[] = []
@@ -156,6 +164,7 @@ export function ScanTab({ trip, roster }: TripTabProps) {
     }
     clearFile()
     setPhase({ kind: 'idle' })
+    if (failed.length) setUploadFailed(true)
     if (failed.length) setFileError(`These didn’t upload, so nothing was saved for them: ${failed.join(', ')}. Try them again.`)
     reload()
     const toRead = uploaded.slice(0, readNow)
@@ -179,6 +188,7 @@ export function ScanTab({ trip, roster }: TripTabProps) {
     if (!file || busy) return
     setMessage(null)
     setSaveError(null)
+    setUploadFailed(false)
     setPhase({ kind: 'uploading' })
     let document: TripDocument
     try {
@@ -188,6 +198,7 @@ export function ScanTab({ trip, roster }: TripTabProps) {
       document = await uploadTripDocument(trip.groupId, trip.groupMemberId, prepared)
     } catch (error) {
       setFileError(UPLOAD_MESSAGES[error instanceof ScanError ? error.message : ''] ?? UPLOAD_MESSAGES.upload_failed)
+      setUploadFailed(true)
       setPhase({ kind: 'idle' })
       return
     }
@@ -237,10 +248,13 @@ export function ScanTab({ trip, roster }: TripTabProps) {
     if (phase.kind !== 'review' || isBillDraft(phase.draft)) return
     const { document, draft } = phase
     setSaving(true)
+    addAction.busy()
     setSaveError(null)
     try {
       await addDocumentEvent(document.id, input, audience)
-      celebrate('Added to itinerary')
+      // The button's tick confirms it; then on to Split, or back to Scan.
+      await addAction.done()
+      addAction.reset()
       if (addToSplit) {
         const included = audience.length ? audience : members.map((member) => member.id)
         setPhase({ kind: 'cost', document, title: input.title, justAdded: true,
@@ -254,6 +268,7 @@ export function ScanTab({ trip, roster }: TripTabProps) {
       setSaveError(error instanceof ScanError && error.message === 'document_unavailable'
         ? 'This document is already in the itinerary or is no longer available to you.'
         : 'We could not add this to the itinerary. Your details are still here; try again.')
+      addAction.fail()
     } finally {
       setSaving(false)
     }
@@ -263,8 +278,6 @@ export function ScanTab({ trip, roster }: TripTabProps) {
   const billSplit = async (document: TripDocument, draft: BillDraft, expenseId: string) => {
     try {
       await linkDocumentExpense(document.id, expenseId)
-      // ExpenseForm already showed the tick for this save; this only relabels it if still showing.
-      celebrate('Added to Split', { followUp: true })
       setMessage(`Added to Split: ${draft.title}`)
     } catch {
       setMessage(`Added to Split: ${draft.title}. This bill still shows as ready to split; don’t split it again.`)
@@ -291,8 +304,6 @@ export function ScanTab({ trip, roster }: TripTabProps) {
   const costSplit = async (document: TripDocument, title: string, expenseId: string) => {
     try {
       await linkDocumentExpense(document.id, expenseId)
-      // ExpenseForm already showed the tick for this save; this only relabels it if still showing.
-      celebrate('Added to Split', { followUp: true })
       setMessage(`In the itinerary and in Split: ${title}`)
     } catch {
       setMessage(`Added to Split: ${title}. The document doesn’t show it yet; don’t split it again.`)
@@ -320,39 +331,50 @@ export function ScanTab({ trip, roster }: TripTabProps) {
           <span className="font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.12em' }}>ONE OR MANY · PDF · JPG · PNG · WEBP · HEIC</span>
           <input ref={inputRef} type="file" accept={ACCEPT} multiple onChange={choose} disabled={busy} className="sr-only" aria-label="Ticket, booking, or bill file" />
         </label>
-        {file && (
-          <div data-testid="scan-selected-file" className="mt-3 flex items-center justify-between gap-3 text-sm" style={{ color: 'var(--text-primary)' }}>
+        <Collapse open={Boolean(file)}>
+          {file && <div data-testid="scan-selected-file" className="mt-3 flex items-center justify-between gap-3 text-sm" style={{ color: 'var(--text-primary)' }}>
             <span className="min-w-0 truncate">{file.name}</span>
             <span className="flex shrink-0 items-center gap-3" style={{ color: 'var(--text-secondary)' }}>
               <span>{fileKindLabel(file.type)} · {formatBytes(file.size)}</span>
               <button type="button" onClick={clearFile} disabled={busy} style={{ color: 'var(--text-secondary)' }}>Remove</button>
             </span>
-          </div>
-        )}
-        {files.length > 1 && (
+          </div>}
+        </Collapse>
+        <Collapse open={files.length > 1}>
           <div data-testid="scan-selected-files" className="mt-3 flex flex-col gap-1 text-sm" style={{ color: 'var(--text-primary)' }}>
             <ul className="flex flex-col gap-0.5">
               {files.map((picked) => <li key={`${picked.name}-${picked.size}`} className="truncate" style={{ color: 'var(--text-secondary)' }}>{picked.name}</li>)}
             </ul>
-            {batchNote && <p data-testid="scan-batch-note" style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>{batchNote}</p>}
+            <Collapse open={Boolean(batchNote)}>
+              <p data-testid="scan-batch-note" style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>{batchNote}</p>
+            </Collapse>
             <button type="button" onClick={clearFile} disabled={busy} className="self-start" style={{ color: 'var(--text-secondary)' }}>Clear</button>
           </div>
-        )}
-        {fileError && <p role="alert" className="mt-3 text-sm" style={{ color: 'var(--accent)' }}>{fileError}</p>}
-        <NeonBtn type="button" onClick={() => void uploadAndRead()} disabled={!files.length || busy} className="mt-4 w-full" style={{ opacity: !files.length || busy ? 0.5 : 1 }}>
-          {phase.kind === 'uploading'
+        </Collapse>
+        <Collapse open={Boolean(fileError)}>
+          <p role="alert" className="mt-3 text-sm" style={{ color: 'var(--accent)' }}>{fileError}</p>
+        </Collapse>
+        <AsyncButton type="button" onClick={() => void uploadAndRead()} disabled={!files.length} className="mt-4 w-full"
+          status={busy ? 'busy' : uploadFailed ? 'error' : 'idle'}
+          busyKey={phase.kind === 'parsing' ? 'reading' : 'uploading'}
+          busyLabel={phase.kind === 'uploading'
             ? (phase.total && phase.total > 1 ? `Uploading ${phase.done ?? 0} of ${phase.total}…` : 'Uploading…')
-            : phase.kind === 'parsing' ? 'Reading…' : files.length > 1 ? `Upload ${files.length} files` : 'Upload and read'}
-        </NeonBtn>
-        {busy && <p role="status" className="mt-3 text-center font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.12em' }}>
-          {phase.kind === 'uploading' ? 'UPLOADING PRIVATELY' : 'READING THE DOCUMENT'}
-        </p>}
-        {message && <p role="status" className="mt-3 text-sm" style={{ color: 'var(--accent)' }}>{message}</p>}
-        {!walk && phase.kind === 'idle' && queue.length > 0 && (
+            : 'Reading…'}>
+          {files.length > 1 ? `Upload ${files.length} files` : 'Upload and read'}
+        </AsyncButton>
+        <Collapse open={busy}>
+          <p role="status" className="mt-3 text-center font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 10, letterSpacing: '0.12em' }}>
+            <span key={phase.kind} className="m-text-swap inline-block">{phase.kind === 'uploading' ? 'UPLOADING PRIVATELY' : 'READING THE DOCUMENT'}</span>
+          </p>
+        </Collapse>
+        <Collapse open={Boolean(message)}>
+          <p role="status" className="mt-3 text-sm" style={{ color: 'var(--accent)' }}>{message}</p>
+        </Collapse>
+        <Collapse open={!walk && phase.kind === 'idle' && queue.length > 0}>
           <NeonBtn type="button" variant="outline" color="#FF8B4D" onClick={startWalk} className="mt-4 w-full" data-testid="scan-review-next">
             Review next · {queue.length} waiting{reading.size ? ` · ${reading.size} reading` : ''}
           </NeonBtn>
-        )}
+        </Collapse>
       </div>
 
       {walk && phase.kind !== 'idle' && (
@@ -364,13 +386,17 @@ export function ScanTab({ trip, roster }: TripTabProps) {
         </div>
       )}
 
+      <Collapse open={phase.kind === 'review' && !isBillDraft(phase.draft)} gap={24}>
       {phase.kind === 'review' && !isBillDraft(phase.draft) && (
+        <Swap id={phase.document.id}>
         <DraftReviewForm key={`${phase.document.id}-${phase.draft.startsAt ?? ''}-${phase.notice ?? ''}`} draft={phase.draft}
-          fileName={phase.document.fileName} notice={phase.notice} tripTimezone={trip.timezone} saving={saving} saveError={saveError}
+          fileName={phase.document.fileName} notice={phase.notice} tripTimezone={trip.timezone} saving={saving} saveStatus={addAction.status} saveError={saveError}
           members={members} me={trip.groupMemberId} onSwitchToBill={switchKind}
           onSubmit={(input, audience, addToSplit) => void addToItinerary(input, audience, addToSplit)} onCancel={finish} cancelLabel={walk ? 'Skip' : undefined}
           onRetryRead={phase.canRetry ? () => void read(phase.document) : undefined} />
+        </Swap>
       )}
+      </Collapse>
       {phase.kind === 'review' && isBillDraft(phase.draft) && (
         <ExpenseForm key={`bill-${phase.document.id}`} groupId={trip.groupId} accountingCurrency={trip.accountingCurrency}
           timezone={trip.timezone} international={trip.isInternational} me={trip.groupMemberId} members={members} expense={null}
@@ -394,7 +420,8 @@ export function ScanTab({ trip, roster }: TripTabProps) {
       )}
 
       <DocumentList state={list} names={names} trip={trip} tripContext={tripContext} disabled={busy || saving} reading={reading}
-        onRetry={reload} onReview={review} onSplitCost={(document) => void splitCost(document)} onDeleted={(document) => {
+        onRetry={reload} onReview={review} onSplitCost={(document) => void splitCost(document)} onDeleted={(document, exit) => {
+          exit()
           if (phase.kind === 'review' && phase.document.id === document.id) setPhase({ kind: 'idle' })
           setMessage(`Deleted ${document.fileName}`)
           reload()
@@ -429,12 +456,16 @@ function DocumentList({ state, names, trip, tripContext, disabled, reading, onRe
   onRetry: () => void
   onReview: (document: TripDocument) => void
   onSplitCost: (document: TripDocument) => void
-  onDeleted: (document: TripDocument) => void
+  /** `exit`: let its row fold away as the list refreshes. */
+  onDeleted: (document: TripDocument, exit: () => void) => void
 }) {
+  const documents = state.kind === 'ready' ? state.documents : []
+  const rows = useExitList(documents, (document) => document.id)
   const dateFormat = useMemo(() => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: trip.timezone }), [trip.timezone])
   return (
     <section aria-labelledby="scan-documents-heading" className="surface px-4 py-5">
       <h2 id="scan-documents-heading" className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 22 }}>Trip documents</h2>
+      <Swap id={state.kind === 'ready' ? (rows.entries.length ? 'list' : 'empty') : state.kind}>
       {state.kind === 'loading' && <p role="status" className="mt-3 text-sm" style={{ color: 'var(--text-tertiary)' }}>Loading documents…</p>}
       {state.kind === 'error' && (
         <div className="mt-3 flex items-center justify-between gap-3 text-sm">
@@ -442,24 +473,26 @@ function DocumentList({ state, names, trip, tripContext, disabled, reading, onRe
           <button type="button" onClick={onRetry} style={{ color: 'var(--accent)' }}>Retry</button>
         </div>
       )}
-      {state.kind === 'ready' && state.documents.length === 0 && (
+      {state.kind === 'ready' && rows.entries.length === 0 && (
         <p className="mt-3 text-sm" style={{ color: 'var(--text-secondary)' }}>No documents yet. Bills you add show to the whole Trip; a booking shows only to the people on it.</p>
       )}
-      {state.kind === 'ready' && state.documents.length > 0 && (
-        <ul aria-label="Trip documents" className="m-list mt-3 flex flex-col gap-2">
-          {state.documents.map((document) => (
-            <DocumentRow key={document.id} document={document} disabled={disabled || reading.has(document.id)} reading={reading.has(document.id)} unsplitBill={isUnsplitBill(document, tripContext)}
+      {state.kind === 'ready' && rows.entries.length > 0 && (
+        <ul aria-label="Trip documents" className="m-list mt-3 flex flex-col gap-2" style={{ '--fold-gap': '8px' } as CSSProperties}>
+          {rows.entries.map(({ item: document, leaving }) => (
+            <DocumentRow key={document.id} leaving={leaving} document={document} disabled={disabled || reading.has(document.id)} reading={reading.has(document.id)} unsplitBill={isUnsplitBill(document, tripContext)}
               uploader={names.get(document.uploadedBy) ?? 'Former member'} date={dateFormat.format(new Date(document.createdAt))}
               canDelete={document.uploadedBy === trip.groupMemberId || trip.role === 'owner'}
-              onReview={() => onReview(document)} onSplitCost={() => onSplitCost(document)} onDeleted={() => onDeleted(document)} />
+              onReview={() => onReview(document)} onSplitCost={() => onSplitCost(document)} onDeleted={() => onDeleted(document, () => rows.exit(document.id))} />
           ))}
         </ul>
       )}
+      </Swap>
     </section>
   )
 }
 
-function DocumentRow({ document, uploader, date, canDelete, disabled, reading, unsplitBill, onReview, onSplitCost, onDeleted }: {
+function DocumentRow({ document, uploader, date, canDelete, disabled, reading, unsplitBill, onReview, onSplitCost, onDeleted, leaving }: {
+  leaving: boolean
   reading: boolean
   document: TripDocument
   unsplitBill: boolean
@@ -475,6 +508,8 @@ function DocumentRow({ document, uploader, date, canDelete, disabled, reading, u
   const [working, setWorking] = useState<'view' | 'delete' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null)
+  // A failed delete closes the confirmation and shows why, so the label only goes idle → busy.
+  const deleteStatus = working === 'delete' ? 'busy' : 'idle'
 
   const view = async () => {
     setError(null)
@@ -521,15 +556,19 @@ function DocumentRow({ document, uploader, date, canDelete, disabled, reading, u
         : document.parseStatus === 'parsed' ? 'Booking ready to review' : document.parseStatus === 'failed' ? 'Needs details' : 'Not read yet'
 
   return (
-    <li data-testid="scan-document" className="rounded-md border px-3 py-3" style={{ borderColor: 'var(--border)' }}>
+    <li data-testid="scan-document" {...foldProps(leaving)}>
+    <div><div className="rounded-md border px-3 py-3" style={{ borderColor: 'var(--border)' }}>
       <p className="truncate" style={{ color: 'var(--text-primary)' }} title={document.fileName}>{document.fileName}</p>
       <p className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>{fileKindLabel(document.mimeType)} · {formatBytes(document.sizeBytes)} · {uploader} · {date}</p>
       <p className="mt-1 text-xs" style={{ color: done || unsplitBill ? 'var(--accent)' : 'var(--text-secondary)' }}>{status}</p>
+      <Swap id={confirming ? 'confirm' : 'actions'}>
       {confirming ? (
         <div role="group" aria-label={`Delete ${document.fileName}?`} className="mt-3 flex flex-col gap-2 text-sm">
           <p style={{ color: 'var(--text-secondary)' }}>Delete this document for everyone in the Trip? Itinerary entries and expenses made from it stay.</p>
           <div className="flex gap-4">
-            <button type="button" onClick={() => void remove()} disabled={working !== null} style={{ color: 'var(--accent)' }}>{working === 'delete' ? 'Deleting…' : 'Delete document'}</button>
+            <button type="button" onClick={() => void remove()} disabled={working !== null} aria-busy={working === 'delete' || undefined} style={{ color: 'var(--accent)' }}>
+              <AsyncLabel status={deleteStatus} busyLabel="Deleting…">Delete document</AsyncLabel>
+            </button>
             <button type="button" onClick={() => setConfirming(false)} disabled={working !== null} style={{ color: 'var(--text-secondary)' }}>Keep</button>
           </div>
         </div>
@@ -541,8 +580,12 @@ function DocumentRow({ document, uploader, date, canDelete, disabled, reading, u
           {canDelete && <button type="button" onClick={() => setConfirming(true)} disabled={disabled} aria-label={`Delete ${document.fileName}`} style={{ color: 'var(--text-secondary)' }}>Delete</button>}
         </div>
       )}
+      </Swap>
       {fallbackUrl && <a href={fallbackUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm" style={{ color: 'var(--accent)' }}>Open {document.fileName} (link expires in a minute)</a>}
-      {error && <p role="alert" className="mt-2 text-sm" style={{ color: 'var(--accent)' }}>{error}</p>}
+      <Collapse open={Boolean(error)}>
+        <p role="alert" className="mt-2 text-sm" style={{ color: 'var(--accent)' }}>{error}</p>
+      </Collapse>
+    </div></div>
     </li>
   )
 }

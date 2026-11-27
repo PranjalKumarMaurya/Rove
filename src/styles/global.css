@@ -70,18 +70,26 @@ body {
    real element that takes pointer events (a pointer-events: none overlay or a
    pseudo-element is ignored and the blur stays). It only covers the status bar,
    where nothing in the app is tappable. Native top-layer dialogs sit above it. */
+:root {
+  /* Extra room under the status bar in the installed iPhone app (set by
+     src/lib/topShade.ts), where iOS 26 blurs a band about 30-40pt deep that no
+     web setting turns off: content starts below it, so only background is blurred. */
+  --top-clear: 0px;
+  --safe-top: calc(env(safe-area-inset-top, 0px) + var(--top-clear));
+}
+html[data-ios-app="true"] { --top-clear: 36px; }
 .status-shield {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: env(safe-area-inset-top, 0px);
+  height: var(--safe-top);
   background: var(--bg-base);
   z-index: 10001;
 }
 /* Scrolled: also cover the band below the status bar that content scrolls under (src/lib/topShade.ts). */
 /* Only under a see-through status bar (inset > 0); with an opaque one there is nothing to cover. */
-html[data-scrolled="true"] .status-shield { height: calc(env(safe-area-inset-top, 0px) + min(28px, env(safe-area-inset-top, 0px))); }
+html[data-scrolled="true"] .status-shield { height: calc(env(safe-area-inset-top, 0px) + max(var(--top-clear), min(28px, env(safe-area-inset-top, 0px)))); }
 
 button { font-family: inherit; }
 input, textarea, select { font-family: inherit; }
@@ -165,7 +173,9 @@ input, textarea, select { font-family: inherit; }
   border: 1px solid var(--border-strong);
   background: rgba(245, 241, 235, 0.02);
   color: var(--text-secondary);
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
+.pill[data-on="true"] { border-color: rgba(255, 139, 77, 0.5); background: var(--accent-soft); }
 
 /* ─── Hero gradient overlay ───────────────────────────── */
 .hero-fade {
@@ -239,7 +249,7 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   width: 100%;
   max-width: 480px;
   min-height: 100dvh;
-  padding: calc(16px + env(safe-area-inset-top, 0px)) 20px calc(32px + env(safe-area-inset-bottom, 0px));
+  padding: calc(16px + var(--safe-top)) 20px calc(32px + env(safe-area-inset-bottom, 0px));
 }
 
 .brand-mark {
@@ -324,6 +334,8 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
 .field-label { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
 .field-hint { font-size: 12px; line-height: 1.4; color: var(--text-tertiary); }
 .field-error { font-size: 12px; line-height: 1.4; color: var(--accent); }
+.field-label { transition: color var(--dur-fast) var(--ease-out); }
+.field:focus-within > .field-label { color: var(--text-primary); }
 
 .field-select {
   appearance: none;
@@ -390,9 +402,11 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: calc(12px + env(safe-area-inset-top, 0px)) 20px 12px;
-  border-bottom: 1px solid var(--border);
+  padding: calc(12px + var(--safe-top)) 20px 12px;
+  /* Flat on the page at the top; the line and a faint lift fade in once scrolled (motion.css). */
+  border-bottom: 1px solid transparent;
 }
+html[data-topbar-raised="true"] .app-topbar { border-bottom-color: var(--border); background-color: rgba(245, 241, 235, 0.018); }
 .topbar-btn {
   display: inline-flex;
   align-items: center;
@@ -695,6 +709,7 @@ input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   line-height: 1.4;
   outline: none;
   resize: vertical;
+  transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
 }
 .field-textarea:focus { border-color: var(--accent); background: rgba(245, 241, 235, 0.06); }
 .field-textarea[aria-invalid="true"] { border-color: rgba(255, 139, 77, 0.6); }

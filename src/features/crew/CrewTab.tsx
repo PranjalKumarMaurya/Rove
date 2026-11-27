@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react'
+import { type CSSProperties, useEffect, useState } from 'react'
+import { Collapse } from '../../components/ui/Collapse'
+import { Details } from '../../components/ui/Details'
+import { foldProps, useExitList } from '../../components/ui/motion'
 import { InviteMember } from '../invitations/InviteMember'
 import type { RosterMember } from '../groups/useGroupRoster'
 import { useTripMemberProfiles } from '../groups/useTripMemberProfiles'
@@ -22,6 +25,8 @@ export function CrewTab({ trip, roster, reloadRoster, onTripsChanged }: TripTabP
   const viewer: CrewViewer = { groupMemberId: trip.groupMemberId, role: trip.role }
   const isOwner = trip.role === 'owner'
   const active = roster.filter((member) => member.status === 'active')
+  // Someone removed from here folds out of the list once the roster refreshes.
+  const activeRows = useExitList(active, (member) => member.groupMemberId)
   const former = roster.filter((member) => member.status === 'inactive')
   const groupId = trip.groupId
   const profiles = useTripMemberProfiles(groupId)
@@ -69,7 +74,11 @@ export function CrewTab({ trip, roster, reloadRoster, onTripsChanged }: TripTabP
           id: kind, menuLabel: 'Remove from Trip', title: `Remove ${name} from the Trip?`, tone: 'danger',
           body: `${name} loses access to this Trip straight away. Their expenses, todos and history stay attributed to them; nothing is deleted. You can invite them again later.`,
           confirmLabel: 'Remove from Trip', busyLabel: 'Removing…',
-          run: async (requestId) => { await deactivateMembership(groupId, member.groupMemberId, 'remove', requestId); return `${name} was removed. Their history stays in the Trip.` },
+          run: async (requestId) => {
+            await deactivateMembership(groupId, member.groupMemberId, 'remove', requestId)
+            activeRows.exit(member.groupMemberId)
+            return `${name} was removed. Their history stays in the Trip.`
+          },
           describeError: (code) => crewErrorView('remove', code, name),
         }
     }
@@ -130,10 +139,12 @@ export function CrewTab({ trip, roster, reloadRoster, onTripsChanged }: TripTabP
           <h2 className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 25 }}>Crew</h2>
           <button type="button" onClick={refreshCrew} className="text-sm" style={{ color: 'var(--text-secondary)' }}>Refresh crew</button>
         </div>
-        {notice && <p role="status" className="mt-2" style={{ color: 'var(--text-secondary)' }}>{notice}</p>}
+        <Collapse open={Boolean(notice)}>
+          <p role="status" className="mt-2" style={{ color: 'var(--text-secondary)' }}>{notice}</p>
+        </Collapse>
         {active.length === 0 && <p className="mt-3" style={{ color: 'var(--text-secondary)' }}>The crew list is not available right now. Try Refresh crew.</p>}
-        <ul className="m-list mt-3 flex flex-col gap-2" aria-label="Trip members">
-          {active.map((member) => {
+        <ul className="m-list mt-3 flex flex-col gap-2" aria-label="Trip members" style={{ '--fold-gap': '8px' } as CSSProperties}>
+          {activeRows.entries.map(({ item: member, leaving }) => {
             const manageable = memberActionsFor(viewer, member).length > 0
             const isMe = member.groupMemberId === trip.groupMemberId
             const label = `${member.displayName}${isMe ? ' (you)' : ''}`
@@ -141,7 +152,8 @@ export function CrewTab({ trip, roster, reloadRoster, onTripsChanged }: TripTabP
             const infoId = `crew-info-${member.groupMemberId}`
             const emoji = profileOf(member.groupMemberId)?.avatarEmoji
             return (
-              <li key={member.groupMemberId} style={{ color: 'var(--text-primary)' }}>
+              <li key={member.groupMemberId} style={{ color: 'var(--text-primary)' }} {...foldProps(leaving)}>
+                <div>
                 <div className="flex items-center justify-between gap-3" style={{ minHeight: 48 }}>
                   <button type="button" aria-expanded={open} aria-controls={infoId} aria-label={`Details for ${label}`}
                     onClick={() => setExpanded(open ? null : member.groupMemberId)} className="m-press-card flex min-h-12 min-w-0 flex-1 items-center gap-3 text-left">
@@ -153,7 +165,7 @@ export function CrewTab({ trip, roster, reloadRoster, onTripsChanged }: TripTabP
                       <span className="flex items-center gap-1.5">
                         <span className="min-w-0 truncate">{label}</span>
                         <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-                          className="shrink-0 transition-transform" style={{ color: 'var(--text-tertiary)', transform: open ? 'rotate(180deg)' : undefined }}><path d="m6 9 6 6 6-6" /></svg>
+                          className="shrink-0" style={{ color: 'var(--text-tertiary)', transform: open ? 'rotate(180deg)' : undefined, transition: 'transform var(--dur-base) var(--ease-in-out)' }}><path d="m6 9 6 6 6-6" /></svg>
                       </span>
                       <span className="block" style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{member.role === 'owner' ? 'Owner' : 'Member'}</span>
                     </span>
@@ -161,14 +173,17 @@ export function CrewTab({ trip, roster, reloadRoster, onTripsChanged }: TripTabP
                   {manageable && <button type="button" aria-label={`Manage ${member.displayName}`} onClick={() => { setNotice(''); setSheet({ kind: 'member', member }) }}
                     className={`${buttonClass} shrink-0`} style={quietButtonStyle}>Manage</button>}
                 </div>
-                {open && <CrewInfo id={infoId} name={member.displayName} isMe={isMe} profile={profileOf(member.groupMemberId)}
-                  loading={profiles.loading} error={profiles.error} />}
+                <Collapse open={open}>
+                  <CrewInfo id={infoId} name={member.displayName} isMe={isMe} profile={profileOf(member.groupMemberId)}
+                    loading={profiles.loading} error={profiles.error} />
+                </Collapse>
+                </div>
               </li>
             )
           })}
         </ul>
-        {former.length > 0 && <details className="mt-4">
-          <summary style={{ color: 'var(--text-secondary)', cursor: 'pointer' }}>Former members ({former.length})</summary>
+        {former.length > 0 && <Details className="mt-4" summaryStyle={{ color: 'var(--text-secondary)', cursor: 'pointer' }}
+          summary={`Former members (${former.length})`}>
           <ul aria-label="Former members" className="mt-2 flex flex-col gap-1">
             {former.map((member) => (
               <li key={member.groupMemberId} className="flex justify-between" style={{ color: 'var(--text-tertiary)' }}>
@@ -176,7 +191,7 @@ export function CrewTab({ trip, roster, reloadRoster, onTripsChanged }: TripTabP
               </li>
             ))}
           </ul>
-        </details>}
+        </Details>}
       </div>
       {isOwner && <InviteMember groupId={groupId} tripName={trip.tripName} onIssued={() => setInvitationReload((value) => value + 1)} />}
       {isOwner && <InvitationList groupId={groupId} reloadKey={invitationReload} />}

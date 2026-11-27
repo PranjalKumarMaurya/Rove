@@ -1,5 +1,7 @@
 import { type ChangeEvent, type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react'
-import { NeonBtn } from '../../components/ui/NeonBtn'
+import { AsyncButton, type AsyncStatus } from '../../components/ui/AsyncButton'
+import { Checkbox } from '../../components/ui/Checkbox'
+import { Collapse } from '../../components/ui/Collapse'
 import { NeonInput } from '../../components/ui/NeonInput'
 import { formatMoney, minorUnits, parseAmount } from '../split/money'
 import { KindRow } from './KindRow'
@@ -17,7 +19,7 @@ const selectStyle = {
 } as const
 const dateStyle = { colorScheme: 'dark' } as const
 
-export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving, saveError, onSubmit, onCancel, onRetryRead, members = [], me = '', onSwitchToBill, cancelLabel = 'Not now' }: {
+export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving, saveStatus, saveError, onSubmit, onCancel, onRetryRead, members = [], me = '', onSwitchToBill, cancelLabel = 'Not now' }: {
   /** "Skip" while walking through several documents. */
   cancelLabel?: string
   draft: EventDraft
@@ -31,6 +33,8 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
   notice: string | null
   tripTimezone: string
   saving: boolean
+  /** The add button's state (Adding… → Added ✓); defaults to busy while saving. */
+  saveStatus?: AsyncStatus
   saveError: string | null
   /** `audience` lists who it is for (empty means everyone); `addToSplit` opens Split next. */
   onSubmit: (input: EventInput, audience: string[], addToSplit: boolean) => void
@@ -92,7 +96,9 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
         </ul>
       )}
       <form onSubmit={submit} aria-busy={saving} className="mt-4 flex flex-col gap-4" noValidate>
-        {Object.keys(errors).length > 0 && <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>Fix the highlighted fields before adding this to the itinerary.</p>}
+        <Collapse open={Object.keys(errors).length > 0} gap={16}>
+          <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>Fix the highlighted fields before adding this to the itinerary.</p>
+        </Collapse>
         <Field label="Type" error={errors.eventType}>
           <select aria-label="Type" value={form.eventType} onChange={set('eventType')} disabled={saving} className="w-full rounded-md px-3 py-2.5" style={selectStyle}>
             {EVENT_TYPES.map((type) => <option key={type} value={type}>{EVENT_TYPE_LABELS[type]}</option>)}
@@ -119,12 +125,12 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
         <Field label={journey ? 'From' : 'Location'}>
           <NeonInput aria-label={journey ? 'From' : 'Location'} value={form.location} onChange={set('location')} disabled={saving} />
         </Field>
-        {journey && (
+        <Collapse open={journey} gap={16}>
           <Field label="To">
             <NeonInput aria-label="To" value={form.locationTo} onChange={set('locationTo')} disabled={saving} />
           </Field>
-        )}
-        {flight && (
+        </Collapse>
+        <Collapse open={flight} gap={16}>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Departure airport" error={errors.depCode}>
               <NeonInput aria-label="Departure airport" value={form.depCode} onChange={set('depCode')} disabled={saving} maxLength={3} autoCapitalize="characters" />
@@ -142,7 +148,7 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
               <NeonInput aria-label="Terminal" value={form.terminal} onChange={set('terminal')} disabled={saving} maxLength={40} />
             </Field>
           </div>
-        )}
+        </Collapse>
         <Field label="Booking reference">
           <NeonInput aria-label="Booking reference" value={form.bookingRef} onChange={set('bookingRef')} disabled={saving} maxLength={40} />
         </Field>
@@ -153,24 +159,24 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
               {audienceHint(draft.partySize, choice, members.length)}
             </p>
             <div className="flex flex-wrap gap-2" data-testid="scan-audience">
-              <label className="pill cursor-pointer" style={{ color: choice.everyone ? 'var(--accent)' : 'var(--text-secondary)' }}>
-                <input type="checkbox" checked={choice.everyone} onChange={() => (choice.everyone ? setChoice({ everyone: false, picked: [] }) : pickEveryone())}
-                  style={{ accentColor: 'var(--accent)' }} className="mr-1.5" />
+              <label className="pill cursor-pointer" data-on={choice.everyone} style={{ color: choice.everyone ? 'var(--accent)' : 'var(--text-secondary)' }}>
+                <Checkbox checked={choice.everyone} onChange={() => (choice.everyone ? setChoice({ everyone: false, picked: [] }) : pickEveryone())} />
                 Everyone in the Trip
               </label>
               {members.map((member) => (
-                <label key={member.id} className="pill cursor-pointer" style={{ color: isOn(member.id) ? 'var(--accent)' : 'var(--text-secondary)' }}>
-                  <input type="checkbox" checked={isOn(member.id)} onChange={() => toggle(member.id)}
-                    style={{ accentColor: 'var(--accent)' }} className="mr-1.5" />
+                <label key={member.id} className="pill cursor-pointer" data-on={isOn(member.id)} style={{ color: isOn(member.id) ? 'var(--accent)' : 'var(--text-secondary)' }}>
+                  <Checkbox checked={isOn(member.id)} onChange={() => toggle(member.id)} />
                   {member.name}{member.id === me ? ' (you)' : ''}
                 </label>
               ))}
             </div>
-            {audienceMismatch(draft.partySize, choice, members.length) && (
+            <Collapse open={Boolean(audienceMismatch(draft.partySize, choice, members.length))} gap={8}>
               <p data-testid="scan-audience-mismatch" style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{audienceMismatch(draft.partySize, choice, members.length)}</p>
-            )}
-            {audienceError && <p role="alert" style={{ color: 'var(--accent)', fontSize: 12 }}>{audienceError}</p>}
-            <p style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
+            </Collapse>
+            <Collapse open={Boolean(audienceError)} gap={8}>
+              <p role="alert" style={{ color: 'var(--accent)', fontSize: 12 }}>{audienceError}</p>
+            </Collapse>
+            <p key={choice.everyone ? 'everyone' : 'picked'} className="m-text-swap" style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
               {choice.everyone
                 ? 'Everyone in the Trip will see this booking and its document.'
                 : 'Only the people picked, and you, will see this booking and its document.'}
@@ -188,11 +194,11 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
             </p>
           )}
           <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm" style={{ color: 'var(--text-primary)' }}>
-            <input type="checkbox" checked={addToSplit} onChange={(event) => setAddToSplit(event.target.checked)}
-              style={{ accentColor: 'var(--accent)', width: 18, height: 18 }} />
+            <Checkbox checked={addToSplit} onChange={(event) => setAddToSplit(event.target.checked)} />
             Also add the cost to Split
           </label>
-          <p style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
+          {/* The hint changes with the box: a quick crossfade, not a jump cut. */}
+          <p key={addToSplit ? 'split' : 'later'} className="m-text-swap" style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
             {addToSplit
               ? 'Next you pick who paid and check the split, shared between the people on this booking.'
               : price?.status === 'pay_later' ? 'Not paid yet, so it isn’t split now. You can split it later from Trip documents.' : 'You can split it later from Trip documents.'}
@@ -202,8 +208,12 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
           <textarea aria-label="Notes" value={form.notes} onChange={set('notes')} disabled={saving} rows={3} maxLength={1000}
             className="w-full rounded-md px-3.5 py-2.5" style={selectStyle} />
         </Field>
-        {saveError && <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>{saveError}</p>}
-        <NeonBtn type="submit" disabled={saving} className="w-full">{saving ? 'Adding…' : addToSplit ? 'Add to itinerary and split' : 'Add to itinerary'}</NeonBtn>
+        <Collapse open={Boolean(saveError)} gap={16}>
+          <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>{saveError}</p>
+        </Collapse>
+        <AsyncButton type="submit" status={saveStatus ?? (saving ? 'busy' : 'idle')} busyLabel="Adding…" doneLabel="Added" className="w-full">
+          {addToSplit ? 'Add to itinerary and split' : 'Add to itinerary'}
+        </AsyncButton>
         <div className="flex flex-wrap justify-between gap-3">
           <button type="button" onClick={onCancel} disabled={saving} style={{ color: 'var(--text-secondary)' }}>{cancelLabel}</button>
           {onRetryRead && <button type="button" onClick={onRetryRead} disabled={saving} style={{ color: 'var(--text-secondary)' }}>Try reading again</button>}
@@ -215,10 +225,10 @@ export function DraftReviewForm({ draft, fileName, notice, tripTimezone, saving,
 
 function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
   return (
-    <label className="flex flex-col gap-1.5 text-sm" style={fieldStyle}>
+    <label className="m-field flex flex-col gap-1.5 text-sm" style={fieldStyle}>
       <span>{label}</span>
       {children}
-      {error && <span role="alert" style={{ color: 'var(--accent)', fontSize: 12 }}>{error}</span>}
+      {error && <span role="alert" className="m-field-error" style={{ color: 'var(--accent)', fontSize: 12 }}>{error}</span>}
     </label>
   )
 }

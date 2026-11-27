@@ -1,6 +1,9 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Field } from '../../components/ui/Field'
+import { AsyncButton, useAsyncStatus } from '../../components/ui/AsyncButton'
+import { Collapse } from '../../components/ui/Collapse'
 import { NeonBtn } from '../../components/ui/NeonBtn'
+import { Swap } from '../../components/ui/Swap'
 import { NeonInput } from '../../components/ui/NeonInput'
 import { NeonSelect } from '../../components/ui/NeonSelect'
 import { Sheet } from '../../components/ui/Sheet'
@@ -63,6 +66,7 @@ export function TripSettingsSheet({ trip, onClose, onSaved }: {
 
   return (
     <Sheet title={owner ? 'Trip settings' : 'Trip details'} testId="trip-settings-sheet" onClose={onClose}>
+      <Swap id={display === null || (owner && locked === null) ? 'loading' : 'ready'}>
       {display === null || (owner && locked === null)
         ? <p role="status" className="flex items-center gap-3 py-4" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
           <span className="spinner" aria-hidden="true" />Loading
@@ -70,6 +74,7 @@ export function TripSettingsSheet({ trip, onClose, onSaved }: {
         : owner
           ? <SettingsForm trip={trip} display={display} currencyLocked={Boolean(locked)} onClose={onClose} onSaved={onSaved} />
           : <TripDetails trip={trip} display={display} />}
+      </Swap>
     </Sheet>
   )
 }
@@ -111,6 +116,7 @@ function SettingsForm({ trip, display, currencyLocked, onClose, onSaved }: {
   }))
   const [attempted, setAttempted] = useState(false)
   const [saving, setSaving] = useState(false)
+  const action = useAsyncStatus()
   const [failure, setFailure] = useState<TripSettingsErrorCode | null>(null)
   // One request id per attempt; a retry of the same, unedited attempt reuses it.
   const requestId = useRef<string | null>(null)
@@ -136,6 +142,7 @@ function SettingsForm({ trip, display, currencyLocked, onClose, onSaved }: {
     if (Object.keys(errors).length) return
     requestId.current ??= crypto.randomUUID()
     setSaving(true)
+    action.busy()
     setFailure(null)
     try {
       await updateTripSettings(trip.groupId, {
@@ -148,6 +155,8 @@ function SettingsForm({ trip, display, currencyLocked, onClose, onSaved }: {
         accounting_currency: values.accountingCurrency,
         display_currency_codes: values.displayCurrencies,
       }, requestId.current)
+      // "Saved ✓" on the button, then close.
+      await action.done()
       // Close first: the refreshed Trip then shows the change in the header and tabs.
       onClose()
       onSaved()
@@ -155,6 +164,7 @@ function SettingsForm({ trip, display, currencyLocked, onClose, onSaved }: {
       const code = error instanceof TripSettingsError ? error.code : 'retryable'
       setFailure(code)
       setSaving(false)
+      action.fail()
       if (code === 'not_authorized') onSaved()
     }
   }
@@ -165,7 +175,9 @@ function SettingsForm({ trip, display, currencyLocked, onClose, onSaved }: {
 
   return (
     <form onSubmit={(event) => void submit(event)} aria-label="Trip settings" aria-busy={saving} noValidate className="flex flex-col gap-5">
-      {attempted && Object.keys(errors).length > 0 && <p role="alert" className="notice notice--error">Check the highlighted fields.</p>}
+      <Collapse open={attempted && Object.keys(errors).length > 0} gap={20}>
+        <p role="alert" className="notice notice--error">Check the highlighted fields.</p>
+      </Collapse>
       <Field id="settings-name" label="Trip name" error={show('tripName')}>
         <NeonInput value={form.tripName} onChange={(event) => update({ tripName: event.target.value })} disabled={saving} autoComplete="off" style={inputStyle} />
       </Field>
@@ -201,11 +213,13 @@ function SettingsForm({ trip, display, currencyLocked, onClose, onSaved }: {
           </NeonSelect>
         </Field>}
 
-      {failure && <p role="alert" className="notice notice--error">{tripSettingsErrorMessage(failure)}</p>}
+      <Collapse open={Boolean(failure)} gap={20}>
+        <p role="alert" className="notice notice--error">{failure && tripSettingsErrorMessage(failure)}</p>
+      </Collapse>
       <div className="flex flex-col gap-3">
-        <NeonBtn type="submit" size="lg" className="w-full" disabled={saving}>
-          {saving ? 'Saving…' : failure === 'retryable' ? 'Try again' : 'Save changes'}
-        </NeonBtn>
+        <AsyncButton type="submit" size="lg" className="w-full" status={action.status} busyLabel="Saving…" doneLabel="Saved">
+          {failure === 'retryable' ? 'Try again' : 'Save changes'}
+        </AsyncButton>
         <NeonBtn type="button" variant="ghost" size="lg" className="w-full" disabled={saving} onClick={onClose}>Cancel</NeonBtn>
       </div>
     </form>

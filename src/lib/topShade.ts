@@ -3,9 +3,19 @@
 // <html> grows the solid strip behind the status bar (global.css) to cover that
 // band, so the top of the app stays plain. At the top nothing is under it, so
 // the strip stays status-bar height and doesn't cover the header.
+/** The installed iPhone/iPad app (home-screen web app), where iOS 26 blurs the top band. */
+function isIosHomeScreenApp(): boolean {
+  const standalone = (navigator as Navigator & { standalone?: boolean }).standalone === true
+    || window.matchMedia?.('(display-mode: standalone)').matches
+  const ios = /iPhone|iPad|iPod/u.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  return Boolean(standalone && ios)
+}
+
 export function startTopShade(): void {
   if (typeof window === 'undefined') return
   const root = document.documentElement
+  // Content starts below iOS 26's blurred top band in the installed app (global.css --top-clear).
+  if (isIosHomeScreenApp()) root.dataset.iosApp = 'true'
   let scrolled = false
   const update = () => {
     // While a pop-up or sheet is open the page behind is pinned and nothing

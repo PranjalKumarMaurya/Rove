@@ -32,6 +32,8 @@
   --m-dialog-scale: 0.96;         /* centred dialog, no known trigger */
   --m-dialog-scale-origin: 0.92;  /* centred dialog growing out of its trigger */
   --m-sheet-from: 100%;
+  --m-label-shift: 6px;   /* async button labels */
+  --m-icon-scale: 0.8;    /* spinner / check arriving in a button */
   --m-tab-move: 280ms;    /* tab indicator travel */
   --m-switch-move: 220ms; /* switch thumb travel */
 }
@@ -46,6 +48,7 @@ html { -webkit-tap-highlight-color: transparent; }
 @keyframes m-digit { from { opacity: 0; transform: translateY(var(--m-digit)); } }
 @keyframes m-dialog { from { opacity: 0; transform: scale(var(--m-from, var(--m-dialog-scale))); } }
 @keyframes m-sheet { from { transform: translateY(var(--m-sheet-from)); } }
+@keyframes m-fade-out { to { opacity: 0; } }
 @keyframes m-draw { from { stroke-dashoffset: var(--m-dash, 16); } to { stroke-dashoffset: 0; } }
 
 /* ─── Press feedback ─────────────────────────────────────────
@@ -93,7 +96,8 @@ html { -webkit-tap-highlight-color: transparent; }
 :is(p, div)[role="alert"], p[role="status"] { animation: m-enter-xs 180ms var(--ease-out) backwards; }
 
 /* Disclosure content (<details>, e.g. Split's Breakdown) fades in as it opens. */
-details[open] > :not(summary) { animation: m-enter-xs 200ms var(--ease-out) backwards; }
+details[open] > :not(summary, .m-collapse) { animation: m-enter-xs 200ms var(--ease-out) backwards; }
+/* Details (Details.tsx) opens and folds its content by height instead. */
 
 /* ─── Centred dialogs ────────────────────────────────────────
    Scale up from 0.96 around the centre, or from 0.92 around the control that
@@ -168,6 +172,115 @@ details[open] > :not(summary) { animation: m-enter-xs 200ms var(--ease-out) back
   background: var(--accent);
 }
 
+/* ─── Async buttons (AsyncButton.tsx) ────────────────────────
+   idle → busy → done (or back to idle on error). The old label lifts up and out
+   (140ms) while the new one rises 6px into place (180ms); spinner and check fade
+   and grow in from 0.8; the check strokes itself in. Width never drops below the
+   idle width (min-width set in the component). */
+.abtn { position: relative; }
+.abtn__stack { position: relative; display: inline-flex; align-items: center; justify-content: center; max-width: 100%; vertical-align: top; }
+.abtn__label { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.abtn__label--in { animation: abtn-in 180ms var(--ease-out) backwards; }
+.abtn__label--out {
+  position: absolute;
+  inset: 0;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: abtn-out 140ms var(--ease-out) forwards;
+}
+@keyframes abtn-in { from { opacity: 0; transform: translateY(var(--m-label-shift)); } }
+@keyframes abtn-out { to { opacity: 0; transform: translateY(calc(-1 * var(--m-label-shift))); } }
+.abtn__icon { display: inline-flex; width: 16px; height: 16px; align-items: center; justify-content: center; flex-shrink: 0;
+  animation: abtn-icon 180ms var(--ease-out) backwards; }
+@keyframes abtn-icon { from { opacity: 0; transform: scale(var(--m-icon-scale)); } }
+.abtn__spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-top-color: currentColor;
+  animation: spin 0.8s linear infinite;
+}
+.abtn__check { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 1; stroke-dashoffset: 0; --m-dash: 1; animation: m-draw 280ms var(--ease-out) 60ms backwards; }
+/* Busy and done are disabled, but should read as working, not unavailable. */
+.abtn[data-status="busy"]:disabled { opacity: 0.85; }
+.abtn[data-status="done"]:disabled { opacity: 1; }
+
+/* ─── Height that flows (Collapse.tsx) ───────────────────────
+   Grid rows 0fr ↔ 1fr animate in iPhone Safari (calc-size does not). The inner
+   wrapper clips while moving and stops clipping once open, so focus rings and
+   shadows inside are not cut off. --collapse-gap folds the parent's gap too. */
+.m-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  margin-top: calc(-1 * var(--collapse-gap, 0px));
+  transition: grid-template-rows var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out),
+    margin-top var(--dur-base) var(--ease-out);
+}
+.m-collapse.is-open { grid-template-rows: 1fr; opacity: 1; margin-top: 0; }
+.m-collapse[hidden] { display: none; }
+.m-collapse__inner { min-height: 0; min-width: 0; overflow: hidden; }
+.m-collapse.is-settled > .m-collapse__inner { overflow: visible; }
+/* Content inside a Collapse is already eased in by the height; don't lift it twice. */
+.m-collapse :is(p, div)[role="alert"], .m-collapse p[role="status"], .m-collapse .field-error { animation: none; }
+
+/* ─── Leaving list items (useExitList, motion.ts) ────────────
+   An item the person removed fades and folds its height away (200ms); the
+   list's gap (--fold-gap on the list) folds with it. */
+.m-fold {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 200ms var(--ease-out), opacity 200ms var(--ease-out), margin-top 200ms var(--ease-out);
+}
+.m-fold > * { min-height: 0; min-width: 0; }
+.m-fold.is-leaving { grid-template-rows: 0fr; opacity: 0; margin-top: calc(-1 * var(--fold-gap, 0px)); pointer-events: none; }
+.m-fold.is-leaving > * { overflow: hidden; }
+
+/* ─── Content swaps (Swap.tsx) ───────────────────────────────
+   The outgoing content fades over the incoming one (160ms); the incoming fades
+   in with a 4px rise (200ms). */
+.m-swap-host { position: relative; }
+.m-swap-in { animation: m-enter-xs 200ms var(--ease-out) backwards; }
+.m-swap-out {
+  position: absolute;
+  inset: 0 0 auto 0;
+  pointer-events: none;
+  animation: m-fade-out 160ms var(--ease-out) forwards;
+}
+/* A line of text whose wording changes in place (a hint): a quick crossfade on change. */
+.m-text-swap { animation: m-fade 200ms var(--ease-out) backwards; }
+
+/* ─── Fields and toggles ─────────────────────────────────────
+   Border and background ease on focus (160ms); labels brighten with focus;
+   errors fade in, and so does the error border (border-color transition). */
+.m-input {
+  background-color: rgba(245, 241, 235, 0.035);
+  border: 1px solid var(--border);
+  transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.m-input:focus { border-color: var(--accent); background-color: rgba(245, 241, 235, 0.06); }
+.m-input[aria-invalid="true"]:not(:focus) { border-color: rgba(255, 139, 77, 0.6); }
+.m-field > :is(label, span:first-child) { transition: color var(--dur-fast) var(--ease-out); }
+.m-field:focus-within > :is(label, span:first-child) { color: var(--text-primary); }
+.field-error, .m-field-error { animation: m-enter-xs 180ms var(--ease-out) backwards; }
+/* Checkboxes inside pills are a size down, to sit in the 11px pill text. */
+.pill .todo-check, .pill .todo-check__input { width: 15px; height: 15px; }
+.pill .todo-check__input { border-radius: 4px; }
+/* Pills, segmented choices: colours crossfade instead of flipping. */
+.m-toggle { transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
+
+/* ─── Images ─────────────────────────────────────────────────
+   Photos fade in when they have loaded instead of popping (UserAvatar). */
+.m-img { opacity: 0; transition: opacity 240ms var(--ease-out); }
+.m-img.is-loaded { opacity: 1; }
+
+/* ─── Top bar ────────────────────────────────────────────────
+   At the top the bar sits on the page; once scrolled, its bottom line and a
+   faint lift fade in (src/lib/topBar.ts toggles html[data-topbar-raised]). */
+.app-topbar { transition: border-color var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out); }
+
 /* ─── Reduced motion ─────────────────────────────────────────
    No travel, no scaling, no slides: every distance and scale token goes to
    zero / one, so what is left are the short opacity fades. */
@@ -185,5 +298,10 @@ details[open] > :not(summary) { animation: m-enter-xs 200ms var(--ease-out) back
     --m-sheet-from: 0px;
     --m-tab-move: 0ms;
     --m-switch-move: 0ms;
+    --m-label-shift: 0px;
+    --m-icon-scale: 1;
   }
+  /* Heights jump; only the fades stay. The check fades instead of drawing. */
+  .m-collapse, .m-fold { transition: opacity var(--dur-fast) var(--ease-out); }
+  .abtn__check { animation: m-fade 160ms var(--ease-out) backwards; }
 }

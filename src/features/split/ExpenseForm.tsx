@@ -1,5 +1,8 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { NeonBtn } from '../../components/ui/NeonBtn'
+import { AsyncButton, useAsyncStatus } from '../../components/ui/AsyncButton'
+import { Checkbox } from '../../components/ui/Checkbox'
+import { Collapse } from '../../components/ui/Collapse'
 import {
   CATEGORIES, draftFromExpense, emptyDraft, evaluateDraft, spentLocalFor, switchSplitMode, type DraftField, type ExpenseDraft, type TotalCheck,
 } from './expenseDraft'
@@ -10,7 +13,6 @@ import { findSimilarExpenses } from './similarExpense'
 import { awayMembers, type TravelLeg } from './travelRules'
 import { zonedWallTimeToUtc } from '../../../supabase/functions/_shared/documentDraft.ts'
 import { commitExpense, SplitRequestError, updateExpense } from './splitApi'
-import { celebrate } from '../../lib/celebrate'
 import { Field, SplitDialog, inputClass, inputStyle } from './SplitDialog'
 import { splitErrorMessage } from './splitErrors'
 import { SPLIT_OPTIONS, WeightFields } from './SplitWeights'
@@ -85,6 +87,7 @@ export function ExpenseForm({
   const [touched, setTouched] = useState<ReadonlySet<DraftField>>(new Set())
   const [attempted, setAttempted] = useState(false)
   const [saving, setSaving] = useState(false)
+  const action = useAsyncStatus()
   const [serverError, setServerError] = useState<string | null>(null)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [rateState, setRateState] = useState<RateState>({ kind: 'idle' })
@@ -177,6 +180,7 @@ export function ExpenseForm({
     const request = evaluation.request
     if (!request) return
     setSaving(true)
+    action.busy()
     try {
       let savedId: string
       if (expense) {
@@ -185,11 +189,13 @@ export function ExpenseForm({
       } else {
         savedId = await commitExpense(groupId, request, requestId.current)
       }
-      celebrate(expense ? 'Expense updated' : 'Expense added')
+      // The button's tick is the confirmation; the form closes once it has been seen.
+      await action.done()
       onSaved(savedId)
     } catch (error) {
       setServerError(splitErrorMessage(error instanceof SplitRequestError ? error.code : null))
       setSaving(false)
+      action.fail()
     }
   }
 
@@ -234,7 +240,7 @@ export function ExpenseForm({
               {showCurrency && <datalist id="split-currencies">{COMMON_CURRENCIES.map((code) => <option key={code} value={code} />)}</datalist>}
             </div>
 
-            {showCurrency && converts && (
+            <Collapse open={showCurrency && converts} gap={16}>
               <div className="surface flex flex-col gap-2 px-3.5 py-3">
                 <Field label={`Exchange rate: ${accountingCurrency} for 1 ${currency}`} error={show('rate')}
                   hint={rateHint(rateState, keepsSnapshot ? expense : null, timezone)}>
@@ -255,7 +261,7 @@ export function ExpenseForm({
                   )}
                 </div>
               </div>
-            )}
+            </Collapse>
 
             <Field label="Category">
               {(control) => (
@@ -275,7 +281,7 @@ export function ExpenseForm({
             <Choice legend="Paid by" name="payer-mode" value={draft.payerMode}
               options={[{ value: 'single', label: 'One person' }, { value: 'multiple', label: 'Several people' }]}
               onChange={(payerMode) => update({ payerMode })}>
-              {draft.payerMode === 'single' ? (
+              <Collapse open={draft.payerMode === 'single'} gap={12}>
                 <Field label="Who paid" error={show('payers')}>
                   {(control) => (
                     <select {...control} className={inputClass} style={inputStyle} value={draft.payerId}
@@ -284,25 +290,29 @@ export function ExpenseForm({
                     </select>
                   )}
                 </Field>
-              ) : (
-                <AmountList label="Paid by" members={members} currency={currency} values={draft.payerAmounts}
-                  onChange={(payerAmounts) => update({ payerAmounts })} />
-              )}
-              {draft.payerMode === 'multiple' && (
-                <TotalStrip check={evaluation.payerCheck} what="Paid" matchText="Payer amounts match the total." money={money}
-                  error={show('payers')} />
-              )}
+              </Collapse>
+              <Collapse open={draft.payerMode === 'multiple'} gap={12}>
+                <div className="flex flex-col gap-3">
+                  <AmountList label="Paid by" members={members} currency={currency} values={draft.payerAmounts}
+                    onChange={(payerAmounts) => update({ payerAmounts })} />
+                  <TotalStrip check={evaluation.payerCheck} what="Paid" matchText="Payer amounts match the total." money={money}
+                    error={show('payers')} />
+                </div>
+              </Collapse>
             </Choice>
 
             <Choice legend="Split" name="split-mode" value={draft.splitMode} options={SPLIT_OPTIONS}
               onChange={(splitMode) => update(switchSplitMode(draft, splitMode))}>
-              {draft.splitMode === 'percent' || draft.splitMode === 'shares' ? (
-                <WeightFields mode={draft.splitMode} members={members} evaluation={evaluation} currency={currency}
+              <Collapse open={draft.splitMode === 'percent' || draft.splitMode === 'shares'} gap={12}>
+                <div className="flex flex-col gap-3">
+                <WeightFields mode={draft.splitMode === 'shares' ? 'shares' : 'percent'} members={members} evaluation={evaluation} currency={currency}
                   accountingCurrency={accountingCurrency} money={money} error={evaluation.errors.shares}
                   values={draft.splitMode === 'percent' ? draft.sharePercents : draft.shareWeights}
                   onChange={(values) => update(draft.splitMode === 'percent' ? { sharePercents: values } : { shareWeights: values })} />
-              ) : draft.splitMode === 'equal' ? (
-                <>
+                </div>
+              </Collapse>
+              <Collapse open={draft.splitMode === 'equal'} gap={12}>
+                <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>Split between</span>
                     <span className="flex gap-3 text-sm">
@@ -318,10 +328,9 @@ export function ExpenseForm({
                       const reason = away.get(member.id)
                       return (
                         <li key={member.id}>
-                          <label className="flex min-h-11 items-center gap-3" data-away={reason && !checked ? 'true' : undefined}
+                          <label className="m-toggle flex min-h-11 cursor-pointer items-center gap-3" data-away={reason && !checked ? 'true' : undefined}
                             style={{ color: reason && !checked ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
-                            <input type="checkbox" style={{ accentColor: 'var(--accent)', width: 18, height: 18 }}
-                              checked={checked}
+                            <Checkbox checked={checked}
                               onChange={(event) => chooseIncluded(event.target.checked
                                 ? [...draft.included, member.id]
                                 : draft.included.filter((id) => id !== member.id))} />
@@ -332,42 +341,45 @@ export function ExpenseForm({
                       )
                     })}
                   </ul>
-                  {show('shares') && <p role="alert" style={{ color: 'var(--accent)', fontSize: 12 }}>{show('shares')}</p>}
+                  <Collapse open={Boolean(show('shares'))} gap={12}>
+                    <p role="alert" style={{ color: 'var(--accent)', fontSize: 12 }}>{show('shares')}</p>
+                  </Collapse>
                   {perHead && (
                     <p role="status" className="font-mono" style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
                       {rangeText(perHead, (minor) => money(minor, accountingCurrency))} each
                       {originalPerHead ? ` (${rangeText(originalPerHead, money)})` : ''}
                     </p>
                   )}
-                </>
-              ) : (
-                <>
+                </div>
+              </Collapse>
+              <Collapse open={draft.splitMode === 'exact'} gap={12}>
+                <div className="flex flex-col gap-3">
                   <AmountList label="Share for" members={members} currency={currency} values={draft.shareAmounts}
                     onChange={(shareAmounts) => update({ shareAmounts })} />
                   <TotalStrip check={evaluation.shareCheck} what="Shared" matchText="Shares match the total." money={money}
                     error={show('shares')} />
-                </>
-              )}
+                </div>
+              </Collapse>
             </Choice>
           </fieldset>
 
-          {similar && (
-            <p role="status" data-testid="similar-expense" className="rounded-lg px-3 py-2 text-xs"
+          <Collapse open={Boolean(similar)} gap={16}>
+            {similar && <p role="status" data-testid="similar-expense" className="rounded-lg px-3 py-2 text-xs"
               style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-strong)' }}>
               {similar.createdBy === me ? 'You' : memberName(similar.createdBy)} already added {money(similar.originalAmount, similar.originalCurrency)} for
               “{similar.description}” on {formatDay(similar.spentAt ?? similar.createdAt, timezone)}. Check it isn’t the same cost before saving.
-            </p>
-          )}
-          {serverError && (
+            </p>}
+          </Collapse>
+          <Collapse open={Boolean(serverError)} gap={16}>
             <p role="alert" className="surface px-3.5 py-3 text-sm" style={{ color: 'var(--text-primary)' }}>{serverError}</p>
-          )}
-          {attempted && !evaluation.request && !serverError && (
+          </Collapse>
+          <Collapse open={attempted && !evaluation.request && !serverError} gap={16}>
             <p role="alert" className="text-sm" style={{ color: 'var(--accent)' }}>Check the highlighted fields.</p>
-          )}
+          </Collapse>
           <div className="flex gap-2">
-            <NeonBtn type="submit" disabled={saving} className="min-h-11 flex-1">
-              {saving ? 'Saving…' : expense ? 'Save changes' : 'Save expense'}
-            </NeonBtn>
+            <AsyncButton type="submit" status={action.status} busyLabel="Saving…" doneLabel="Saved" className="min-h-11 flex-1">
+              {expense ? 'Save changes' : 'Save expense'}
+            </AsyncButton>
             <NeonBtn type="button" variant="ghost" disabled={saving} onClick={requestClose} className="min-h-11">Cancel</NeonBtn>
           </div>
         </form>
@@ -427,7 +439,7 @@ function Choice<T extends string>({ legend, name, value, options, onChange, chil
         {options.map((option) => {
           const checked = value === option.value
           return (
-            <label key={option.value} className="flex min-h-11 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-2 text-[13px]"
+            <label key={option.value} className="m-toggle flex min-h-11 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-2 text-[13px]"
               style={{
                 borderColor: checked ? 'var(--accent)' : 'var(--border)',
                 background: checked ? 'var(--accent-soft)' : 'transparent',
@@ -484,7 +496,7 @@ function TotalStrip({ check, what, matchText, money, error }: {
         : `${money(check.entered - check.required)} too much`}`
   if (!text) return null
   return (
-    <p role="status" className="rounded-lg px-3 py-2 text-xs"
+    <p role="status" className="m-toggle rounded-lg px-3 py-2 text-xs"
       style={{
         color: matches ? 'var(--text-primary)' : 'var(--accent)',
         border: `1px solid ${matches ? 'var(--border-strong)' : 'rgba(255,139,77,0.4)'}`,

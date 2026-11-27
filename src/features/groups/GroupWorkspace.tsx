@@ -2,8 +2,6 @@ import { type CSSProperties, type KeyboardEvent, useRef, useState } from 'react'
 import { IconBack, IconCrew, IconExchange, IconMap, IconReceipt, IconScan, IconSettings, IconTodos } from '../../components/ui/icons'
 import { CrewTab } from '../crew/CrewTab'
 import { FxTab } from '../fx/FxTab'
-import type { MyProfile } from '../profile/profileApi'
-import { ProfileButton } from '../profile/ProfileButton'
 import { ScanTab } from '../scan/ScanTab'
 import { TripSettingsSheet } from '../settings/TripSettingsSheet'
 import { SplitTab } from '../split/SplitTab'
@@ -30,16 +28,12 @@ const tabsFor = (trip: MyGroupAccess) => ALL_TABS.filter((entry) => entry.id !==
  * One Trip: a header with the way back to the Trips home, Trip settings and the
  * person's avatar, the selected tab, and the bottom tab bar.
  */
-export function GroupWorkspace({ trip, onBack, onRefresh, onOpenProfile, profile, accountName }: {
+export function GroupWorkspace({ trip, onBack, onRefresh }: {
   trip: MyGroupAccess
   /** Back to the Trips home. */
   onBack: () => void
   /** Re-read the Trip list in the background (role, settings, membership, archive state). */
   onRefresh: () => void
-  onOpenProfile: () => void
-  profile: MyProfile | null
-  /** Used for the avatar initial until the profile has loaded. */
-  accountName: string
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const owner = trip.role === 'owner'
@@ -57,7 +51,6 @@ export function GroupWorkspace({ trip, onBack, onRefresh, onOpenProfile, profile
             aria-expanded={settingsOpen} onClick={() => setSettingsOpen(true)}>
             <IconSettings size={20} />
           </button>
-          <ProfileButton profile={profile} fallbackName={accountName} onOpen={onOpenProfile} />
         </div>
         <div className="min-w-0">
           <h1 className="serif-display line-clamp-2" style={{ color: 'var(--text-primary)', fontSize: 26, lineHeight: 1.15 }}>{trip.tripName}</h1>

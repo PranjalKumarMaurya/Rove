@@ -1,0 +1,41 @@
+/* Split's day-by-day expense timeline (SplitTab.tsx). Motion uses the tokens in
+   src/styles/motion.css; distances there go to zero under reduced motion. */
+
+/* Sticky day header: pinned just under the status bar's solid strip, which grows
+   while the page is scrolled (global.css .status-shield). Solid so rows never show
+   through; below the tab bar (40) and the status strip, and native dialogs/sheets
+   sit in the top layer above all of it. */
+.split-day__header {
+  position: sticky;
+  top: calc(env(safe-area-inset-top, 0px) + min(28px, env(safe-area-inset-top, 0px)));
+  z-index: 5;
+  background: var(--bg-base);
+  /* Cover the 1px seams between the header and the cards scrolling under it. */
+  box-shadow: 0 1px 0 var(--bg-base);
+}
+.split-day { scroll-margin-top: calc(env(safe-area-inset-top, 0px) + min(28px, env(safe-area-inset-top, 0px))); }
+
+/* Day groups fade in (no travel, so the rows' own 8px rise is not doubled);
+   the first six staggered via --i (enterIndex). Mount-only: stable keys mean a
+   realtime refresh does not replay it. */
+.split-day--enter {
+  animation: m-fade var(--dur-base) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+
+/* Fold-away after a delete: fade, and collapse the height through a
+   1fr -> 0fr grid row. The padding lives on a grandchild so it collapses too. */
+.split-fold {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition: grid-template-rows var(--dur-base) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+}
+.split-fold > * { min-height: 0; }
+.split-fold[data-leaving="true"] { grid-template-rows: 0fr; opacity: 0; pointer-events: none; }
+/* Clip only while folding: clipping at rest would cut focus rings and break the sticky header. */
+.split-fold[data-leaving="true"] > * { overflow: hidden; }
+
+/* A row's details (breakdown, rate, who added it) opening in place. */
+.split-row__more:not([hidden]) { animation: m-enter-xs 200ms var(--ease-out) backwards; }
+

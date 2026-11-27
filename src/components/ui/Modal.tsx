@@ -13,7 +13,7 @@ interface Props {
 const overlay: CSSProperties = {
   position: 'fixed',
   // Starts below the status bar so nothing scrolls under it (iOS blurs content there).
-  top: 'env(safe-area-inset-top, 0px)',
+  top: 'var(--safe-top)',
   right: 0,
   bottom: 0,
   left: 0,

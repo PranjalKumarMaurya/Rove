@@ -13,7 +13,8 @@ export function NeonInput({ color = 'var(--accent)', className = '', style: exte
     color: 'var(--text-primary)',
     fontFamily: 'var(--font-ui)',
     outline: 'none',
-    transition: 'border-color 0.2s, background-color 0.2s',
+    // Focus and error borders ease in (motion.css tokens).
+    transition: 'border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out)',
     fontSize: 14,
   }
 

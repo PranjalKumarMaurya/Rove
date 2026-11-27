@@ -36,7 +36,7 @@ All streams are merged into `v2`. Every row below passed on the combined branch.
 - **Chrome:** an opaque strip behind the status bar, since iOS 26 blurs content scrolled under it. The tab bar sits lower. Back buttons are icon-only. The close X is minimal.
 - **Sheets:** they close by dragging anywhere when scrolled to the top, and nothing rubber-bands.
 - **Home:** a ROVE wordmark, then "Your Trips" with an invite-link icon that opens a centred popup. A bottom nav (Trips · ＋ New trip · Profile) also appears on Profile opened from home.
-- **Success tick:** an animated tick (`celebrate()`) on expense, payment, itinerary, join and create.
+- **Success tick:** the global tick (`celebrate()`) remains available; saves now confirm in place on their button (Motion system).
 - **Back navigation:** history entries make the system back work on Android and in Safari. In the installed iPhone app, a left-edge swipe goes back. No backdrop blur anywhere. While scrolled, a solid band covers the strip that iOS 26 blurs under the status bar (`src/lib/topShade.ts`). Bottom bars are re-placed after the keyboard closes, after a sheet unlocks, and when the app returns from the background (`src/lib/pinBottomBars.ts`), because iPhone web apps can leave them too high until the next touch. |
 | **Motion system (2026-11-27, researched; Kowalski, Apple HIG, NN/g, Freiberg):**
 - **Tokens:** in `src/styles/motion.css`: strong ease-out, an in-out curve and the iOS drawer curve. Durations are 120 ms for presses, 160–220 ms for UI, about 420 ms for sheets and 380/320 ms for push/pop.
@@ -44,6 +44,7 @@ All streams are merged into `v2`. Every row below passed on the combined branch.
 - **Edge swipe:** shows the real previous screen underneath, with parallax and dim.
 - **Dialogs:** they scale up from the control that opened them.
 - **Small motion:** press feedback, a sliding tab indicator, list entrances (staggered, first six only), drawing checkboxes, sliding switches, rolling countdown digits.
+- **Second pass (flow):** save and submit buttons go Saving… → a drawn tick → close (`AsyncButton`, held 700 ms; it replaces the global tick for those actions); messages, form sections and disclosures open and fold by height (`Collapse`, grid-rows technique for iPhone Safari); rows the person deletes fold away (`useExitList`); in-place content changes crossfade (`Swap`); fields ease their focus and error borders; photos fade in; the Trip top bar's line fades in once scrolled (`src/lib/topBar.ts`).
 - **Reduced motion:** turns all of it into short fades.
 - **Home:** the wordmark is centred and closer to the status bar.
 - **Crew strip:** keeps its left padding when scrolled to the start.
@@ -61,7 +62,15 @@ All streams are merged into `v2`. Every row below passed on the combined branch.
 - **Swipe layers:** no longer scroll containers. Scroll offset comes from a margin and they use `overflow: clip`, to stop WebKit drawing the underlay twice. | browser suites |
 | **Installed iPhone app (2026-11-27):**
 - **Status bar:** `black` (opaque), not `black-translucent`. Under a see-through status bar, iOS 26 blurs the top of home-screen web apps and lays a cold launch out short of the bottom (WebKit bug 301108). iOS reads this tag only when the icon is added, so existing installs must delete and re-add the app.
-- **Bottom gap on existing installs:** a standalone-only `html { min-height: min(100lvh, calc(100% + inset)) }` rule closes the gap without a reinstall. | browser suites; device check pending | `tests/unit/split-travel.test.ts`, `tests/unit/navigation-gestures.test.ts`, browser suites |
+- **Bottom gap on existing installs:** a standalone-only `html { min-height: min(100lvh, calc(100% + inset)) }` rule closes the gap without a reinstall. | browser suites; device check pending |
+| **Split timeline, motion pass 2, top clear (2026-11-27):**
+- **Split timeline:** the expense list is grouped by trip day ("Day 2 · Mon 16 Nov"), earliest first, with sticky day headers showing the day's total (or "your share" in Only mine) and "Before the trip" / "After the trip" groups (`src/features/split/timeline.ts`).
+- **Motion pass 2:**
+  - Save buttons go Save → Saving… → ✓ Saved (`AsyncButton`).
+  - Heights open and fold instead of jumping (`Collapse`), removed rows fold away, and in-place content crossfades (`Swap`).
+  - Fields, labels and pills transition on focus and state.
+- **Installed iPhone app:** content starts 36px below the status bar (`--top-clear`, set by `topShade.ts`), so iOS 26's top blur covers only background.
+- **Trip header:** shows only Trip settings; Profile lives on the home screen. | `tests/unit/split-timeline.test.ts`, all browser suites | `tests/unit/split-travel.test.ts`, `tests/unit/navigation-gestures.test.ts`, browser suites |
 | **FX tab** (international Trips): converter with live rates and offline cache | `npm run test:fx:unit`, scan-fx live test |
 | **Crew tab:** roster with each member's shared details, invitations with **Share… / WhatsApp**, revoke, roles, transfer, remove, leave, archive/restore (060) | `npm run test:crew:db`, `npm run test:crew:live`, `npm run test:crew:browser`, `npm run test:extras:live` |
 | **Installable app (PWA):** manifest, icons, app-shell service worker (never caches data or auth), offline notice, update prompt | `tests/browser/pwa/installable-app.spec.ts` |

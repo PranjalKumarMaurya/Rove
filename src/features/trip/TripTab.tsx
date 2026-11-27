@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useState } from 'react'
 import { NeonBtn } from '../../components/ui/NeonBtn'
+import { Collapse } from '../../components/ui/Collapse'
+import { useExitList } from '../../components/ui/motion'
+import { Swap } from '../../components/ui/Swap'
 import type { TripTabProps } from '../workspace/tripTab'
 import { CrewStatusStrip } from './CrewStatusStrip'
 import { EventCard } from './EventCard'
@@ -28,16 +31,18 @@ export function TripTab({ trip, roster }: TripTabProps) {
   const statuses = useMemo(() => eventStatuses(events, now), [events, now])
   const flight = useMemo(() => nextJourney(events, now), [events, now])
   const names = useMemo(() => new Map(roster.map((member) => [member.groupMemberId, member.displayName])), [roster])
-  const days = useMemo(() => {
-    const groups: { key: string; label: string; events: TripEvent[] }[] = []
-    for (const event of events) {
+  // An event someone deletes here folds away; one deleted elsewhere just goes.
+  const { entries, exit } = useExitList(events, (event) => event.id)
+  const days = (() => {
+    const groups: { key: string; label: string; events: { event: TripEvent; leaving: boolean }[]; leaving: boolean }[] = []
+    for (const { item: event, leaving } of entries) {
       const key = dayKey(event.starts_at, tripZone)
       const last = groups[groups.length - 1]
-      if (last?.key === key) last.events.push(event)
-      else groups.push({ key, label: formatDay(event.starts_at, tripZone), events: [event] })
+      if (last?.key === key) { last.events.push({ event, leaving }); last.leaving &&= leaving }
+      else groups.push({ key, label: formatDay(event.starts_at, tripZone), events: [{ event, leaving }], leaving })
     }
     return groups
-  }, [events, tripZone])
+  })()
   // Position in the whole itinerary, so the entrance stagger runs across days, not per day.
   const order = useMemo(() => new Map(events.map((event, index) => [event.id, index])), [events])
 
@@ -47,12 +52,13 @@ export function TripTab({ trip, roster }: TripTabProps) {
       : await createTripEvent(trip.groupId, trip.groupMemberId, payload, people)
     // The event is saved either way; never leave the dialog open to be saved twice.
     setNotice(saved.audienceSaved ? null : `“${payload.title}” was saved, but who’s on it was not. Edit it to try again.`)
-    setEditing(null)
+    // The dialog shows "Saved ✓" on its button, then closes itself (it stays locked meanwhile).
     void reload()
   }
 
   const remove = async (event: TripEvent) => {
     await deleteTripEvent(trip.groupId, event.id)
+    exit(event.id)
     void reload()
   }
 
@@ -77,16 +83,17 @@ export function TripTab({ trip, roster }: TripTabProps) {
           <LiveBadge status={live} />
         </div>
 
-        {notice && (
+        <Collapse open={Boolean(notice)}>
           <p role="status" className="surface mt-4 px-3.5 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
             {notice} <button type="button" onClick={() => setNotice(null)} style={{ color: 'var(--accent)' }}>Dismiss</button>
           </p>
-        )}
-        {error && (
+        </Collapse>
+        <Collapse open={Boolean(error)}>
           <p role="alert" className="surface mt-4 px-3.5 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
             Could not load the itinerary. <button type="button" onClick={() => void reload()} style={{ color: 'var(--accent)' }}>Try again</button>
           </p>
-        )}
+        </Collapse>
+        <Swap id={loading ? 'loading' : !error && entries.length === 0 ? 'empty' : 'list'}>
         {loading ? (
           <p role="status" className="mt-6 text-sm" style={{ color: 'var(--text-tertiary)' }}>Loading itinerary…</p>
         ) : !error && events.length === 0 ? (
@@ -97,20 +104,24 @@ export function TripTab({ trip, roster }: TripTabProps) {
         ) : (
           <div className="relative mt-4 flex flex-col gap-5" data-testid="itinerary">
             {days.map((day) => (
-              <section key={day.key} aria-label={day.label}>
+              <section key={day.key} aria-label={day.label} className={day.leaving ? 'm-fold is-leaving' : 'm-fold'}
+                style={{ '--fold-gap': '20px' } as CSSProperties} aria-hidden={day.leaving || undefined}>
+                <div>
                 <p className="serif-eyebrow mb-2" style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{day.label}</p>
-                <ol className="flex flex-col gap-3">
-                  {day.events.map((event) => (
-                    <EventCard key={event.id} index={order.get(event.id) ?? 0} event={event} status={statuses.get(event.id) ?? 'upcoming'}
+                <ol className="flex flex-col gap-3" style={{ '--fold-gap': '12px' } as CSSProperties}>
+                  {day.events.map(({ event, leaving }) => (
+                    <EventCard key={event.id} leaving={leaving && !day.leaving} index={order.get(event.id) ?? 0} event={event} status={statuses.get(event.id) ?? 'upcoming'}
                       tripTimeZone={tripZone} localTimeZone={localTimeZone}
                       audienceNames={(audience.get(event.id) ?? []).map((id) => names.get(id) ?? 'a former member')}
                       onEdit={() => setEditing({ mode: 'edit', event })} onDelete={() => remove(event)} />
                   ))}
                 </ol>
+                </div>
               </section>
             ))}
           </div>
         )}
+        </Swap>
       </div>
 
       {editing && (

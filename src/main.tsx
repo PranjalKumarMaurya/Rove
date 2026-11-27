@@ -10,11 +10,13 @@ import { TabSwipe } from './components/TabSwipe'
 import { SuccessTick } from './components/ui/SuccessTick'
 import { startServiceWorker } from './features/pwa/serviceWorker'
 import { startTopShade } from './lib/topShade'
+import { startTopBar } from './lib/topBar'
 import { startPinBottomBars } from './lib/pinBottomBars'
 
 startServiceWorker()
 
 startTopShade()
+startTopBar()
 startPinBottomBars()
 
 createRoot(document.getElementById('root')!).render(

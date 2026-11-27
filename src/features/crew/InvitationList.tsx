@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { type CSSProperties, useCallback, useEffect, useState } from 'react'
+import { Details } from '../../components/ui/Details'
+import { foldProps, useExitList } from '../../components/ui/motion'
 import { ActionSheet, buttonClass, quietButtonStyle } from './ActionSheet'
 import { listGroupInvitations, revokeInvitation } from './crewApi'
 import {
@@ -30,6 +32,8 @@ export function InvitationList({ groupId, reloadKey }: { groupId: string; reload
 
   const reload = useCallback(() => setLocalReload((value) => value + 1), [])
   const { pending, past } = state.kind === 'ready' ? splitInvitations(state.items) : { pending: [], past: [] }
+  // A revoked invitation folds out of Pending (it moves to Past invitations).
+  const pendingRows = useExitList(pending, (item) => item.invitationId)
 
   return (
     <section data-testid="invitation-list" aria-label="Invitations" className="surface px-4 py-5">
@@ -43,22 +47,22 @@ export function InvitationList({ groupId, reloadKey }: { groupId: string; reload
         <p className="mt-2" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
           {state.liveCount === 1 ? '1 live link' : `${state.liveCount} live links`}. Links are shown only once, when you create them.
         </p>
-        {pending.length === 0
-          ? <p className="mt-4" style={{ color: 'var(--text-secondary)' }}>No pending invitations.</p>
-          : <ul aria-label="Pending invitations" className="mt-4 flex flex-col gap-3">
-            {pending.map((item) => (
-              <li key={item.invitationId} className="flex items-center justify-between gap-3">
+        {pendingRows.entries.length === 0
+          ? <p className="m-appear mt-4" style={{ color: 'var(--text-secondary)' }}>No pending invitations.</p>
+          : <ul aria-label="Pending invitations" className="mt-4 flex flex-col gap-3" style={{ '--fold-gap': '12px' } as CSSProperties}>
+            {pendingRows.entries.map(({ item, leaving }) => (
+              <li key={item.invitationId} {...foldProps(leaving)}><div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate" style={{ color: 'var(--text-primary)' }}>{item.recipientEmail}</p>
                   <p style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>{invitationStatusLabel(item.status)} · Expires {formatInstant(item.expiresAt)}</p>
                 </div>
                 <button type="button" aria-label={`Revoke invitation for ${item.recipientEmail}`} onClick={() => setRevoking(item)}
                   className={buttonClass} style={{ ...quietButtonStyle, color: 'var(--neon-pink)' }}>Revoke</button>
-              </li>
+              </div></li>
             ))}
           </ul>}
-        {past.length > 0 && <details className="mt-4">
-          <summary style={{ color: 'var(--text-secondary)', cursor: 'pointer' }}>Past invitations ({past.length})</summary>
+        {past.length > 0 && <Details className="mt-4" summaryStyle={{ color: 'var(--text-secondary)', cursor: 'pointer' }}
+          summary={`Past invitations (${past.length})`}>
           <ul aria-label="Past invitations" className="mt-3 flex flex-col gap-2">
             {past.map((item) => (
               <li key={item.invitationId} className="flex justify-between gap-3" style={{ fontSize: 14 }}>
@@ -67,9 +71,10 @@ export function InvitationList({ groupId, reloadKey }: { groupId: string; reload
               </li>
             ))}
           </ul>
-        </details>}
+        </Details>}
       </>}
       {revoking && <ActionSheet title="Revoke invitation" testId="revoke-invitation-sheet" onClose={(result) => {
+        if (result === 'success') pendingRows.exit(revoking.invitationId)
         setRevoking(null)
         if (result !== 'cancelled') reload()
       }} actions={[{

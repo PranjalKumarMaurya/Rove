@@ -1,5 +1,8 @@
-import { useId, useState, type CSSProperties } from 'react'
-import { enterIndex } from '../../components/ui/motion'
+import { useId, useRef, useState, type CSSProperties } from 'react'
+import { AsyncLabel, useErrorNudge } from '../../components/ui/AsyncButton'
+import { Collapse } from '../../components/ui/Collapse'
+import { enterIndex, foldProps } from '../../components/ui/motion'
+import { Swap } from '../../components/ui/Swap'
 import { eventTypeMeta, safeMapUrl, type EventStatus, type TripEvent } from './itinerary'
 import { clocksDiffer, formatSpan } from './tripTime'
 import { terminalLabel } from './NextFlight'
@@ -10,7 +13,9 @@ const smallButton: CSSProperties = {
   fontSize: 12, color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px',
 }
 
-export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZone, audienceNames, onEdit, onDelete }: {
+export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZone, audienceNames, onEdit, onDelete, leaving = false }: {
+  /** Deleted here: folding away (useExitList). */
+  leaving?: boolean
   event: TripEvent
   /** Position in the itinerary, for the entrance stagger. */
   index?: number
@@ -27,6 +32,9 @@ export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZon
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(false)
   const notesId = useId()
+  const deleteButton = useRef<HTMLButtonElement>(null)
+  const deleteStatus = deleting ? 'busy' : deleteError ? 'error' : 'idle'
+  useErrorNudge(deleteButton, deleteStatus)
   const meta = eventTypeMeta(event.event_type)
   const showLocal = clocksDiffer([event.starts_at, event.ends_at], tripTimeZone, localTimeZone)
   const mapUrl = safeMapUrl(event.map_url)
@@ -46,7 +54,8 @@ export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZon
   }
 
   return (
-    <li data-testid="trip-event" data-status={status} aria-label={event.title} className="m-enter flex items-start gap-3" style={enterIndex(index)}>
+    <li data-testid="trip-event" data-status={status} aria-label={event.title} style={enterIndex(index)} {...foldProps(leaving, 'm-enter')}>
+      <div className="flex items-start gap-3">
       <span aria-hidden="true" className="relative flex shrink-0 items-center justify-center" style={{
         width: 38, height: 38, borderRadius: '50%', background: 'var(--bg-base)', fontSize: 16,
         border: `1px solid ${highlighted ? 'var(--accent)' : 'var(--border-strong)'}`,
@@ -95,20 +104,21 @@ export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZon
           {audienceNames.length ? `For ${audienceNames.join(', ')}` : 'For everyone'}
         </p>
 
-        {expanded && event.notes && (
-          <p id={notesId} className="font-mono m-reveal mt-2.5 whitespace-pre-wrap pt-2.5 text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+        <Collapse open={expanded && Boolean(event.notes)}>
+          <p id={notesId} className="font-mono mt-2.5 whitespace-pre-wrap pt-2.5 text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
             {event.notes}
           </p>
-        )}
+        </Collapse>
 
+        <Swap id={confirming ? 'confirm' : 'actions'}>
         {confirming ? (
           <div role="group" aria-label={`Confirm deleting ${event.title}`} className="mt-3 flex flex-wrap items-center gap-2">
             <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Delete this for everyone?</span>
-            <button type="button" disabled={deleting} onClick={() => void confirmDelete()} className="m-press" style={{ ...smallButton, color: '#1A0A03', background: 'var(--accent)', border: '1px solid var(--accent)' }}>
-              {deleting ? 'Deleting…' : 'Yes, delete'}
+            <button ref={deleteButton} type="button" disabled={deleting} aria-busy={deleting || undefined} onClick={() => void confirmDelete()} className="m-press" style={{ ...smallButton, color: '#1A0A03', background: 'var(--accent)', border: '1px solid var(--accent)' }}>
+              <AsyncLabel status={deleteStatus} busyLabel="Deleting…">Yes, delete</AsyncLabel>
             </button>
             <button type="button" disabled={deleting} onClick={() => setConfirming(false)} className="m-press" style={smallButton}>Keep it</button>
-            {deleteError && <p role="alert" className="w-full text-xs" style={{ color: 'var(--accent)' }}>Could not delete. Try again.</p>}
+            {deleteError && <p role="alert" className="m-field-error w-full text-xs" style={{ color: 'var(--accent)' }}>Could not delete. Try again.</p>}
           </div>
         ) : (
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -117,7 +127,9 @@ export function EventCard({ event, index = 0, status, tripTimeZone, localTimeZon
             <button type="button" aria-label={`Delete ${event.title}`} onClick={() => setConfirming(true)} className="m-press" style={smallButton}>Delete</button>
           </div>
         )}
+        </Swap>
       </article>
+      </div>
     </li>
   )
 }

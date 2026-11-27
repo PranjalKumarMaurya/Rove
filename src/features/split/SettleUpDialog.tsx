@@ -1,7 +1,9 @@
 import { type FormEvent, useId, useRef, useState } from 'react'
 import { NeonBtn } from '../../components/ui/NeonBtn'
+import { AsyncButton, useAsyncStatus } from '../../components/ui/AsyncButton'
+import { Collapse } from '../../components/ui/Collapse'
+import { Swap } from '../../components/ui/Swap'
 import type { SplitMember } from './ExpenseForm'
-import { celebrate } from '../../lib/celebrate'
 import type { SettlementSuggestion } from './ledger'
 import { formatMoney, minorUnits, parseAmount, toDecimalString } from './money'
 import { recordSettlement, SplitRequestError } from './splitApi'
@@ -40,6 +42,7 @@ export function SettleUpDialog({ groupId, tripName, currency, me, isOwner, membe
   const [pending, setPending] = useState<Pending | null>(null)
   const [note, setNote] = useState('')
   const [recording, setRecording] = useState(false)
+  const action = useAsyncStatus()
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
   const [custom, setCustom] = useState(false)
@@ -74,12 +77,15 @@ export function SettleUpDialog({ groupId, tripName, currency, me, isOwner, membe
   const confirm = async () => {
     if (!pending || recording) return
     setRecording(true)
+    action.busy()
     setError(null)
     try {
       await recordSettlement(groupId, {
         from: pending.from, to: pending.to, amount: toDecimalString(pending.amount, minorUnits(currency)), note: note.trim() || null,
       }, pending.requestId)
-      celebrate('Payment recorded')
+      // "Recorded ✓" on the button, then back to the list with the confirmation line.
+      await action.done()
+      action.reset()
       setDone(`Recorded: ${nameOf(pending.from)} paid ${nameOf(pending.to)} ${money(pending.amount)}.`)
       setPending(null)
       setCustom(false)
@@ -89,6 +95,7 @@ export function SettleUpDialog({ groupId, tripName, currency, me, isOwner, membe
       // The same request id is kept, so retrying cannot record it twice.
       setError(splitErrorMessage(failure instanceof SplitRequestError ? failure.code : null,
         'We could not record this payment. Nothing was changed, so you can try again.'))
+      action.fail()
     } finally {
       setRecording(false)
     }
@@ -96,6 +103,7 @@ export function SettleUpDialog({ groupId, tripName, currency, me, isOwner, membe
 
   return (
     <SplitDialog title="Settle up" onClose={onClose} locked={recording} testId="settle-up">
+      <Swap id={pending ? 'confirm' : 'list'}>
       {pending ? (
         <section aria-labelledby="settle-confirm-heading" className="flex flex-col gap-4">
           <h3 id="settle-confirm-heading" ref={confirmRef} tabIndex={-1} className="serif-display outline-none"
@@ -110,17 +118,22 @@ export function SettleUpDialog({ groupId, tripName, currency, me, isOwner, membe
             {(control) => <input {...control} className={inputClass} style={inputStyle} value={note} maxLength={200}
               placeholder="UPI, cash…" disabled={recording} onChange={(event) => setNote(event.target.value)} />}
           </Field>
-          {error && <p role="alert" className="surface px-3.5 py-3 text-sm" style={{ color: 'var(--text-primary)' }}>{error}</p>}
+          <Collapse open={Boolean(error)} gap={16}>
+            <p role="alert" className="surface px-3.5 py-3 text-sm" style={{ color: 'var(--text-primary)' }}>{error}</p>
+          </Collapse>
           <div className="flex gap-2">
-            <NeonBtn type="button" onClick={() => void confirm()} disabled={recording} className="min-h-11 flex-1">
-              {recording ? 'Recording…' : error ? 'Try again' : 'Confirm payment'}
-            </NeonBtn>
+            <AsyncButton type="button" onClick={() => void confirm()} status={action.status} busyLabel="Recording…" doneLabel="Recorded"
+              className="min-h-11 flex-1">
+              {error ? 'Try again' : 'Confirm payment'}
+            </AsyncButton>
             <NeonBtn type="button" variant="ghost" onClick={() => setPending(null)} disabled={recording} className="min-h-11">Back</NeonBtn>
           </div>
         </section>
       ) : (
         <div className="flex flex-col gap-4">
-          {done && <p role="status" className="surface px-3.5 py-3 text-sm" style={{ color: 'var(--text-primary)' }}>{done}</p>}
+          <Collapse open={Boolean(done)} gap={16} appear>
+            <p role="status" className="surface px-3.5 py-3 text-sm" style={{ color: 'var(--text-primary)' }}>{done}</p>
+          </Collapse>
           {suggestions.length === 0 ? (
             <div className="py-6 text-center" data-testid="all-settled">
               <p className="serif-display" style={{ color: 'var(--text-primary)', fontSize: 22 }}>All settled up.</p>
@@ -220,6 +233,7 @@ export function SettleUpDialog({ groupId, tripName, currency, me, isOwner, membe
           <NeonBtn type="button" variant="ghost" onClick={onClose} className="min-h-11 w-full">Done</NeonBtn>
         </div>
       )}
+      </Swap>
     </SplitDialog>
   )
 }

@@ -123,7 +123,9 @@ test('tour every screen', async ({ browser }) => {
       await owner.keyboard.press('Enter')
       await expect(owner.getByTestId('todo-row').filter({ hasText: title })).toBeVisible()
     }
-    await owner.getByTestId('todo-row').filter({ hasText: 'Book airport transfer' }).getByRole('checkbox').check()
+    // Ticking folds the row out of the open list and into Completed.
+    await owner.getByTestId('todo-row').filter({ hasText: 'Book airport transfer' }).getByRole('checkbox').click()
+    await expect(owner.getByRole('list', { name: 'Completed todos' }).getByRole('checkbox')).toBeChecked()
     await shot(owner, 'todos-with-items')
   })
 

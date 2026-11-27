@@ -8,6 +8,8 @@
 export interface Celebration {
   id: number
   label: string
+  /** Announce only: the place that succeeded already shows its own tick (AsyncButton). */
+  quiet?: boolean
 }
 
 type Listener = (celebration: Celebration) => void
@@ -43,4 +45,10 @@ export function celebrate(label = 'Saved', { followUp = false }: { followUp?: bo
 export function onCelebrate(listener: Listener): () => void {
   listeners.add(listener)
   return () => { listeners.delete(listener) }
+}
+
+/** Tell screen readers about a success shown in place (an AsyncButton's "Saved"), with no visual tick. */
+export function announce(label: string): void {
+  const celebration = { id: -1, label: label.trim() || 'Saved', quiet: true }
+  for (const listener of listeners) listener(celebration)
 }

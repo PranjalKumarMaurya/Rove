@@ -1,4 +1,5 @@
 import { type CSSProperties, type ReactNode, useEffect, useId, useRef, useState } from 'react'
+import { AsyncLabel } from '../../components/ui/AsyncButton'
 import { type CrewErrorCode, type CrewErrorView, crewErrorCodeOf } from './crewRules'
 
 /** One confirmed, server-checked Crew action (MBR-06..13, GRP-08..18). */
@@ -142,8 +143,8 @@ export function ActionSheet({ title, intro, actions, onClose, testId = 'crew-act
             {phase.view.retryable && <button type="button" data-autofocus="" onClick={() => void attempt(spec, phase.requestId)} className={buttonClass} style={confirmStyle}>Retry</button>}
           </> : <>
             <button type="button" data-autofocus="" disabled={busy} onClick={finish} className={buttonClass} style={quietButtonStyle}>Cancel</button>
-            <button type="button" disabled={busy} onClick={() => void attempt(spec, crypto.randomUUID())} className={buttonClass} style={confirmStyle}>
-              {busy ? spec.busyLabel : spec.confirmLabel}
+            <button type="button" disabled={busy} aria-busy={busy || undefined} onClick={() => void attempt(spec, crypto.randomUUID())} className={buttonClass} style={confirmStyle}>
+              <AsyncLabel status={busy ? 'busy' : 'idle'} busyLabel={spec.busyLabel}>{spec.confirmLabel}</AsyncLabel>
             </button>
           </>}
         </div>

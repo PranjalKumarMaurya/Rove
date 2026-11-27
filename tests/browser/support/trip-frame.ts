@@ -119,6 +119,8 @@ export async function refreshTrips(page: Page) {
 }
 
 export async function openProfile(page: Page) {
+  // Profile is on the home screen only; leave a Trip first.
+  if (await page.getByTestId('group-workspace').count()) await goToTrips(page)
   await page.getByRole('button', { name: 'Profile', exact: true }).click()
   await expect(page.getByTestId('profile-screen')).toBeVisible()
 }

@@ -1,7 +1,8 @@
 import { type FormEvent, type KeyboardEvent, type RefObject, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { IconClose } from '../../components/ui/icons'
-import { NeonBtn } from '../../components/ui/NeonBtn'
+import { AsyncButton, useAsyncStatus } from '../../components/ui/AsyncButton'
+import { Collapse } from '../../components/ui/Collapse'
 import { NeonInput } from '../../components/ui/NeonInput'
 import { useTriggerOrigin } from '../../components/ui/motion'
 import { lockBodyScroll } from '../../hooks/useBodyScrollLock'
@@ -59,6 +60,7 @@ function InviteDialogCard({ shown, open, onClose, onInvite, triggerRef }: {
 }) {
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | undefined>()
+  const action = useAsyncStatus()
   const cardRef = useRef<HTMLDivElement>(null)
   useTriggerOrigin(cardRef, triggerRef)
   // NeonInput does not forward refs, so the field is found inside the card.
@@ -92,12 +94,16 @@ function InviteDialogCard({ shown, open, onClose, onInvite, triggerRef }: {
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const proof = inviteProofFromInput(value)
+    if (action.status === 'busy') return
     if (!proof) {
       setError(INVALID_LINK)
+      action.fail()
       return
     }
     setError(undefined)
-    onInvite(proof)
+    // "Opening…" for a beat, so the press visibly lands before the invitation screen takes over.
+    action.busy()
+    window.setTimeout(() => onInvite(proof), 260)
   }
 
   const paste = async () => {
@@ -124,7 +130,7 @@ function InviteDialogCard({ shown, open, onClose, onInvite, triggerRef }: {
           <div className="flex flex-col gap-1.5">
             <div className="relative">
               <NeonInput id="invite-link" value={value}
-                onChange={(event) => { setValue(event.target.value); setError(undefined) }}
+                onChange={(event) => { setValue(event.target.value); setError(undefined); if (action.status === 'error') action.reset() }}
                 aria-describedby={error ? `${messageId} invite-link-error` : messageId} aria-invalid={error ? true : undefined}
                 placeholder="Paste invite link" autoComplete="off" autoCapitalize="off" spellCheck={false} inputMode="url"
                 enterKeyHint="go" style={{ fontSize: 16, minHeight: 48, paddingRight: canPaste ? 76 : undefined }} />
@@ -132,9 +138,11 @@ function InviteDialogCard({ shown, open, onClose, onInvite, triggerRef }: {
                 <button type="button" className="invite-dialog__paste" onClick={() => { void paste() }}>Paste</button>
               )}
             </div>
-            {error && <p id="invite-link-error" className="field-error">{error}</p>}
+            <Collapse open={Boolean(error)} gap={6}>
+              <p id="invite-link-error" className="field-error">{error}</p>
+            </Collapse>
           </div>
-          <NeonBtn type="submit" size="lg" className="w-full">Open invite</NeonBtn>
+          <AsyncButton type="submit" size="lg" className="w-full" status={action.status} busyLabel="Opening…">Open invite</AsyncButton>
         </form>
       </div>
     </div>

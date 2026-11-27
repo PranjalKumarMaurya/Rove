@@ -15,7 +15,7 @@ export function Field({ id, label, hint, error, optional, className = '', childr
 }) {
   const messageId = error || hint ? `${id}-message` : undefined
   return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
+    <div className={`field flex flex-col gap-1.5 ${className}`}>
       <label htmlFor={id} className="field-label">
         {label}{optional && <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}> (optional)</span>}
       </label>

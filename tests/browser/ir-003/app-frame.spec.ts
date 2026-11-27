@@ -43,7 +43,8 @@ test('the workspace is an app shell: compact top bar and a one-row bottom tab ba
   await expect(header).not.toContainText(/\bGroups?\b|IANA|Supabase|Refresh|Sign out/)
   await expect(header.getByRole('button', { name: 'Back to Trips', exact: true })).toBeVisible()
   await expect(header.getByRole('button', { name: 'Trip settings' })).toBeVisible()
-  await expect(header.getByRole('button', { name: 'Profile' })).toBeVisible()
+  // Profile lives on the home screen, not in each Trip.
+  await expect(header.getByRole('button', { name: 'Profile' })).toHaveCount(0)
 
   const tabs = page.getByRole('tablist', { name: 'Trip sections' }).getByRole('tab')
   await expect(tabs).toHaveText(['Trip', 'Todos', 'Split', 'Scan', 'FX', 'Crew'])
@@ -93,12 +94,12 @@ test('the Trips home lists Trips; back control, domestic tabs, and Profile with 
   await expect(page.getByRole('tablist', { name: 'Trip sections' }).getByRole('tab')).toHaveText(['Trip', 'Todos', 'Split', 'Scan', 'Crew'])
   await expect(page.getByRole('button', { name: 'Trip details' })).toBeVisible()
 
+  // Profile is reached from the home screen's bottom nav.
+  await page.getByRole('button', { name: 'Back to Trips' }).click()
   await page.getByRole('button', { name: 'Profile', exact: true }).click()
   const profile = page.getByTestId('profile-screen')
   await expect(profile).toContainText('Partha')
   await expect(profile).toContainText('partha@example.test')
-  // Back is icon-only now; its hint still names the Trip it returns to.
-  await expect(profile.getByRole('button', { name: 'Back' })).toHaveAttribute('title', 'Back to Goa weekend')
   await profile.getByRole('button', { name: 'Sign out' }).click()
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
 })

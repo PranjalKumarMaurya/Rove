@@ -85,7 +85,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  padding: calc(16px + var(--safe-top)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
 }
 .invite-dialog__backdrop {
   position: absolute;
@@ -166,4 +166,4 @@
 
 /* The wordmark sits centred, close under the status bar (about half the usual top gap). */
 /* With an opaque status bar the inset is 0, so keep a little room under it. */
-.screen.home-top { padding-top: calc(10px + env(safe-area-inset-top, 0px)); }
+.screen.home-top { padding-top: calc(10px + var(--safe-top)); }

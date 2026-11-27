@@ -1,4 +1,4 @@
-import { type CSSProperties, type ReactNode, type ButtonHTMLAttributes } from 'react'
+import { type CSSProperties, type ReactNode, type ButtonHTMLAttributes, forwardRef } from 'react'
 
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   color?: string
@@ -13,7 +13,7 @@ function translucent(color: string): string {
   return /^#[0-9a-f]{6}$/i.test(color) ? `${color}55` : `color-mix(in srgb, ${color} 34%, transparent)`
 }
 
-export function NeonBtn({
+export const NeonBtn = forwardRef<HTMLButtonElement, Props>(function NeonBtn({
   color = 'var(--accent)',
   children,
   variant = 'solid',
@@ -21,7 +21,7 @@ export function NeonBtn({
   className = '',
   style: externalStyle,
   ...rest
-}: Props) {
+}, ref) {
   const base: CSSProperties = (() => {
     if (variant === 'solid')   return { background: color, border: `1px solid ${color}`, color: '#1A0A03' }
     if (variant === 'outline') return { background: 'transparent', border: `1px solid ${translucent(color)}`, color }
@@ -33,6 +33,7 @@ export function NeonBtn({
 
   return (
     <button
+      ref={ref}
       // m-press: transform-only press feedback (motion.css) instead of transition-all, which also eased layout.
       className={`${sizing} m-press font-ui hover:brightness-110 rounded-full disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100 ${className}`}
       style={{
@@ -46,4 +47,4 @@ export function NeonBtn({
       {children}
     </button>
   )
-}
+})

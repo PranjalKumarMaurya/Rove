@@ -450,8 +450,8 @@ export function AuthBoundary() {
       const trip = groups.find((group) => group.groupId === screen.groupId)
       // Waiting for the Trip list that includes a just-created or just-joined Trip.
       if (!trip) return <AuthEntry mode="restoring" />
-      return <GroupWorkspace trip={trip} onBack={goHome} onRefresh={refreshTrips} profile={myProfile.profile} accountName={accountName}
-        onOpenProfile={() => navigate({ kind: 'profile', from: { kind: 'trip', groupId: trip.groupId } })} />
+      // Profile lives on the home screen (bottom nav, swipe); a Trip shows only its own settings.
+      return <GroupWorkspace trip={trip} onBack={goHome} onRefresh={refreshTrips} />
     }
 
     return <TripsHome trips={groups} profile={myProfile.profile} accountName={accountName}

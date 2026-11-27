@@ -44,10 +44,11 @@ export function SuccessTick() {
   }, [])
 
   useEffect(() => onCelebrate((celebration) => {
-    setCurrent(celebration)
     setAnnouncement(celebration.label)
     window.clearTimeout(announceTimer.current)
     announceTimer.current = window.setTimeout(() => setAnnouncement(''), 2000)
+    if (celebration.quiet) return
+    setCurrent(celebration)
     // A coalesced call (same id) only updates the label; it does not restart the tick.
     if (shownId.current === celebration.id) return
     shownId.current = celebration.id

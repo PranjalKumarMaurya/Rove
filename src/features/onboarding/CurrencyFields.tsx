@@ -1,4 +1,5 @@
 import { type ReactNode, useId, useMemo, useState } from 'react'
+import { Collapse } from '../../components/ui/Collapse'
 import { Field } from '../../components/ui/Field'
 import { IconClose } from '../../components/ui/icons'
 import { NeonSelect } from '../../components/ui/NeonSelect'
@@ -50,7 +51,8 @@ export function TripCurrencyFields({
           {open ? 'Fewer options' : 'More options'}
           {!open && shownExtras.length > 0 && <span style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>· also {shownExtras.join(', ')}</span>}
         </button>
-        <div id={moreId} hidden={!open} className="mt-2">
+        <Collapse open={open} keepMounted id={moreId}>
+          <div className="pt-2">
           <Field id={`${idPrefix}-extra-currency`} label="Also show amounts in" optional
             hint={`Amounts are always shown in ${currency || 'the Trip currency'}.`} error={displayError}>
             <NeonSelect value="" disabled={disabled || addable.length === 0}
@@ -71,7 +73,8 @@ export function TripCurrencyFields({
               </li>
             ))}
           </ul>
-        </div>
+          </div>
+        </Collapse>
       </div>
     </>
   )

@@ -38,7 +38,7 @@ export function SplitDialog({ title, onClose, locked = false, testId, children }
   return createPortal(
     // Starts below the status bar so nothing scrolls under it (iOS blurs content there).
     <div className="m-backdrop fixed inset-x-0 bottom-0 z-50 flex justify-center overflow-y-auto overflow-x-hidden overscroll-none px-4 pt-6"
-      style={{ top: 'env(safe-area-inset-top, 0px)', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', background: 'rgba(15, 11, 8, 0.92)' }}
+      style={{ top: 'var(--safe-top)', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', background: 'rgba(15, 11, 8, 0.92)' }}
       onClick={() => { if (!locked) close.current() }}>
       <div ref={card} role="dialog" aria-modal="true" aria-labelledby={headingId} data-testid={testId}
         className="m-dialog my-auto w-full max-w-[480px]" onClick={(event) => event.stopPropagation()}
@@ -73,21 +73,20 @@ export function Field({ label, error, hint, children }: {
   const noteId = `${id}-note`
   const note = error ?? hint
   return (
-    <div className="flex flex-col gap-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
+    <div className="m-field flex flex-col gap-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
       <label htmlFor={id}>{label}</label>
       {children({ id, 'aria-describedby': note ? noteId : undefined, 'aria-invalid': error ? true : undefined })}
       {error
-        ? <span id={noteId} role="alert" style={{ color: 'var(--accent)', fontSize: 12 }}>{error}</span>
+        ? <span id={noteId} role="alert" className="m-field-error" style={{ color: 'var(--accent)', fontSize: 12 }}>{error}</span>
         : hint ? <span id={noteId} style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>{hint}</span> : null}
     </div>
   )
 }
 
+/** Colour and size; the border and background live on `.m-input` (motion.css) so focus can ease them. */
 export const inputStyle = {
-  background: 'rgba(245,241,235,0.035)',
-  border: '1px solid var(--border)',
   color: 'var(--text-primary)',
   fontSize: 14,
 } as const
 
-export const inputClass = 'w-full rounded-md px-3.5 py-2.5 outline-none focus:border-[color:var(--accent)]'
+export const inputClass = 'm-input w-full rounded-md px-3.5 py-2.5 outline-none'
