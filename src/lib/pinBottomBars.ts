@@ -6,12 +6,29 @@
 // (a no-op visually, but it makes Safari recompute where "bottom" is).
 let pending = 0
 
+/**
+ * A text field has focus, so the keyboard is (or is about to be) open. The
+ * repin's scroll nudge must not run then: on iPhone it makes Safari re-place
+ * the page under the keyboard, which threw the tab bar up above the keyboard
+ * and left the top of the screen blank until the next keystroke.
+ */
+export function isEditing(): boolean {
+  const active = document.activeElement as HTMLElement | null
+  if (!active) return false
+  if (active.isContentEditable) return true
+  if (active.tagName === 'TEXTAREA') return true
+  if (active.tagName !== 'INPUT') return false
+  return !/^(button|checkbox|radio|range|color|file|submit|reset|image|hidden)$/u.test((active as HTMLInputElement).type)
+}
+
 export function repinBottomBars(): void {
   if (typeof window === 'undefined') return
+  if (isEditing()) return
   window.cancelAnimationFrame(pending)
   const root = document.documentElement
   root.dataset.repin = 'true'
   pending = window.requestAnimationFrame(() => {
+    if (isEditing()) { delete root.dataset.repin; return }
     const y = window.scrollY
     window.scrollTo(window.scrollX, y > 0 ? y - 1 : y + 1)
     window.scrollTo(window.scrollX, y)

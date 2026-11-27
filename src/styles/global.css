@@ -936,6 +936,10 @@ img, svg { -webkit-user-drag: none; }
    float above it. Making the document at least full height lets WebKit give
    it the whole screen. The min() cap keeps it exact under an opaque status
    bar, where 100lvh is already the full screen. */
+/* Chat fits the screen: pin the page so iPhone can't scroll it when the field
+   is tapped (ChatTab sets this; sheets' own lock nests on top of it). */
+html[data-page-pinned="true"] body { position: fixed; top: 0; left: 0; right: 0; width: 100%; }
+
 @media (display-mode: standalone) {
   html { min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px))); }
 }

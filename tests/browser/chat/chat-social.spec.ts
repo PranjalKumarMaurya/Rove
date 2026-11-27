@@ -321,3 +321,30 @@ test('Trip settings: All / Mentions only / Off, and Mute for 8 hours, saved as m
   await section.getByRole('button', { name: 'Unmute' }).click()
   await expect.poll(() => (saved[2] as { muted_until: unknown } | undefined)?.muted_until).toBeNull()
 })
+
+test('keyboard: the page stays pinned while Chat is open, so tapping the field cannot scroll it; other tabs scroll again', async ({ page }) => {
+  await signedIn(page)
+  await page.goto('/')
+  await openTrip(page, 'Bali bachelor')
+  await openTripTab(page, 'Chat')
+  await expect(chat(page)).toBeVisible()
+  await expect(page.locator('html')).toHaveAttribute('data-page-pinned', 'true')
+  expect(await page.evaluate(() => getComputedStyle(document.body).position)).toBe('fixed')
+  // Swipe-back stays on: the pin is not a sheet lock.
+  expect(await page.evaluate(() => document.body.dataset.scrollLocked)).toBeUndefined()
+
+  const field = chat(page).getByRole('textbox').first()
+  await field.focus()
+  await page.evaluate(() => window.scrollTo(0, 400))
+  expect(await page.evaluate(() => window.scrollY)).toBe(0)
+  // No bottom-bar repin nudge while typing (it is what threw the bar above the keyboard).
+  await page.evaluate(() => window.dispatchEvent(new Event('resize')))
+  await page.waitForTimeout(400)
+  expect(await page.evaluate(() => document.documentElement.dataset.repin)).toBeUndefined()
+  await field.fill('Typing')
+
+  // Switching tabs with the field still focused unpins the page.
+  await openTripTab(page, 'Trip')
+  await expect(page.locator('html')).not.toHaveAttribute('data-page-pinned', /./u)
+  expect(await page.evaluate(() => getComputedStyle(document.body).position)).not.toBe('fixed')
+})

@@ -735,6 +735,14 @@ function useChatViewport(rootRef: RefObject<HTMLElement>, probeRef: RefObject<HT
     const root = rootRef.current
     if (!root) return
     const viewport = window.visualViewport
+    // The chat fits the screen, so the page behind it never needs to scroll.
+    // Pin it: otherwise, when the field is tapped, iPhone scrolls the whole
+    // page to reveal the field, and the fixed tab bar ends up above the keyboard
+    // with blank space at the top until the next keystroke.
+    // (Not lockBodyScroll: that marks a sheet as open, which turns off swipe-back.)
+    window.scrollTo(0, 0)
+    document.documentElement.dataset.pagePinned = 'true'
+    const unlock = () => { delete document.documentElement.dataset.pagePinned }
     let frame = 0
     const update = () => {
       const visibleBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight
@@ -768,6 +776,7 @@ function useChatViewport(rootRef: RefObject<HTMLElement>, probeRef: RefObject<HT
       window.removeEventListener('scroll', schedule)
       root.parentElement?.removeEventListener('animationend', schedule)
       observer?.disconnect()
+      unlock()
     }
   }, [probeRef, rootRef])
   return keyboard
